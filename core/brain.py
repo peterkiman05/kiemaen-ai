@@ -3,6 +3,7 @@ import sqlite3
 import base64
 import json
 import os
+import asyncio
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -35,16 +36,17 @@ def retrieve_memory():
 def encode_image(image_bytes):
     return base64.b64encode(image_bytes).decode('utf-8')
 
-def get_best_model(groq_api_key, is_vision=False):
+async def get_best_model(groq_api_key, is_vision=False):
     url = "https://api.groq.com/openai/v1/models"
     headers = {"Authorization": f"Bearer {groq_api_key}"}
     available = []
     
     try:
-        response = httpx.get(url, headers=headers, timeout=10.0)
-        if response.status_code == 200:
-            models = response.json().get("data", [])
-            available = [m["id"] for m in models]
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=headers, timeout=10.0)
+            if response.status_code == 200:
+                models = response.json().get("data", [])
+                available = [m["id"] for m in models]
     except Exception as e:
         print(f"[Brain] Error fetching models: {e}")
 
@@ -57,34 +59,40 @@ def get_best_model(groq_api_key, is_vision=False):
 
     target_list = preferred_vision if is_vision else preferred_chat
 
-    # Strict match against known working models
     for model in target_list:
         if model in available:
-            print(f"[Brain] Model selected: {model}")
             return model
 
-    # Blind fallback excluding toxic/audio models
     if available:
         for m in available:
             m_lower = m.lower()
             if "guard" not in m_lower and "whisper" not in m_lower and "canopy" not in m_lower:
-                print(f"[Brain] Auto-Fallback model selected: {m}")
                 return m
                 
     return target_list[0]
 
-# Renamed back to ask_kiemaen to match main.py expectations. 
-# Added **kwargs to catch any extra arguments main.py might try to pass.
-def ask_kiemaen(prompt, image_bytes=None, **kwargs):
+# *args and **kwargs make this function crash-proof, no matter what main.py sends.
+async def ask_kiemaen(*args, **kwargs):
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         raise Exception("GROQ_API_KEY not found in environment or .env file.")
+
+    # Safely extract the prompt
+    prompt = args[0] if len(args) > 0 else kwargs.get("prompt", kwargs.get("msg", ""))
+    
+    # Safely search all arguments for image data
+    image_bytes = None
+    for arg in args[1:]:
+        if isinstance(arg, bytes):
+            image_bytes = arg
+    if not image_bytes:
+        image_bytes = kwargs.get("image_bytes")
 
     init_db()
     history = retrieve_memory()
     
     is_vision = image_bytes is not None
-    model = get_best_model(api_key, is_vision)
+    model = await get_best_model(api_key, is_vision)
     
     messages = [{"role": "system", "content": "You are Kiemaen, an advanced AI running locally on Termux Android. Provide code solutions cleanly."}]
     messages.extend(history)
@@ -94,27 +102,26 @@ def ask_kiemaen(prompt, image_bytes=None, **kwargs):
         messages.append({
             "role": "user",
             "content": [
-                {"type": "text", "text": prompt},
+                {"type": "text", "text": str(prompt)},
                 {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
             ]
         })
     else:
-        messages.append({"role": "user", "content": prompt})
+        messages.append({"role": "user", "content": str(prompt)})
 
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     payload = {"model": model, "messages": messages, "temperature": 0.7}
 
     try:
-        response = httpx.post(url, headers=headers, json=payload, timeout=60.0)
-        response.raise_for_status()
-        ai_text = response.json()["choices"][0]["message"]["content"]
-        
-        store_memory("user", prompt)
-        store_memory("assistant", ai_text)
-        return ai_text
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=headers, json=payload, timeout=60.0)
+            response.raise_for_status()
+            ai_text = response.json()["choices"][0]["message"]["content"]
+            
+            store_memory("user", str(prompt))
+            store_memory("assistant", ai_text)
+            return ai_text
     except Exception as e:
         err_msg = str(e)
-        if 'response' in locals(): err_msg += f" | Details: {response.text}"
         raise Exception(f"Groq API Error: {err_msg}")
-
