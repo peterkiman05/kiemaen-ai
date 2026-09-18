@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <!-- Google Material Icons -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
     <style>
         body { background-color: #131314; color: #e3e3e3; font-family: 'Inter', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; }
         
@@ -22,7 +24,7 @@
         .message.user .bubble { background-color: #282a2c; border-radius: 24px 24px 4px 24px; color: #e3e3e3; }
         .message.bot .bubble { background-color: transparent; border-radius: 0; color: #c4c7c5; width: 100%; padding: 0; }
         
-        .message.error .bubble { color: #ff8a80; }
+        .message.error .bubble { color: #ff8a80; background: #3a1c1c; border-radius: 12px; padding: 15px; border: 1px solid #ff5555; }
 
         pre { margin: 15px 0; border-radius: 12px; overflow: hidden; background: #1e1f20; }
         code { font-family: monospace; font-size: 14px; }
@@ -31,17 +33,16 @@
         .code-header button:hover { background: #333; }
 
         #input-area { width: 100%; max-width: 800px; margin: 0 auto; padding: 15px 20px 30px 20px; box-sizing: border-box; }
-        .input-wrapper { display: flex; align-items: flex-end; background-color: #1e1f20; border-radius: 26px; padding: 8px 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+        .input-wrapper { display: flex; align-items: flex-end; background-color: #1e1f20; border-radius: 26px; padding: 8px 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); gap: 5px;}
         
         textarea { flex-grow: 1; background: transparent; border: none; color: #e3e3e3; font-size: 16px; padding: 12px; outline: none; font-family: 'Inter', sans-serif; resize: none; max-height: 150px; overflow-y: auto; }
         
-        .icon-btn { background: transparent; border: none; color: #c4c7c5; font-size: 22px; cursor: pointer; padding: 10px; border-radius: 50%; transition: 0.2s; display: flex; align-items: center; justify-content: center; height: 44px; width: 44px; margin-bottom: 2px; }
+        .icon-btn { background: transparent; border: none; color: #c4c7c5; cursor: pointer; padding: 10px; border-radius: 50%; transition: 0.2s; display: flex; align-items: center; justify-content: center; height: 44px; width: 44px; margin-bottom: 2px; }
         .icon-btn:hover { background-color: #333538; }
         
         .jarvis-active { background-color: #441111 !important; color: #ff5555 !important; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } }
         
-        /* Markdown overrides for Gemini feel */
         .bubble p { margin-top: 0; }
         .bubble a { color: #8ab4f8; }
     </style>
@@ -54,10 +55,16 @@
     <div id="input-area">
         <div class="input-wrapper">
             <input type="file" id="imageInput" accept="image/*" style="display:none">
-            <button class="icon-btn" onclick="document.getElementById('imageInput').click()" title="Upload Image">📷</button>
+            <button class="icon-btn" onclick="document.getElementById('imageInput').click()" title="Upload Image">
+                <span class="material-symbols-outlined">image</span>
+            </button>
             <textarea id="userInput" rows="1" placeholder="Ask Kiemaen..." onkeydown="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); sendMessage(); }" oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'"></textarea>
-            <button class="icon-btn" id="micBtn" onclick="toggleJarvis()" title="Voice Mode">🎙️</button>
-            <button class="icon-btn" onclick="sendMessage()" title="Send">🚀</button>
+            <button class="icon-btn" id="micBtn" onclick="toggleJarvis()" title="Voice Mode">
+                <span class="material-symbols-outlined">mic</span>
+            </button>
+            <button class="icon-btn" onclick="sendMessage()" title="Send">
+                <span class="material-symbols-outlined">send</span>
+            </button>
         </div>
     </div>
 
@@ -66,10 +73,9 @@
         let jarvisMode = false;
         let isSpeaking = false;
         
-        // Setup Web Speech API for Jarvis Loop
         if ('webkitSpeechRecognition' in window) {
             recognition = new webkitSpeechRecognition();
-            recognition.continuous = false; // We use a manual loop for better control
+            recognition.continuous = false;
             recognition.interimResults = false;
             
             recognition.onstart = () => { document.getElementById("micBtn").classList.add("jarvis-active"); };
@@ -81,7 +87,6 @@
             };
             
             recognition.onend = () => {
-                // If Jarvis mode is on, and the bot isn't currently speaking, restart listening
                 if (jarvisMode && !isSpeaking) {
                     setTimeout(() => { try { recognition.start(); } catch(e){} }, 300);
                 } else if (!jarvisMode) {
@@ -112,12 +117,11 @@
             window.speechSynthesis.cancel();
             
             isSpeaking = true;
-            recognition.stop(); // Stop listening so it doesn't hear itself
+            recognition.stop();
             
-            // Strip markdown and code blocks for TTS
             let cleanText = text.replace(/```[\s\S]*?```/g, "Code provided on screen.")
                                 .replace(/[*_#]/g, "")
-                                .replace(/<[^>]*>?/gm, ''); // Remove HTML
+                                .replace(/<[^>]*>?/gm, ''); 
             
             let utterance = new SpeechSynthesisUtterance(cleanText);
             utterance.rate = 1.05;
@@ -125,7 +129,6 @@
             utterance.onend = () => {
                 isSpeaking = false;
                 if (jarvisMode) {
-                    // Start listening again immediately after speaking finishes
                     setTimeout(() => { try { recognition.start(); } catch(e){} }, 300);
                 }
             };
@@ -180,7 +183,6 @@
             msgDiv.appendChild(bubbleDiv);
             chat.appendChild(msgDiv);
             
-            // Auto scroll
             setTimeout(() => { wrapper.scrollTop = wrapper.scrollHeight; }, 100);
         }
 
@@ -194,13 +196,12 @@
 
             addMessage(text || "[Image Attached]", "user");
             input.value = "";
-            input.style.height = ""; // Reset textarea height
+            input.style.height = "";
             
             const formData = new FormData();
             if (text) formData.append("prompt", text);
             if (file) { formData.append("image", file); imageInput.value = ""; }
 
-            // Temporary loading indicator
             const loadingId = "load-" + Date.now();
             const chat = document.getElementById("chat-container");
             chat.insertAdjacentHTML('beforeend', `<div id="${loadingId}" class="message bot"><div class="bubble">✨ Thinking...</div></div>`);
@@ -210,7 +211,12 @@
                 let response = await fetch("/chat", { method: "POST", body: formData });
                 document.getElementById(loadingId).remove();
 
-                if (!response.ok) throw new Error("Server disconnected.");
+                if (!response.ok) {
+                    // NEW: Grab the EXACT error text from the server!
+                    let errText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errText}`);
+                }
+                
                 let result = await response.json();
                 if (result.status === "error") throw new Error(result.message);
 
@@ -218,10 +224,8 @@
                 speak(result.response);
             } catch (error) {
                 document.getElementById(loadingId)?.remove();
-                addMessage(`Error: ${error.message}`, "error");
-                speak("I encountered a network error.");
-                
-                // Pause Jarvis on error so it doesn't loop bad connections
+                addMessage(`Server Error Details:\n${error.message}`, "error");
+                speak("I encountered a server error.");
                 if (jarvisMode) toggleJarvis(); 
             }
         }
