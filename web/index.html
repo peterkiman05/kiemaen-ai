@@ -235,8 +235,11 @@ body {
     <span class="close-x" onclick="closeAuthModal()">&#10005;</span>
     <h2 id="authTitle">Login</h2>
     <input type="text" id="authUsername" placeholder="Username">
+    <input type="email" id="authEmail" placeholder="Email" style="display:none;">
     <input type="password" id="authPassword" placeholder="Password">
+    <input type="text" id="authCode" placeholder="6-digit verification code" style="display:none;">
     <button class="submit" id="authSubmitBtn" onclick="submitAuth()">Login</button>
+    <button class="submit" id="authVerifyBtn" onclick="submitVerifyCode()" style="display:none;">Verify & Create Account</button>
     <span class="switch-link" id="authSwitch" onclick="switchAuthMode()">Don't have an account? Register</span>
   </div>
 </div>
@@ -265,19 +268,67 @@ function openAuthModal(){ document.getElementById('authModal').classList.add('op
 function closeAuthModal(){ document.getElementById('authModal').classList.remove('open'); }
 function switchAuthMode(){
   authMode = authMode === 'login' ? 'register' : 'login';
+  resetAuthModal();
   document.getElementById('authTitle').innerText = authMode === 'login' ? 'Login' : 'Register';
-  document.getElementById('authSubmitBtn').innerText = authMode === 'login' ? 'Login' : 'Create Account';
+  document.getElementById('authSubmitBtn').innerText = authMode === 'login' ? 'Login' : 'Send Verification Code';
   document.getElementById('authSwitch').innerText = authMode === 'login' ? "Don't have an account? Register" : "Already have an account? Login";
 }
+let pendingVerifyEmail = null;
+
 async function submitAuth(){
   const username = document.getElementById('authUsername').value.trim();
   const password = document.getElementById('authPassword').value;
-  if(!username || !password) return;
+
+  if(authMode === 'login'){
+    if(!username || !password) return;
+    const fd = new FormData();
+    fd.append('username', username);
+    fd.append('password', password);
+    const res = await fetch('/login', { method:'POST', body: fd });
+    const data = await res.json();
+    if(data.status === 'ok'){
+      token = data.token;
+      localStorage.setItem('kiemaen_token', token);
+      isAdmin = data.is_admin;
+      updateAuthUI(data.username, data.is_admin);
+      closeAuthModal();
+    } else {
+      alert(data.message);
+    }
+    return;
+  }
+
+  // Register mode - phase 1: request the code
+  const email = document.getElementById('authEmail').value.trim();
+  if(!username || !email || !password){ alert('Please fill in all fields.'); return; }
+
   const fd = new FormData();
   fd.append('username', username);
+  fd.append('email', email);
   fd.append('password', password);
-  const endpoint = authMode === 'login' ? '/login' : '/register';
-  const res = await fetch(endpoint, { method:'POST', body: fd });
+  const res = await fetch('/register/request-code', { method:'POST', body: fd });
+  const data = await res.json();
+  if(data.status === 'ok'){
+    pendingVerifyEmail = email;
+    document.getElementById('authUsername').style.display = 'none';
+    document.getElementById('authEmail').style.display = 'none';
+    document.getElementById('authPassword').style.display = 'none';
+    document.getElementById('authSubmitBtn').style.display = 'none';
+    document.getElementById('authCode').style.display = 'block';
+    document.getElementById('authVerifyBtn').style.display = 'block';
+    document.getElementById('authTitle').innerText = 'Check your email';
+  } else {
+    alert(data.message);
+  }
+}
+
+async function submitVerifyCode(){
+  const code = document.getElementById('authCode').value.trim();
+  if(!code || !pendingVerifyEmail) return;
+  const fd = new FormData();
+  fd.append('email', pendingVerifyEmail);
+  fd.append('code', code);
+  const res = await fetch('/register/verify', { method:'POST', body: fd });
   const data = await res.json();
   if(data.status === 'ok'){
     token = data.token;
@@ -285,9 +336,24 @@ async function submitAuth(){
     isAdmin = data.is_admin;
     updateAuthUI(data.username, data.is_admin);
     closeAuthModal();
+    resetAuthModal();
   } else {
     alert(data.message);
   }
+}
+
+function resetAuthModal(){
+  pendingVerifyEmail = null;
+  document.getElementById('authUsername').style.display = 'block';
+  document.getElementById('authEmail').style.display = authMode === 'register' ? 'block' : 'none';
+  document.getElementById('authPassword').style.display = 'block';
+  document.getElementById('authCode').style.display = 'none';
+  document.getElementById('authSubmitBtn').style.display = 'block';
+  document.getElementById('authVerifyBtn').style.display = 'none';
+  document.getElementById('authUsername').value = '';
+  document.getElementById('authEmail').value = '';
+  document.getElementById('authPassword').value = '';
+  document.getElementById('authCode').value = '';
 }
 function updateAuthUI(username, admin){
   document.getElementById('authBtn').innerText = username;

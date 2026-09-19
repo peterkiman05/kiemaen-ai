@@ -2,6 +2,7 @@ import sqlite3
 import hashlib
 import secrets
 import os
+import random
 from datetime import datetime, timedelta
 
 DB_PATH = "memory.db"
@@ -12,6 +13,7 @@ def init_auth_db():
     c.execute("""CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
+        email TEXT UNIQUE,
         password_hash TEXT NOT NULL,
         salt TEXT NOT NULL,
         is_admin INTEGER DEFAULT 0,
@@ -23,7 +25,24 @@ def init_auth_db():
         created_at TEXT,
         expires_at TEXT
     )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS pending_verifications (
+        email TEXT PRIMARY KEY,
+        username TEXT NOT NULL,
+        password_hash TEXT NOT NULL,
+        salt TEXT NOT NULL,
+        code TEXT NOT NULL,
+        created_at TEXT,
+        expires_at TEXT
+    )""")
     conn.commit()
+
+    # Migration-safe: add email column if upgrading an existing database that predates it
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN email TEXT")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass  # column already exists
+
     conn.close()
 
 def hash_password(password, salt=None):
@@ -32,14 +51,14 @@ def hash_password(password, salt=None):
     pwd_hash = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 100000).hex()
     return pwd_hash, salt
 
-def create_user(username, password, is_admin=0):
+def create_user(username, password, is_admin=0, email=None):
     init_auth_db()
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     pwd_hash, salt = hash_password(password)
     try:
-        c.execute("INSERT INTO users (username, password_hash, salt, is_admin, created_at) VALUES (?, ?, ?, ?, ?)",
-                   (username, pwd_hash, salt, is_admin, datetime.utcnow().isoformat()))
+        c.execute("INSERT INTO users (username, email, password_hash, salt, is_admin, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                  (username, email, pwd_hash, salt, is_admin, datetime.utcnow().isoformat()))
         conn.commit()
         result = True
     except sqlite3.IntegrityError:
@@ -111,3 +130,81 @@ def ensure_admin_exists():
     if not exists:
         create_user(admin_user, admin_pass, is_admin=1)
         print(f"[Auth] Admin account initialized: {admin_user}")
+
+# ===== EMAIL VERIFICATION SYSTEM =====
+
+def username_taken(username):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT id FROM users WHERE username=?", (username,))
+    row = c.fetchone()
+    conn.close()
+    return row is not None
+
+def email_taken(email):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT id FROM users WHERE email=?", (email,))
+    row = c.fetchone()
+    conn.close()
+    return row is not None
+
+def create_pending_verification(username, email, password):
+    """Stores a pending signup and returns a 6-digit code to be emailed to the user."""
+    init_auth_db()
+    if username_taken(username):
+        return None, "Username already taken."
+    if email_taken(email):
+        return None, "An account with this email already exists."
+
+    pwd_hash, salt = hash_password(password)
+    code = str(random.randint(100000, 999999))
+    now = datetime.utcnow()
+    expires = now + timedelta(minutes=10)
+
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""INSERT OR REPLACE INTO pending_verifications
+                 (email, username, password_hash, salt, code, created_at, expires_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)""",
+              (email, username, pwd_hash, salt, code, now.isoformat(), expires.isoformat()))
+    conn.commit()
+    conn.close()
+    return code, None
+
+def verify_and_create_user(email, code):
+    """Checks the code against the pending verification and, if valid, creates the real account."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT username, password_hash, salt, code, expires_at FROM pending_verifications WHERE email=?", (email,))
+    row = c.fetchone()
+
+    if not row:
+        conn.close()
+        return None, "No pending verification found for this email. Please request a new code."
+
+    username, pwd_hash, salt, stored_code, expires_at = row
+
+    if datetime.fromisoformat(expires_at) < datetime.utcnow():
+        c.execute("DELETE FROM pending_verifications WHERE email=?", (email,))
+        conn.commit()
+        conn.close()
+        return None, "Verification code expired. Please request a new one."
+
+    if code.strip() != stored_code:
+        conn.close()
+        return None, "Incorrect verification code."
+
+    try:
+        c.execute("INSERT INTO users (username, email, password_hash, salt, is_admin, created_at) VALUES (?, ?, ?, ?, 0, ?)",
+                  (username, email, pwd_hash, salt, datetime.utcnow().isoformat()))
+        conn.commit()
+        user_id = c.lastrowid
+    except sqlite3.IntegrityError:
+        conn.close()
+        return None, "Username or email was just taken. Please try registering again."
+
+    c.execute("DELETE FROM pending_verifications WHERE email=?", (email,))
+    conn.commit()
+    conn.close()
+    return {"id": user_id, "username": username, "is_admin": False}, None

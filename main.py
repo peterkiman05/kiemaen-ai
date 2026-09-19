@@ -6,7 +6,9 @@ from dotenv import load_dotenv
 
 from core.brain import ask_kiemaen
 from core.auth import (init_auth_db, ensure_admin_exists, create_user, verify_user,
-                        create_session, get_session_user, delete_session)
+                        create_session, get_session_user, delete_session,
+                        create_pending_verification, verify_and_create_user)
+from core.mailer import send_verification_email
 from core.security import (firewall_middleware, is_path_safe, is_locked_file,
                             propose_edit, confirm_edit, reject_edit, rollback_edit,
                             validate_python_syntax, LOCKED_FILES)
@@ -31,6 +33,31 @@ def get_user(token):
 @app.get("/")
 async def home():
     return FileResponse("web/index.html")
+
+@app.post("/register/request-code")
+async def register_request_code(username: str = Form(...), email: str = Form(...), password: str = Form(...)):
+    if len(username) < 3 or len(password) < 4:
+        return {"status": "error", "message": "Username or password too short."}
+    if "@" not in email or "." not in email:
+        return {"status": "error", "message": "Please enter a valid email address."}
+
+    code, error = create_pending_verification(username, email, password)
+    if error:
+        return {"status": "error", "message": error}
+
+    sent, msg = send_verification_email(email, code, username)
+    if not sent:
+        return {"status": "error", "message": msg}
+
+    return {"status": "ok", "message": f"Verification code sent to {email}."}
+
+@app.post("/register/verify")
+async def register_verify(email: str = Form(...), code: str = Form(...)):
+    user, error = verify_and_create_user(email, code)
+    if error:
+        return {"status": "error", "message": error}
+    token = create_session(user["id"])
+    return {"status": "ok", "token": token, "username": user["username"], "is_admin": user["is_admin"]}
 
 @app.post("/register")
 async def register(username: str = Form(...), password: str = Form(...)):
