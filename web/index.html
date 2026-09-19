@@ -62,115 +62,69 @@ textarea { flex-grow:1; background:transparent; border:none; color:#e3e3e3; font
 
 
 \n
-<style id="kiemaen-logo-patch">
+
+\n
+
+\n
+<style id="kiemaen-fix-v3">
 html, body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
   background: linear-gradient(180deg, #05070d 0%, #0a0e1a 45%, #10213d 100%) !important;
-  min-height: 100vh;
 }
-#chatArea, .chat-area, .messages, main {
-  background: transparent !important;
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
 }
+#header {
+  flex-shrink: 0;
+  background: transparent;
+}
+#chat-wrapper {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+#chat-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  justify-content: center;
+}
+#input-area {
+  flex-shrink: 0;
+  margin-bottom: 10px;
+}
+
 .kiemaen-empty-state {
-  display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
-  padding-top: 12vh;
-  min-height:60vh; text-align:center; animation: fadeIn 0.6s ease;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding: 20px; text-align:center; animation: fadeInUp 0.6s ease;
 }
 .kiemaen-clover-logo {
-  width: 130px; height: 130px;
-  margin-bottom: 18px;
-  filter: drop-shadow(0 4px 18px rgba(66,133,244,0.35));
+  width: 140px; height: 140px;
+  margin-bottom: 20px;
+  filter: drop-shadow(0 4px 20px rgba(66,133,244,0.4));
 }
 .kiemaen-empty-state h1 {
-  font-size: 32px;
+  font-size: 34px;
   font-weight: 700;
-  letter-spacing: 0.5px;
   margin: 0;
-  background: linear-gradient(135deg, #4285f4 0%, #1a73e8 40%, #0a0a0a 100%);
+  background: linear-gradient(135deg, #6ea8ff 0%, #1a73e8 45%, #05070d 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
 }
 .kiemaen-empty-state p.tagline {
-  color:#8ab4f8; font-size:15px; margin-top:8px; opacity:0.85; font-weight:400;
+  color:#8ab4f8; font-size:15px; margin-top:10px; opacity:0.85;
 }
-@keyframes fadeIn { from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
-
-.gemini-input-bar {
-  display:flex; align-items:center; gap:8px;
-  background:#1e1f22; border-radius:32px; padding:8px 10px 8px 16px;
-  margin:12px; box-shadow:0 2px 10px rgba(0,0,0,0.3);
-}
-.gemini-input-bar input, .gemini-input-bar textarea {
-  background:transparent !important; border:none !important; color:#e8eaed !important;
-  outline:none !important; flex:1; font-size:16px; resize:none;
-}
-.gemini-icon-btn {
-  background:transparent; border:none; color:#9aa0a6; cursor:pointer;
-  display:flex; align-items:center; justify-content:center;
-  width:36px; height:36px; border-radius:50%; transition:background 0.15s;
-}
-.gemini-icon-btn:hover { background:rgba(255,255,255,0.08); }
-.gemini-voice-btn {
-  width:40px; height:40px; border-radius:50%;
-  background:linear-gradient(135deg,#4285f4,#0a0a0a);
-  display:flex; align-items:center; justify-content:center;
-  border:none; cursor:pointer; flex-shrink:0;
-  box-shadow:0 2px 8px rgba(66,133,244,0.4);
-}
-.gemini-voice-btn:hover { filter:brightness(1.15); }
-.gemini-voice-btn.jarvis-active { animation: pulseVoice 1.2s infinite; }
-@keyframes pulseVoice {
-  0% { box-shadow:0 0 0 0 rgba(66,133,244,0.5); }
-  70% { box-shadow:0 0 0 12px rgba(66,133,244,0); }
-  100% { box-shadow:0 0 0 0 rgba(66,133,244,0); }
-}
-</style>
-\n
-<style id="kiemaen-layout-fix">
-html, body {
-  height: 100%;
-  margin: 0;
-  overflow: hidden;
-}
-body {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  height: 100dvh; /* dynamic viewport height - accounts for mobile browser chrome */
-}
-
-/* Force the app's root wrapper (whatever it's called) to fill height as flex column */
-body > div:first-child,
-#app, .app, #root {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  flex: 1;
-  min-height: 0;
-}
-
-/* Chat/message area should flex-grow and scroll internally, not create page-level empty space */
-#chatArea, .chat-area, main {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  justify-content: center; /* centers empty-state vertically within available space, not whole page */
-}
-
-.kiemaen-empty-state {
-  padding-top: 0 !important; /* remove old top-offset, let flex centering handle position */
-  min-height: unset !important;
-  margin: auto 0;
-}
-
-/* Input bar stays pinned at bottom but close to content, not floating far below */
-.gemini-input-bar {
-  flex-shrink: 0;
-  margin: 8px 12px 16px 12px !important;
-}
+@keyframes fadeInUp { from{opacity:0; transform:translateY(14px);} to{opacity:1; transform:translateY(0);} }
 </style>
 \n</head>
 <body>
@@ -557,71 +511,32 @@ async function sendMessage(){
 
 
 \n
-<script id="kiemaen-logo-ui-patch">
+
+\n
+<script id="kiemaen-fix-v3-js">
 (function(){
   function init(){
-    var chatArea = document.getElementById('chatArea') || document.querySelector('.chat-area') || document.querySelector('main');
-    if (chatArea && !document.querySelector('.kiemaen-empty-state')) {
+    var container = document.getElementById('chat-container');
+    if (container && !document.querySelector('.kiemaen-empty-state')) {
       var empty = document.createElement('div');
       empty.className = 'kiemaen-empty-state';
-      empty.innerHTML = `
-<svg class="kiemaen-clover-logo" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="cloverGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#5b9bff"/>
-      <stop offset="45%" stop-color="#1a73e8"/>
-      <stop offset="100%" stop-color="#050810"/>
-    </linearGradient>
-  </defs>
-  <g transform="translate(100,100)">
-    <g id="leafGroup">
-      <path d="M0,0 C-22,-30 -22,-70 0,-95 C22,-70 22,-30 0,0 Z" fill="url(#cloverGrad)"/>
-    </g>
-    <use href="#leafGroup" transform="rotate(72)"/>
-    <use href="#leafGroup" transform="rotate(144)"/>
-    <use href="#leafGroup" transform="rotate(216)"/>
-    <use href="#leafGroup" transform="rotate(288)"/>
-    <circle r="10" fill="#0a0a0a" stroke="#4285f4" stroke-width="2"/>
-  </g>
-</svg>
-<h1>Kiemaen AI</h1><p class="tagline">Your ultimate agentic assistant</p>`;
-      chatArea.prepend(empty);
+      empty.id = 'kiemaenEmptyState';
+      empty.innerHTML = '<svg class=\"kiemaen-clover-logo\" viewBox=\"0 0 200 200\" xmlns=\"http://www.w3.org/2000/svg\"><defs><linearGradient id=\"cloverGrad\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"100%\"><stop offset=\"0%\" stop-color=\"#6ea8ff\"/><stop offset=\"45%\" stop-color=\"#1a73e8\"/><stop offset=\"100%\" stop-color=\"#05070d\"/></linearGradient></defs><g transform=\"translate(100,100)\"><g id=\"leafGroup\"><path d=\"M0,0 C-22,-30 -22,-70 0,-95 C22,-70 22,-30 0,0 Z\" fill=\"url(#cloverGrad)\"/></g><use href=\"#leafGroup\" transform=\"rotate(72)\"/><use href=\"#leafGroup\" transform=\"rotate(144)\"/><use href=\"#leafGroup\" transform=\"rotate(216)\"/><use href=\"#leafGroup\" transform=\"rotate(288)\"/><circle r=\"10\" fill=\"#05070d\" stroke=\"#4285f4\" stroke-width=\"2\"/></g></svg><h1>Kiemaen AI</h1><p class="tagline">Your ultimate agentic assistant</p>';
+      container.prepend(empty);
 
       var observer = new MutationObserver(function(){
-        var hasMessages = chatArea.querySelectorAll('.message').length > 0;
+        var hasMessages = container.querySelectorAll('.message').length > 0;
         empty.style.display = hasMessages ? 'none' : 'flex';
       });
-      observer.observe(chatArea, { childList: true });
-    }
-
-    var textarea = document.querySelector('textarea');
-    if (textarea) {
-      var bar = textarea.closest('div');
-      if (bar && !bar.classList.contains('gemini-input-bar')) {
-        bar.classList.add('gemini-input-bar');
-      }
-      if (!document.querySelector('.gemini-voice-btn')) {
-        var voiceBtn = document.createElement('button');
-        voiceBtn.className = 'gemini-voice-btn';
-        voiceBtn.title = 'Start voice conversation';
-        voiceBtn.innerHTML = '<span class="material-symbols-outlined" style="color:#fff;font-size:20px;">graphic_eq</span>';
-        voiceBtn.onclick = function(){
-          if (typeof toggleJarvis === 'function') {
-            toggleJarvis();
-            voiceBtn.classList.toggle('jarvis-active');
-          }
-        };
-        bar.appendChild(voiceBtn);
-      }
+      observer.observe(container, { childList: true });
     }
   }
-
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
     init();
   }
-  setTimeout(init, 500);
+  setTimeout(init, 300);
 })();
 </script>
 \n</body>
