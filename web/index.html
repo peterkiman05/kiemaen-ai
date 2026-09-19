@@ -567,5 +567,59 @@ async function sendMessage(){
   setTimeout(init, 300);
 })();
 </script>
+\n
+<script id="kiemaen-voice-speed">
+(function(){
+  function init(){
+    if (typeof recognition === 'undefined' || !recognition) {
+      setTimeout(init, 300);
+      return;
+    }
+
+    // 1. FASTER SETTINGS: interim results = instant partial feedback,
+    //    non-continuous = auto-finalizes quickly after you stop talking
+    try {
+      recognition.interimResults = true;
+      recognition.continuous = false;
+      recognition.maxAlternatives = 1;
+    } catch(e){}
+
+    // 2. INSTANT VISUAL FEEDBACK the moment recognition truly starts
+    recognition.addEventListener('start', function(){
+      var btn = document.getElementById('actionBtn');
+      if (btn) btn.classList.add('jarvis-active');
+      if (typeof updateMicVisual === 'function') updateMicVisual('listening');
+    });
+
+    // 3. Show live interim transcript in the input box as you speak
+    recognition.addEventListener('result', function(e){
+      var txt = '';
+      for (var i = e.resultIndex; i < e.results.length; i++) {
+        txt += e.results[i][0].transcript;
+      }
+      var input = document.getElementById('userInput');
+      if (input) input.value = txt;
+    });
+
+    console.log('[Kiemaen] Voice speed patch applied.');
+  }
+
+  // 4. Pre-warm the TTS engine so first reply speaks instantly (no cold-start lag)
+  function warmTTS(){
+    if (window.speechSynthesis) {
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = function(){
+        window.speechSynthesis.getVoices();
+      };
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function(){ init(); warmTTS(); });
+  } else {
+    init(); warmTTS();
+  }
+})();
+</script>
 \n</body>
 </html>
