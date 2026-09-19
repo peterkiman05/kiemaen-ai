@@ -1,4 +1,5 @@
 import os
+import difflib
 from fastapi import FastAPI, Form, File, UploadFile, Header
 from fastapi.responses import FileResponse, JSONResponse
 from dotenv import load_dotenv
@@ -6,7 +7,9 @@ from dotenv import load_dotenv
 from core.brain import ask_kiemaen
 from core.auth import (init_auth_db, ensure_admin_exists, create_user, verify_user,
                         create_session, get_session_user, delete_session)
-from core.security import firewall_middleware, is_path_safe
+from core.security import (firewall_middleware, is_path_safe, is_locked_file,
+                            propose_edit, confirm_edit, reject_edit, rollback_edit,
+                            validate_python_syntax, LOCKED_FILES)
 from tools.coder import read_file, write_file, extract_code, run_script
 
 load_dotenv()
@@ -59,6 +62,28 @@ async def me(x_session_token: str = Header(default=None)):
     user = get_user(x_session_token)
     return {"username": user["username"], "is_admin": user["is_admin"]}
 
+def detect_edit_target(text: str):
+    """Returns a locked file path if the admin's message appears to target one for editing."""
+    lowered = text.lower()
+    if not any(k in lowered for k in ["modify", "edit", "update", "change", "rewrite", "patch"]):
+        return None
+    for locked_path in LOCKED_FILES:
+        filename = os.path.basename(locked_path)
+        if locked_path.lower() in lowered or filename.lower() in lowered:
+            return locked_path
+    return None
+
+def make_diff(old_content: str, new_content: str, file_path: str) -> str:
+    diff_lines = list(difflib.unified_diff(
+        old_content.splitlines(keepends=True),
+        new_content.splitlines(keepends=True),
+        fromfile=f"{file_path} (current)",
+        tofile=f"{file_path} (proposed)",
+    ))
+    if not diff_lines:
+        return "(No differences detected between current and proposed content.)"
+    return "".join(diff_lines)
+
 @app.post("/chat")
 async def chat(
     prompt: str = Form(default=""),
@@ -74,6 +99,63 @@ async def chat(
     image_bytes = await image.read() if image else None
 
     try:
+        # ===== ADMIN CORE-EDIT SYSTEM =====
+        if is_admin:
+            stripped = text.strip()
+
+            if stripped.upper().startswith("CONFIRM_EDIT"):
+                parts = stripped.split()
+                if len(parts) < 2:
+                    return {"status": "ok", "response": "Usage: CONFIRM_EDIT <edit_id>", "category": "meta"}
+                edit_id = parts[1]
+                success, result = confirm_edit(edit_id, user["username"])
+                if not success:
+                    return {"status": "ok", "response": f"Could not confirm edit: {result}", "category": "meta"}
+
+                from core.security import PENDING_EDITS
+                edited_file = PENDING_EDITS[edit_id]["file"]
+                valid, reason = validate_python_syntax(edited_file)
+                if not valid:
+                    rollback_edit(edit_id)
+                    return {"status": "ok", "response": f"Edit applied but FAILED validation ({reason}). Automatically rolled back to the previous working version. Please revise your request and try again.", "category": "meta"}
+
+                return {"status": "ok", "response": f"Edit confirmed and applied to {edited_file}.\nValidation: {reason}\nBackup saved at: {result}", "category": "meta"}
+
+            if stripped.upper().startswith("REJECT_EDIT"):
+                parts = stripped.split()
+                if len(parts) < 2:
+                    return {"status": "ok", "response": "Usage: REJECT_EDIT <edit_id>", "category": "meta"}
+                edit_id = parts[1]
+                success, result = reject_edit(edit_id)
+                return {"status": "ok", "response": result, "category": "meta"}
+
+            target_file = detect_edit_target(text)
+            if target_file:
+                current_content = read_file(target_file)
+                if current_content.startswith("[ERROR]"):
+                    return {"status": "ok", "response": f"Could not read {target_file}: {current_content}", "category": "meta"}
+
+                edit_prompt = (
+                    f"You are editing the file '{target_file}'. Here is its CURRENT full content:\n\n"
+                    f"```\n{current_content}\n```\n\n"
+                    f"Requested change: {text}\n\n"
+                    f"Return ONLY the complete new file content for '{target_file}', fully rewritten with the requested change applied. "
+                    f"Do not include explanations, do not omit any existing code that should remain, output the full file in a single code block."
+                )
+                edit_reply, _ = await ask_kiemaen(edit_prompt, user_key=user_key, is_admin=is_admin)
+                new_content = extract_code(edit_reply)
+
+                diff_preview = make_diff(current_content, new_content, target_file)
+                edit_id = propose_edit(target_file, new_content, user["username"], diff_preview)
+
+                response_text = (
+                    f"**Proposed edit to `{target_file}`** (edit_id: `{edit_id}`)\n\n"
+                    f"```diff\n{diff_preview}\n```\n\n"
+                    f"Reply **CONFIRM_EDIT {edit_id}** to apply this change, or **REJECT_EDIT {edit_id}** to cancel."
+                )
+                return {"status": "ok", "response": response_text, "category": "meta"}
+        # ===== END ADMIN CORE-EDIT SYSTEM =====
+
         if image_bytes:
             reply, category = await ask_kiemaen(text, image_bytes, user_key=user_key, is_admin=is_admin)
         else:
