@@ -185,10 +185,10 @@ function handleInput(){
   input.style.height = Math.min(input.scrollHeight, 150) + 'px';
   if(input.value.trim().length > 0){
     icon.innerText = "send";
-    document.getElementById("actionBtn").classList.remove("jarvis-active");
+    updateMicVisual('idle');
   } else {
     icon.innerText = "mic";
-    if(jarvisMode) document.getElementById("actionBtn").classList.add("jarvis-active");
+    if(jarvisMode) updateMicVisual(voiceState);
   }
 }
 function handleAction(){
@@ -205,75 +205,144 @@ function toggleTTS(){
 }
 document.getElementById('ttsToggle').classList.add('active-toggle');
 
-let recognition;
+/* ================= VOICE ENGINE (rebuilt) ================= */
+const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
 let jarvisMode = false;
-let isSpeaking = false;
+let voiceState = 'idle'; // idle | listening | speaking | thinking
+let recognitionActive = false;
+let restartTimer = null;
 
-if('webkitSpeechRecognition' in window){
-  recognition = new webkitSpeechRecognition();
+function updateMicVisual(state){
+  voiceState = state;
+  const btn = document.getElementById('actionBtn');
+  btn.classList.remove('jarvis-active');
+  if(!jarvisMode) return;
+  if(state === 'listening' || state === 'speaking' || state === 'thinking'){
+    btn.classList.add('jarvis-active');
+  }
+  btn.title = state === 'listening' ? 'Listening...' :
+              state === 'speaking' ? 'Speaking...' :
+              state === 'thinking' ? 'Processing...' : 'Voice Mode';
+}
+
+function safeStartRecognition(){
+  if(!recognition || recognitionActive || !jarvisMode) return;
+  if(voiceState === 'speaking' || voiceState === 'thinking') return;
+  clearTimeout(restartTimer);
+  restartTimer = setTimeout(() => {
+    if(!jarvisMode || recognitionActive) return;
+    try {
+      recognition.start();
+    } catch(e){
+      // Already started or transient error - ignore, next cycle will retry
+      console.warn('Recognition start skipped:', e.message);
+    }
+  }, 350);
+}
+
+if(SpeechRecognitionAPI){
+  recognition = new SpeechRecognitionAPI();
   recognition.continuous = false;
   recognition.interimResults = false;
   recognition.lang = 'en-US';
 
   recognition.onstart = () => {
-    if(document.getElementById("actionIcon").innerText === "mic"){
-      document.getElementById("actionBtn").classList.add("jarvis-active");
-    }
+    recognitionActive = true;
+    updateMicVisual('listening');
   };
+
   recognition.onresult = (event) => {
     const text = event.results[0][0].transcript;
     document.getElementById("userInput").value = text;
-    handleInput();
+    updateMicVisual('thinking');
     sendMessage();
   };
+
   recognition.onend = () => {
-    if(jarvisMode && !isSpeaking){
-      setTimeout(() => { try{ recognition.start(); }catch(e){} }, 400);
-    } else if(!jarvisMode){
-      document.getElementById("actionBtn").classList.remove("jarvis-active");
+    recognitionActive = false;
+    if(jarvisMode && voiceState !== 'speaking' && voiceState !== 'thinking'){
+      updateMicVisual('idle');
+      safeStartRecognition();
     }
   };
+
   recognition.onerror = (e) => {
-    if(jarvisMode && (e.error === 'no-speech' || e.error === 'network' || e.error === 'aborted')){
-      setTimeout(() => { try{ recognition.start(); }catch(err){} }, 600);
-    } else if(e.error === 'not-allowed'){
+    recognitionActive = false;
+    if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){
       jarvisMode = false;
-      document.getElementById("actionBtn").classList.remove("jarvis-active");
-      alert("Microphone permission denied. Please allow mic access.");
+      updateMicVisual('idle');
+      addMessage("Microphone access was blocked. Please allow mic permission in your browser settings and try again.", "error");
+      return;
+    }
+    if(jarvisMode && (e.error === 'no-speech' || e.error === 'network' || e.error === 'aborted')){
+      safeStartRecognition();
     }
   };
+} else {
+  console.warn("SpeechRecognition not supported in this browser.");
 }
 
 function toggleJarvis(){
-  if(!recognition) return alert("Voice not supported in this browser.");
+  if(!recognition){
+    addMessage("Voice input is not supported in this browser. Try Chrome on Android.", "error");
+    return;
+  }
   jarvisMode = !jarvisMode;
   if(jarvisMode){
-    try{ recognition.start(); }catch(e){}
+    // Unlock TTS engine with a near-silent utterance triggered by this user tap
+    try {
+      const unlock = new SpeechSynthesisUtterance(' ');
+      unlock.volume = 0;
+      window.speechSynthesis.speak(unlock);
+    } catch(e){}
+    safeStartRecognition();
   } else {
-    recognition.stop();
+    clearTimeout(restartTimer);
+    if(recognitionActive){ try { recognition.stop(); } catch(e){} }
     window.speechSynthesis.cancel();
-    document.getElementById("actionBtn").classList.remove("jarvis-active");
+    updateMicVisual('idle');
   }
 }
 
 function speak(text){
   if(!ttsEnabled || !('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
-  isSpeaking = true;
-  if(jarvisMode && recognition) recognition.stop();
+
+  if(jarvisMode){
+    clearTimeout(restartTimer);
+    if(recognitionActive){ try { recognition.stop(); } catch(e){} }
+    updateMicVisual('speaking');
+  }
 
   let cleanText = text.replace(/```[\s\S]*?```/g, "Code provided on screen.")
                        .replace(/[*_#]/g, "")
                        .replace(/<[^>]*>?/gm, '');
 
+  if(!cleanText.trim()){
+    if(jarvisMode) safeStartRecognition();
+    return;
+  }
+
   let utterance = new SpeechSynthesisUtterance(cleanText);
   utterance.rate = 1.05;
+
   utterance.onend = () => {
-    isSpeaking = false;
-    if(jarvisMode){ setTimeout(() => { try{ recognition.start(); }catch(e){} }, 400); }
+    if(jarvisMode){
+      updateMicVisual('idle');
+      safeStartRecognition();
+    }
   };
+  utterance.onerror = () => {
+    if(jarvisMode){
+      updateMicVisual('idle');
+      safeStartRecognition();
+    }
+  };
+
   window.speechSynthesis.speak(utterance);
 }
+/* =============== END VOICE ENGINE =============== */
 
 function addMessage(text, sender, category){
   const chat = document.getElementById("chat-container");
@@ -293,7 +362,7 @@ function addMessage(text, sender, category){
   bubbleDiv.className = "bubble";
 
   if(sender === 'bot'){
-    bubbleDiv.innerHTML = marked.parse(text);
+    bubbleDiv.innerHTML = marked.parse(String(text));
     bubbleDiv.querySelectorAll("pre code").forEach((block) => {
       hljs.highlightElement(block);
       const pre = block.parentElement;
@@ -315,7 +384,7 @@ function addMessage(text, sender, category){
       pre.parentNode.insertBefore(header, pre);
     });
   } else {
-    bubbleDiv.innerText = text;
+    bubbleDiv.innerText = String(text);
   }
 
   msgDiv.appendChild(bubbleDiv);
@@ -353,10 +422,14 @@ async function sendMessage(){
       throw new Error(`Connection issue (${response.status}).`);
     }
     let result = await response.json();
+
     let finalResponse = result.response || result.reply || result.message || "Done.";
+    if(Array.isArray(finalResponse)) finalResponse = finalResponse[0];
+    finalResponse = String(finalResponse);
 
     if(result.status === 'error'){
       addMessage(finalResponse, "error");
+      if(jarvisMode){ updateMicVisual('idle'); safeStartRecognition(); }
     } else {
       addMessage(finalResponse, "bot", result.category);
       speak(finalResponse);
@@ -364,6 +437,7 @@ async function sendMessage(){
   } catch(error){
     document.getElementById(loadingId)?.remove();
     addMessage("I ran into an issue processing that. Please try again.", "error");
+    if(jarvisMode){ updateMicVisual('idle'); safeStartRecognition(); }
   }
 }
 </script>
