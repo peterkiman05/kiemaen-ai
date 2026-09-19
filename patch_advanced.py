@@ -1,0 +1,341 @@
+import os
+
+html_code = r'''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiemaen AGI</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <!-- Google Material Icons -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <style>
+        body { background-color: #131314; color: #e3e3e3; font-family: 'Inter', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        /* Top Header */
+        #header { display: flex; align-items: center; padding: 15px 20px; background: #1e1f20; border-bottom: 1px solid #333; gap: 15px; }
+        .menu-btn { background: none; border: none; color: #c4c7c5; cursor: pointer; display: flex; align-items: center; }
+        .menu-btn:hover { color: #fff; }
+        .brand { font-size: 18px; font-weight: 500; letter-spacing: 0.5px; }
+
+        /* Sidebar & Overlay */
+        #overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 998; }
+        #sidebar { position: fixed; top: 0; left: -320px; width: 300px; height: 100vh; background: #1e1f20; z-index: 999; transition: left 0.3s ease; display: flex; flex-direction: column; border-right: 1px solid #333; }
+        #sidebar.open { left: 0; }
+        #overlay.open { display: block; }
+        
+        .sidebar-header { padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
+        .sidebar-content { padding: 20px; flex-grow: 1; display: flex; flex-direction: column; gap: 20px; }
+        
+        .new-chat-btn { background: #282a2c; color: #e3e3e3; border: 1px solid #444; padding: 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 15px; transition: 0.2s; }
+        .new-chat-btn:hover { background: #333538; }
+
+        .notebook-area { display: flex; flex-direction: column; flex-grow: 1; gap: 10px; }
+        .notebook-area h3 { margin: 0; font-size: 14px; color: #c4c7c5; font-weight: 500; display: flex; align-items: center; gap: 5px; }
+        #notebookText { flex-grow: 1; background: #131314; border: 1px solid #333; border-radius: 8px; color: #e3e3e3; padding: 12px; font-family: monospace; resize: none; outline: none; }
+        #notebookText:focus { border-color: #555; }
+
+        /* Chat Area */
+        #chat-wrapper { flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; align-items: center; padding: 20px 0; scroll-behavior: smooth; }
+        #chat-container { width: 100%; max-width: 800px; padding: 0 20px; box-sizing: border-box; display: flex; flex-direction: column; }
+        
+        .message { margin-bottom: 30px; display: flex; flex-direction: column; width: 100%; }
+        .message.user { align-items: flex-end; }
+        .message.bot { align-items: flex-start; }
+        
+        .bubble { padding: 12px 20px; font-size: 15px; line-height: 1.6; word-wrap: break-word; max-width: 85%; }
+        .message.user .bubble { background-color: #282a2c; border-radius: 24px 24px 4px 24px; color: #e3e3e3; }
+        .message.bot .bubble { background-color: transparent; border-radius: 0; color: #c4c7c5; width: 100%; padding: 0; }
+        .message.error .bubble { color: #ff8a80; background: #3a1c1c; border-radius: 12px; padding: 15px; border: 1px solid #ff5555; }
+
+        pre { margin: 15px 0; border-radius: 12px; overflow: hidden; background: #1e1f20; border: 1px solid #333; }
+        code { font-family: monospace; font-size: 14px; }
+        .code-header { background: #282a2c; padding: 8px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
+        .code-lang { font-size: 12px; color: #888; text-transform: uppercase; }
+        .code-actions { display: flex; gap: 10px; }
+        .code-actions button { background: transparent; border: 1px solid #555; color: #c4c7c5; padding: 4px 10px; border-radius: 15px; font-size: 12px; cursor: pointer; transition: 0.2s; }
+        .code-actions button:hover { background: #444; }
+
+        /* Input Area */
+        #input-area { width: 100%; max-width: 800px; margin: 0 auto; padding: 15px 20px 20px 20px; box-sizing: border-box; }
+        .input-wrapper { display: flex; align-items: flex-end; background-color: #1e1f20; border-radius: 26px; padding: 8px 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); gap: 5px; border: 1px solid #333; }
+        
+        textarea { flex-grow: 1; background: transparent; border: none; color: #e3e3e3; font-size: 16px; padding: 12px 5px; outline: none; font-family: 'Inter', sans-serif; resize: none; max-height: 150px; overflow-y: auto; }
+        
+        .icon-btn { background: transparent; border: none; color: #c4c7c5; cursor: pointer; padding: 10px; border-radius: 50%; transition: 0.2s; display: flex; align-items: center; justify-content: center; height: 44px; width: 44px; margin-bottom: 2px; }
+        .icon-btn:hover { background-color: #333538; }
+        
+        .jarvis-active { background-color: #441111 !important; color: #ff5555 !important; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } }
+        
+        .bubble p { margin-top: 0; }
+        .bubble a { color: #8ab4f8; }
+    </style>
+</head>
+<body>
+    <!-- Sidebar & Overlay -->
+    <div id="overlay" onclick="toggleSidebar()"></div>
+    <div id="sidebar">
+        <div class="sidebar-header">
+            <span class="brand">Menu</span>
+            <button class="menu-btn" onclick="toggleSidebar()"><span class="material-symbols-outlined">close</span></button>
+        </div>
+        <div class="sidebar-content">
+            <button class="new-chat-btn" onclick="newChat()">
+                <span class="material-symbols-outlined">add</span> New Chat
+            </button>
+            <div class="notebook-area">
+                <h3><span class="material-symbols-outlined">edit_note</span> Notebook</h3>
+                <textarea id="notebookText" placeholder="Save snippets, ideas, or API keys here..."></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <div id="header">
+        <button class="menu-btn" onclick="toggleSidebar()"><span class="material-symbols-outlined">menu</span></button>
+        <span class="brand">Kiemaen AGI</span>
+    </div>
+
+    <!-- Chat Area -->
+    <div id="chat-wrapper">
+        <div id="chat-container"></div>
+    </div>
+    
+    <!-- Input Area -->
+    <div id="input-area">
+        <div class="input-wrapper">
+            <input type="file" id="imageInput" accept="image/*" style="display:none">
+            <button class="icon-btn" onclick="document.getElementById('imageInput').click()" title="Upload Image">
+                <span class="material-symbols-outlined">image</span>
+            </button>
+            <textarea id="userInput" rows="1" placeholder="Ask Kiemaen..." oninput="handleInput()" onkeydown="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); if(this.value.trim()) sendMessage(); }"></textarea>
+            
+            <!-- DYNAMIC BUTTON: Switches between Mic and Send -->
+            <button class="icon-btn" id="actionBtn" onclick="handleAction()" title="Voice Mode">
+                <span class="material-symbols-outlined" id="actionIcon">mic</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Setup Notebook Persistence
+        const notebook = document.getElementById('notebookText');
+        notebook.value = localStorage.getItem('kiemaen_notebook') || '';
+        notebook.addEventListener('input', () => localStorage.setItem('kiemaen_notebook', notebook.value));
+
+        // Sidebar Toggle
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('overlay').classList.toggle('open');
+        }
+
+        // New Chat (Clears UI)
+        function newChat() {
+            document.getElementById('chat-container').innerHTML = '';
+            toggleSidebar();
+            addMessage("New session started.", "bot");
+        }
+
+        // Dynamic Input Handling (Mic vs Send Button)
+        function handleInput() {
+            const input = document.getElementById("userInput");
+            const icon = document.getElementById("actionIcon");
+            
+            // Auto-resize textarea
+            input.style.height = '';
+            input.style.height = Math.min(input.scrollHeight, 150) + 'px';
+            
+            // Toggle Icon
+            if (input.value.trim().length > 0) {
+                icon.innerText = "send";
+                document.getElementById("actionBtn").classList.remove("jarvis-active");
+            } else {
+                icon.innerText = "mic";
+                if(jarvisMode) document.getElementById("actionBtn").classList.add("jarvis-active");
+            }
+        }
+
+        function handleAction() {
+            const icon = document.getElementById("actionIcon").innerText;
+            if (icon === "send") {
+                sendMessage();
+            } else {
+                toggleJarvis();
+            }
+        }
+
+        // Voice Engine (Jarvis)
+        let recognition;
+        let jarvisMode = false;
+        let isSpeaking = false;
+        
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            
+            recognition.onstart = () => { 
+                if(document.getElementById("actionIcon").innerText === "mic") {
+                    document.getElementById("actionBtn").classList.add("jarvis-active"); 
+                }
+            };
+            
+            recognition.onresult = (event) => {
+                const text = event.results[0][0].transcript;
+                document.getElementById("userInput").value = text;
+                handleInput(); // Switches button to 'send' visually
+                sendMessage();
+            };
+            
+            recognition.onend = () => {
+                if (jarvisMode && !isSpeaking) {
+                    setTimeout(() => { try { recognition.start(); } catch(e){} }, 300);
+                } else {
+                    document.getElementById("actionBtn").classList.remove("jarvis-active");
+                }
+            };
+            
+            recognition.onerror = (e) => {
+                if (e.error === 'not-allowed') toggleJarvis();
+            };
+        }
+
+        function toggleJarvis() {
+            if (!recognition) return alert("Voice not supported in this browser.");
+            jarvisMode = !jarvisMode;
+            if (jarvisMode) {
+                try { recognition.start(); } catch(e){}
+            } else {
+                recognition.stop();
+                window.speechSynthesis.cancel();
+                document.getElementById("actionBtn").classList.remove("jarvis-active");
+            }
+        }
+
+        function speak(text) {
+            if (!jarvisMode || !('speechSynthesis' in window)) return;
+            window.speechSynthesis.cancel();
+            isSpeaking = true;
+            recognition.stop();
+            
+            let cleanText = text.replace(/```[\s\S]*?```/g, "Code provided on screen.")
+                                .replace(/[*_#]/g, "")
+                                .replace(/<[^>]*>?/gm, ''); 
+            
+            let utterance = new SpeechSynthesisUtterance(cleanText);
+            utterance.rate = 1.05;
+            utterance.onend = () => {
+                isSpeaking = false;
+                if (jarvisMode) { setTimeout(() => { try { recognition.start(); } catch(e){} }, 300); }
+            };
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function addMessage(text, sender) {
+            const chat = document.getElementById("chat-container");
+            const wrapper = document.getElementById("chat-wrapper");
+            
+            const msgDiv = document.createElement("div");
+            msgDiv.className = `message ${sender}`;
+            
+            const bubbleDiv = document.createElement("div");
+            bubbleDiv.className = "bubble";
+            
+            if (sender === 'bot') {
+                bubbleDiv.innerHTML = marked.parse(text);
+                bubbleDiv.querySelectorAll("pre code").forEach((block) => {
+                    hljs.highlightElement(block);
+                    const pre = block.parentElement;
+                    const header = document.createElement("div");
+                    header.className = "code-header";
+                    
+                    const langSpan = document.createElement("span");
+                    langSpan.className = "code-lang";
+                    langSpan.innerText = block.className.replace('hljs', '').trim() || "CODE";
+                    
+                    const actions = document.createElement("div");
+                    actions.className = "code-actions";
+                    
+                    const copyBtn = document.createElement("button");
+                    copyBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">content_copy</span>';
+                    copyBtn.onclick = () => navigator.clipboard.writeText(block.innerText);
+                    
+                    const playBtn = document.createElement("button");
+                    playBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">play_arrow</span>';
+                    playBtn.onclick = () => { const win = window.open("", "_blank"); win.document.write(block.innerText); };
+                    
+                    actions.append(copyBtn, playBtn);
+                    header.append(langSpan, actions);
+                    pre.parentNode.insertBefore(header, pre);
+                });
+            } else {
+                bubbleDiv.innerText = text;
+            }
+            
+            msgDiv.appendChild(bubbleDiv);
+            chat.appendChild(msgDiv);
+            setTimeout(() => { wrapper.scrollTop = wrapper.scrollHeight; }, 100);
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById("userInput");
+            const imageInput = document.getElementById("imageInput");
+            const text = input.value.trim();
+            const file = imageInput.files[0];
+            
+            if (!text && !file) return;
+
+            addMessage(text || "[Image Attached]", "user");
+            input.value = "";
+            handleInput(); // Resets layout, puts Mic back
+            
+            const formData = new FormData();
+            
+            // FIX: Append BOTH 'msg' and 'prompt' to guarantee it satisfies main.py
+            if (text) {
+                formData.append("msg", text);
+                formData.append("prompt", text); 
+            }
+            if (file) { formData.append("image", file); imageInput.value = ""; }
+
+            const loadingId = "load-" + Date.now();
+            const chat = document.getElementById("chat-container");
+            chat.insertAdjacentHTML('beforeend', `<div id="${loadingId}" class="message bot"><div class="bubble">✨ Thinking...</div></div>`);
+            document.getElementById("chat-wrapper").scrollTop = document.getElementById("chat-wrapper").scrollHeight;
+
+            try {
+                let response = await fetch("/chat", { method: "POST", body: formData });
+                document.getElementById(loadingId).remove();
+
+                if (!response.ok) {
+                    let errText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errText}`);
+                }
+                
+                let result = await response.json();
+                if (result.status === "error") throw new Error(result.message);
+
+                // Sometimes backend returns {"reply": "..."} instead of {"response": "..."}
+                let finalResponse = result.response || result.reply || "Done.";
+                addMessage(finalResponse, "bot");
+                speak(finalResponse);
+            } catch (error) {
+                document.getElementById(loadingId)?.remove();
+                addMessage(`Server Error Details:\n${error.message}`, "error");
+                speak("I encountered a server error.");
+                if (jarvisMode) toggleJarvis(); 
+            }
+        }
+    </script>
+</body>
+</html>
+'''
+
+with open("web/index.html", "w", encoding="utf-8") as f:
+    f.write(html_code)
+
+print("✅ Advanced UI successfully written!")
