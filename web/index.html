@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Kiemaen AGI</title>
@@ -61,17 +62,11 @@ textarea { flex-grow:1; background:transparent; border:none; color:#e3e3e3; font
 </style>
 
 
-\n
 
-\n
 
-\n
 
-\n
 
-\n
 
-\n
 <style id="kiemaen-fix-v6">
 html, body {
   height: 100%;
@@ -144,7 +139,6 @@ body {
   100% { box-shadow:0 0 0 0 rgba(66,133,244,0); }
 }
 </style>
-\n
 <style id="kiemaen-history-patch">
 * { box-sizing: border-box; }
 
@@ -554,7 +548,7 @@ function addMessage(text, sender, category){
   bubbleDiv.className = "bubble";
 
   if(sender === 'bot'){
-    bubbleDiv.innerHTML = marked.parse(String(text));
+    bubbleDiv.innerHTML = DOMPurify.sanitize(marked.parse(String(text)));
     bubbleDiv.querySelectorAll("pre code").forEach((block) => {
       hljs.highlightElement(block);
       const pre = block.parentElement;
@@ -635,17 +629,11 @@ async function sendMessage(){
 </script>
 
 
-\n
 
-\n
 
-\n
 
-\n
 
-\n
 
-\n
 <script id="kiemaen-fix-v6-js">
 (function(){
   function init(){
@@ -689,7 +677,6 @@ async function sendMessage(){
   });
 })();
 </script>
-\n
 <script id="kiemaen-history-patch-js">
 (function(){
   if (window.__kiemaenHistoryPatched) return;
@@ -836,7 +823,6 @@ async function sendMessage(){
   setTimeout(init, 400);
 })();
 </script>
-\n
 <script id="kiemaen-voice-speed-v2">
 (function(){
   if (window.__kiemaenVoiceSpeedPatched) return;
@@ -939,7 +925,6 @@ async function sendMessage(){
   console.log('[Kiemaen] Voice speed + natural voice patch applied.');
 })();
 </script>
-\n
 <script id="kiemaen-voice-speed-v2">
 (function(){
   if (window.__kiemaenVoiceSpeedPatched) return;
