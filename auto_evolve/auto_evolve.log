@@ -1,0 +1,4 @@
+2026-09-20 10:44:45,967 [INFO] auto_evolve: Auto-Evolve server starting up.
+2026-09-20 10:44:45,968 [INFO] auto_evolve: Monitor loop starting. Interval=300s
+2026-09-20 10:44:45,968 [INFO] auto_evolve: Scan cycle started.
+2026-09-20 10:44:45,968 [INFO] auto_evolve: Scan cycle finished.
