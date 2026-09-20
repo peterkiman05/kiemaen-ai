@@ -35,6 +35,36 @@ def store_memory(user_key, role, content, category="general"):
     conn.commit()
     conn.close()
 
+def get_turn_count(user_key):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM memory WHERE user_key=? AND role='user'", (user_key,))
+    count = c.fetchone()[0]
+    conn.close()
+    return count
+
+def save_summary(user_key, summary_text):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""CREATE TABLE IF NOT EXISTS conversation_summaries (
+        user_key TEXT PRIMARY KEY, summary TEXT, updated_at TEXT
+    )""")
+    c.execute("INSERT OR REPLACE INTO conversation_summaries (user_key, summary, updated_at) VALUES (?, ?, ?)",
+               (user_key, summary_text, datetime.utcnow().isoformat()))
+    conn.commit()
+    conn.close()
+
+def get_summary(user_key):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""CREATE TABLE IF NOT EXISTS conversation_summaries (
+        user_key TEXT PRIMARY KEY, summary TEXT, updated_at TEXT
+    )""")
+    c.execute("SELECT summary FROM conversation_summaries WHERE user_key=?", (user_key,))
+    row = c.fetchone()
+    conn.close()
+    return row[0] if row else None
+
 def retrieve_memory(user_key):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -200,7 +230,20 @@ async def ask_kiemaen(*args, **kwargs):
                 pins_note = f"IMPORTANT — Remember these permanent user-pinned facts:\n{pin_lines}\n\n"
         except Exception:
             pass
-    datetime_note = pins_note + datetime_note
+
+    summary_note = ""
+    existing_summary = get_summary(user_key)
+    if existing_summary:
+        summary_note = f"Conversation recap so far: {existing_summary}\n\n"
+
+    depth_mode = kwargs.get("depth_mode", "normal")
+    depth_note = ""
+    if depth_mode == "quick":
+        depth_note = "Respond concisely in short bullet points. Avoid long paragraphs.\n\n"
+    elif depth_mode == "deep":
+        depth_note = "Provide a thorough, detailed, full-length explanation with examples.\n\n"
+
+    datetime_note = pins_note + summary_note + depth_note + datetime_note
 
     if category == "meta" and is_admin:
         system_prompt = datetime_note + ADMIN_IDENTITY
@@ -253,4 +296,37 @@ async def ask_kiemaen(*args, **kwargs):
 
     store_memory(user_key, "user", str(prompt), category)
     store_memory(user_key, "assistant", ai_text, category)
+
+    turn_count = get_turn_count(user_key)
+    if turn_count > 0 and turn_count % 6 == 0:
+        try:
+            recap_messages = [
+                {"role": "system", "content": "Summarize the key facts, decisions, and context from this conversation in 2-3 concise sentences. This will be used as a persistent memory aid."},
+            ] + _trim_history(retrieve_memory(user_key))
+            recap_payload = {"model": model, "messages": recap_messages, "temperature": 0.3}
+            async with httpx.AsyncClient() as client:
+                recap_resp = await client.post(url, headers=headers, json=recap_payload, timeout=30.0)
+                if recap_resp.status_code == 200:
+                    recap_text = recap_resp.json()["choices"][0]["message"]["content"]
+                    save_summary(user_key, recap_text.strip())
+        except Exception:
+            pass
+
+    follow_ups = []
+    try:
+        sentences = [s.strip() for s in ai_text.replace("\n", " ").split(".") if s.strip()]
+        topic_words = [w for w in sentences[-1].split() if len(w) > 4][:3] if sentences else []
+        if topic_words:
+            topic = " ".join(topic_words)
+            follow_ups = [
+                f"Can you explain more about {topic}?",
+                f"What are some examples related to {topic}?",
+                f"How does this compare to alternatives?"
+            ]
+    except Exception:
+        pass
+
+    if follow_ups:
+        ai_text += "\n\n**You might also ask:**\n" + "\n".join(f"- {q}" for q in follow_ups)
+
     return ai_text, category
