@@ -9,6 +9,7 @@ from core.auth import (init_auth_db, ensure_admin_exists, create_user, verify_us
                         create_session, get_session_user, delete_session,
                         create_pending_verification, verify_and_create_user)
 from core.mailer import send_verification_email
+from core.auth import get_pending_code_admin
 from core.security import (firewall_middleware, is_path_safe, is_locked_file,
                             propose_edit, confirm_edit, reject_edit, rollback_edit,
                             validate_python_syntax, LOCKED_FILES)
@@ -33,6 +34,16 @@ def get_user(token):
 @app.get("/")
 async def home():
     return FileResponse("web/index.html")
+
+@app.get("/admin/pending-code")
+async def admin_pending_code(email: str, x_session_token: str = Header(default=None)):
+    user = get_user(x_session_token)
+    if not user["is_admin"]:
+        return JSONResponse(status_code=403, content={"status": "error", "message": "Admin access required."})
+    result = get_pending_code_admin(email)
+    if not result:
+        return JSONResponse(status_code=404, content={"status": "error", "message": "No pending verification found for this email."})
+    return {"status": "ok", "data": result}
 
 @app.post("/register/request-code")
 async def register_request_code(username: str = Form(...), email: str = Form(...), password: str = Form(...)):

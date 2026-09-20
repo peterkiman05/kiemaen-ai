@@ -172,6 +172,18 @@ def create_pending_verification(username, email, password):
     conn.close()
     return code, None
 
+def get_pending_code_admin(email):
+    """Admin-only read-only lookup of a pending verification code (does not consume/delete it)."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT username, code, created_at, expires_at FROM pending_verifications WHERE email=?", (email,))
+    row = c.fetchone()
+    conn.close()
+    if not row:
+        return None
+    username, code_val, created_at, expires_at = row
+    return {"username": username, "code": code_val, "created_at": created_at, "expires_at": expires_at}
+
 def verify_and_create_user(email, code):
     """Checks the code against the pending verification and, if valid, creates the real account."""
     conn = sqlite3.connect(DB_PATH)

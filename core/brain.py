@@ -2,6 +2,7 @@ import httpx
 import sqlite3
 import base64
 import os
+from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -181,13 +182,20 @@ async def ask_kiemaen(*args, **kwargs):
     is_vision = image_bytes is not None
     category = categorize_question(str(prompt), has_image=is_vision)
 
+    current_dt = datetime.utcnow().strftime("%A, %B %d, %Y, %I:%M %p UTC")
+    datetime_note = (
+        f"IMPORTANT: The current real-world date and time is {current_dt}. "
+        f"Always treat this as ground truth for any date, time, or 'what year is it' question, "
+        f"regardless of your training data cutoff.\n\n"
+    )
+
     if category == "meta" and is_admin:
-        system_prompt = ADMIN_IDENTITY
+        system_prompt = datetime_note + ADMIN_IDENTITY
     elif category == "meta":
-        system_prompt = PUBLIC_IDENTITY
+        system_prompt = datetime_note + PUBLIC_IDENTITY
     else:
         base_identity = ADMIN_IDENTITY if is_admin else PUBLIC_IDENTITY
-        system_prompt = base_identity + "\n\n" + CATEGORY_PROMPTS.get(category, CATEGORY_PROMPTS["general"])
+        system_prompt = datetime_note + base_identity + "\n\n" + CATEGORY_PROMPTS.get(category, CATEGORY_PROMPTS["general"])
 
     model = await get_best_model(api_key, is_vision)
 

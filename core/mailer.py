@@ -29,11 +29,26 @@ def send_verification_email(to_email: str, code: str, username: str) -> tuple[bo
     msg.attach(MIMEText(text, "plain"))
     msg.attach(MIMEText(html, "html"))
 
-    try:
-        with smtplib.SMTP("smtp.gmail.com", 587) as server:
-            server.starttls()
-            server.login(sender, app_password)
-            server.sendmail(sender, to_email, msg.as_string())
-        return True, "Verification email sent."
-    except Exception as e:
-        return False, f"Failed to send email: {e}"
+    import socket
+
+    def _try_send(use_ssl=False):
+        if use_ssl:
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=15) as server:
+                server.login(sender, app_password)
+                server.sendmail(sender, to_email, msg.as_string())
+        else:
+            with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
+                server.starttls()
+                server.login(sender, app_password)
+                server.sendmail(sender, to_email, msg.as_string())
+
+    last_error = None
+    for attempt_ssl in (False, True):
+        try:
+            _try_send(use_ssl=attempt_ssl)
+            return True, "Verification email sent."
+        except (socket.gaierror, socket.timeout, OSError, smtplib.SMTPException) as e:
+            last_error = str(e)
+            continue
+
+    return False, f"network_unreachable: {last_error}"
