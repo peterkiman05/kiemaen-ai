@@ -135,12 +135,24 @@ async def get_best_model(groq_api_key, is_vision=False):
         "llama-3.1-8b-instant", "llama3-8b-8192", "gemma2-9b-it",
         "gemma-7b-it", "mixtral-8x7b-32768", "llama-3.2-3b-preview"
     ]
-    preferred_vision = ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"]
+    preferred_vision = [
+        "llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview",
+        "llama-4-scout-17b-16e-instruct", "llama-4-maverick-17b-128e-instruct",
+        "meta-llama/llama-4-scout-17b-16e-instruct"
+    ]
     target_list = preferred_vision if is_vision else preferred_chat
 
     for model in target_list:
         if model in available:
             return model
+
+    if is_vision:
+        for m in available:
+            ml = m.lower()
+            if "vision" in ml or "llama-4" in ml:
+                return m
+        raise Exception("No vision-capable model is currently available from Groq. Image analysis is temporarily unavailable.")
+
     for m in available:
         ml = m.lower()
         if "guard" not in ml and "whisper" not in ml and "canopy" not in ml:
