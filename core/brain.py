@@ -179,20 +179,35 @@ async def ask_kiemaen(*args, **kwargs):
 
     model = await get_best_model(api_key, is_vision)
 
+    MAX_HISTORY_MESSAGES = 12
+    MAX_CONTENT_CHARS = 3000
+
+    def _trim_history(msgs):
+        trimmed = msgs[-MAX_HISTORY_MESSAGES:] if msgs else []
+        safe = []
+        for m in trimmed:
+            c = m.get("content", "")
+            if isinstance(c, str) and len(c) > MAX_CONTENT_CHARS:
+                c = c[-MAX_CONTENT_CHARS:]
+            safe.append({**m, "content": c})
+        return safe
+
+    safe_prompt = str(prompt)[:6000]
+
     messages = [{"role": "system", "content": system_prompt}]
-    messages.extend(history)
+    messages.extend(_trim_history(history))
 
     if is_vision:
         base64_image = encode_image(image_bytes)
         messages.append({
             "role": "user",
             "content": [
-                {"type": "text", "text": str(prompt)},
+                {"type": "text", "text": safe_prompt},
                 {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
             ]
         })
     else:
-        messages.append({"role": "user", "content": str(prompt)})
+        messages.append({"role": "user", "content": safe_prompt})
 
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
