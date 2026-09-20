@@ -32,15 +32,22 @@ def send_verification_email(to_email: str, code: str, username: str) -> tuple[bo
     import socket
 
     def _try_send(use_ssl=False):
-        if use_ssl:
-            with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=15) as server:
-                server.login(sender, app_password)
-                server.sendmail(sender, to_email, msg.as_string())
-        else:
-            with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
-                server.starttls()
-                server.login(sender, app_password)
-                server.sendmail(sender, to_email, msg.as_string())
+        orig_getaddrinfo = socket.getaddrinfo
+        def _ipv4_only(host, port, family=0, type=0, proto=0, flags=0):
+            return orig_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+        socket.getaddrinfo = _ipv4_only
+        try:
+            if use_ssl:
+                with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=15) as server:
+                    server.login(sender, app_password)
+                    server.sendmail(sender, to_email, msg.as_string())
+            else:
+                with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
+                    server.starttls()
+                    server.login(sender, app_password)
+                    server.sendmail(sender, to_email, msg.as_string())
+        finally:
+            socket.getaddrinfo = orig_getaddrinfo
 
     last_error = None
     for attempt_ssl in (False, True):

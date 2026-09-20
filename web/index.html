@@ -210,7 +210,7 @@ body {
 
 <div id="input-area">
   <div class="input-wrapper">
-    <input type="file" id="imageInput" accept="image/*" style="display:none">
+    <input type="file" id="imageInput" accept="image/*,.pdf,.txt,.docx,.csv,.json,.md" style="display:none">
     <button class="icon-btn" onclick="document.getElementById('imageInput').click()" title="Upload Image">
       <span class="material-symbols-outlined">image</span>
     </button>
@@ -268,6 +268,7 @@ function switchAuthMode(){
   document.getElementById('authSwitch').innerText = authMode === 'login' ? "Don't have an account? Register" : "Already have an account? Login";
 }
 let pendingVerifyEmail = null;
+let pendingVerifyUsername = null;
 
 async function submitAuth(){
   const username = document.getElementById('authUsername').value.trim();
@@ -286,6 +287,16 @@ async function submitAuth(){
       isAdmin = data.is_admin;
       updateAuthUI(data.username, data.is_admin);
       closeAuthModal();
+    } else if(data.status === 'verification_required'){
+      pendingVerifyEmail = null;
+      pendingVerifyUsername = data.username;
+      document.getElementById('authUsername').style.display = 'none';
+      document.getElementById('authEmail').style.display = 'none';
+      document.getElementById('authPassword').style.display = 'none';
+      document.getElementById('authSubmitBtn').style.display = 'none';
+      document.getElementById('authCode').style.display = 'block';
+      document.getElementById('authVerifyBtn').style.display = 'block';
+      document.getElementById('authVerifyBtn').onclick = submitLoginVerifyCode;
     } else {
       alert(data.message);
     }
@@ -336,7 +347,29 @@ async function submitVerifyCode(){
   }
 }
 
+async function submitLoginVerifyCode(){
+  const code = document.getElementById('authCode').value.trim();
+  if(!code || !pendingVerifyUsername) return;
+  const fd = new FormData();
+  fd.append('username', pendingVerifyUsername);
+  fd.append('code', code);
+  const res = await fetch('/login/verify', { method:'POST', body: fd });
+  const data = await res.json();
+  if(data.status === 'ok'){
+    token = data.token;
+    localStorage.setItem('kiemaen_token', token);
+    isAdmin = data.is_admin;
+    updateAuthUI(data.username, data.is_admin);
+    closeAuthModal();
+    resetAuthModal();
+  } else {
+    alert(data.message);
+  }
+}
+
 function resetAuthModal(){
+  document.getElementById('authVerifyBtn').onclick = submitVerifyCode;
+  document.getElementById('authVerifyBtn').onclick = submitVerifyCode;
   pendingVerifyEmail = null;
   document.getElementById('authUsername').style.display = 'block';
   document.getElementById('authEmail').style.display = authMode === 'register' ? 'block' : 'none';

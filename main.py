@@ -9,7 +9,9 @@ from core.auth import (init_auth_db, ensure_admin_exists, create_user, verify_us
                         create_session, get_session_user, delete_session,
                         create_pending_verification, verify_and_create_user)
 from core.mailer import send_verification_email
-from core.auth import get_pending_code_admin
+from core.auth import (get_pending_code_admin, create_login_code, verify_login_code,
+    get_user_email, get_user_by_username, log_admin_alert, get_admin_alerts,
+    add_pin, get_pins, remove_pin)
 from core.security import (firewall_middleware, is_path_safe, is_locked_file,
                             propose_edit, confirm_edit, reject_edit, rollback_edit,
                             validate_python_syntax, LOCKED_FILES)
@@ -86,6 +88,33 @@ async def login(username: str = Form(...), password: str = Form(...)):
     user = verify_user(username, password)
     if not user:
         return {"status": "error", "message": "Invalid username or password."}
+
+    if user["is_admin"]:
+        token = create_session(user["id"])
+        return {"status": "ok", "token": token, "username": user["username"], "is_admin": user["is_admin"]}
+
+    email = get_user_email(username)
+    if not email:
+        token = create_session(user["id"])
+        return {"status": "ok", "token": token, "username": user["username"], "is_admin": user["is_admin"]}
+
+    code = create_login_code(username)
+    sent, msg = send_verification_email(email, code, username)
+    if not sent:
+        log_admin_alert(f"Login code email FAILED for user '{username}' ({email}): {msg}. User was let in with password-only fallback.")
+        token = create_session(user["id"])
+        return {"status": "ok", "token": token, "username": user["username"], "is_admin": user["is_admin"]}
+
+    return {"status": "verification_required", "username": username}
+
+@app.post("/login/verify")
+async def login_verify(username: str = Form(...), code: str = Form(...)):
+    ok, msg = verify_login_code(username, code)
+    if not ok:
+        return {"status": "error", "message": msg}
+    user = get_user_by_username(username)
+    if not user:
+        return {"status": "error", "message": "User not found."}
     token = create_session(user["id"])
     return {"status": "ok", "token": token, "username": user["username"], "is_admin": user["is_admin"]}
 
@@ -137,6 +166,36 @@ async def chat(
     image_bytes = await image.read() if image else None
 
     try:
+        stripped_cmd = text.strip()
+
+        if stripped_cmd.upper() == "SHOW_ALERTS" and is_admin:
+            alerts = get_admin_alerts()
+            if not alerts:
+                return {"status": "ok", "response": "No new admin alerts.", "category": "meta"}
+            lines = [f"[{a['created_at']}] {a['message']}" for a in alerts]
+            return {"status": "ok", "response": "**Admin Alerts:**\n\n" + "\n".join(lines), "category": "meta"}
+
+        if stripped_cmd.upper().startswith("PIN:"):
+            fact = stripped_cmd[4:].strip()
+            if not fact:
+                return {"status": "ok", "response": "Usage: PIN: <fact to remember>", "category": "meta"}
+            add_pin(user["id"], fact)
+            return {"status": "ok", "response": f"Pinned: \"{fact}\". I will remember this going forward.", "category": "meta"}
+
+        if stripped_cmd.upper() == "SHOW_PINS":
+            pins = get_pins(user["id"])
+            if not pins:
+                return {"status": "ok", "response": "You have no pinned facts yet. Use PIN: <fact> to add one.", "category": "meta"}
+            lines = [f"[{p['id']}] {p['text']}" for p in pins]
+            return {"status": "ok", "response": "**Your Pinned Facts:**\n\n" + "\n".join(lines), "category": "meta"}
+
+        if stripped_cmd.upper().startswith("UNPIN"):
+            parts = stripped_cmd.split()
+            if len(parts) < 2 or not parts[1].isdigit():
+                return {"status": "ok", "response": "Usage: UNPIN <id>", "category": "meta"}
+            remove_pin(user["id"], int(parts[1]))
+            return {"status": "ok", "response": f"Removed pin {parts[1]}.", "category": "meta"}
+
         # ===== ADMIN CORE-EDIT SYSTEM =====
         if is_admin:
             stripped = text.strip()
@@ -195,9 +254,9 @@ async def chat(
         # ===== END ADMIN CORE-EDIT SYSTEM =====
 
         if image_bytes:
-            reply, category = await ask_kiemaen(text, image_bytes, user_key=user_key, is_admin=is_admin)
+            reply, category = await ask_kiemaen(text, image_bytes, user_key=user_key, is_admin=is_admin, user_id=user["id"])
         else:
-            reply, category = await ask_kiemaen(text, user_key=user_key, is_admin=is_admin)
+            reply, category = await ask_kiemaen(text, user_key=user_key, is_admin=is_admin, user_id=user["id"])
 
         if "```" in reply and any(k in text.lower() for k in ["run", "execute", "test this", "debug"]):
             file_name = "sandbox_script.py"

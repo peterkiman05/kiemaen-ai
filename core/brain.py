@@ -4,6 +4,7 @@ import base64
 import os
 from datetime import datetime
 from dotenv import load_dotenv
+from core.auth import get_pins
 
 load_dotenv()
 
@@ -175,6 +176,7 @@ async def ask_kiemaen(*args, **kwargs):
 
     user_key = kwargs.get("user_key", "guest")
     is_admin = kwargs.get("is_admin", False)
+    user_id = kwargs.get("user_id", 0)
 
     init_db()
     history = retrieve_memory(user_key)
@@ -188,6 +190,17 @@ async def ask_kiemaen(*args, **kwargs):
         f"Always treat this as ground truth for any date, time, or 'what year is it' question, "
         f"regardless of your training data cutoff.\n\n"
     )
+
+    pins_note = ""
+    if user_id:
+        try:
+            pins = get_pins(user_id)
+            if pins:
+                pin_lines = "\n".join(f"- {p['text']}" for p in pins)
+                pins_note = f"IMPORTANT — Remember these permanent user-pinned facts:\n{pin_lines}\n\n"
+        except Exception:
+            pass
+    datetime_note = pins_note + datetime_note
 
     if category == "meta" and is_admin:
         system_prompt = datetime_note + ADMIN_IDENTITY

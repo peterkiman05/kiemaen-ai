@@ -149,6 +149,126 @@ def email_taken(email):
     conn.close()
     return row is not None
 
+def init_login_security_db():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""CREATE TABLE IF NOT EXISTS pending_logins (
+        username TEXT PRIMARY KEY,
+        code TEXT NOT NULL,
+        created_at TEXT,
+        expires_at TEXT
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS admin_alerts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        message TEXT NOT NULL,
+        created_at TEXT,
+        is_read INTEGER DEFAULT 0
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS memory_pins (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        pinned_text TEXT NOT NULL,
+        created_at TEXT
+    )""")
+    conn.commit()
+    conn.close()
+
+def get_user_email(username):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT email FROM users WHERE username=?", (username,))
+    row = c.fetchone()
+    conn.close()
+    return row[0] if row and row[0] else None
+
+def get_user_by_username(username):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT id, username, is_admin FROM users WHERE username=?", (username,))
+    row = c.fetchone()
+    conn.close()
+    if not row:
+        return None
+    return {"id": row[0], "username": row[1], "is_admin": bool(row[2])}
+
+def create_login_code(username):
+    init_login_security_db()
+    code = str(random.randint(100000, 999999))
+    now = datetime.utcnow()
+    expires = now + timedelta(minutes=10)
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("INSERT OR REPLACE INTO pending_logins (username, code, created_at, expires_at) VALUES (?, ?, ?, ?)",
+               (username, code, now.isoformat(), expires.isoformat()))
+    conn.commit()
+    conn.close()
+    return code
+
+def verify_login_code(username, code):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT code, expires_at FROM pending_logins WHERE username=?", (username,))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return False, "No pending login code found. Please log in again."
+    stored_code, expires_at = row
+    if datetime.fromisoformat(expires_at) < datetime.utcnow():
+        c.execute("DELETE FROM pending_logins WHERE username=?", (username,))
+        conn.commit()
+        conn.close()
+        return False, "Login code expired. Please log in again."
+    if code.strip() != stored_code:
+        conn.close()
+        return False, "Incorrect code."
+    c.execute("DELETE FROM pending_logins WHERE username=?", (username,))
+    conn.commit()
+    conn.close()
+    return True, "ok"
+
+def log_admin_alert(message):
+    init_login_security_db()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("INSERT INTO admin_alerts (message, created_at, is_read) VALUES (?, ?, 0)",
+               (message, datetime.utcnow().isoformat()))
+    conn.commit()
+    conn.close()
+
+def get_admin_alerts():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT id, message, created_at FROM admin_alerts WHERE is_read=0 ORDER BY id DESC")
+    rows = c.fetchall()
+    c.execute("UPDATE admin_alerts SET is_read=1 WHERE is_read=0")
+    conn.commit()
+    conn.close()
+    return [{"id": r[0], "message": r[1], "created_at": r[2]} for r in rows]
+
+def add_pin(user_id, text):
+    init_login_security_db()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("INSERT INTO memory_pins (user_id, pinned_text, created_at) VALUES (?, ?, ?)",
+               (user_id, text, datetime.utcnow().isoformat()))
+    conn.commit()
+    conn.close()
+
+def get_pins(user_id):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT id, pinned_text FROM memory_pins WHERE user_id=? ORDER BY id", (user_id,))
+    rows = c.fetchall()
+    conn.close()
+    return [{"id": r[0], "text": r[1]} for r in rows]
+
+def remove_pin(user_id, pin_id):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("DELETE FROM memory_pins WHERE id=? AND user_id=?", (pin_id, user_id))
+    conn.commit()
+    conn.close()
+
 def create_pending_verification(username, email, password):
     """Stores a pending signup and returns a 6-digit code to be emailed to the user."""
     init_auth_db()
