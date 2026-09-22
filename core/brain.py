@@ -140,6 +140,25 @@ CATEGORY_PROMPTS = {
     "general": "You are Kiemaen, an advanced AI assistant running on a live server. Be helpful, clear, and friendly."
 }
 
+async def get_gemini_vision_response(image_bytes, prompt, system_prompt, api_key):
+    base64_image = encode_image(image_bytes)
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    combined_text = f"{system_prompt}\n\nUser request: {prompt}" if prompt else system_prompt
+    payload = {
+        "contents": [{
+            "parts": [
+                {"text": combined_text},
+                {"inline_data": {"mime_type": "image/jpeg", "data": base64_image}}
+            ]
+        }]
+    }
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, json=payload, timeout=60.0)
+        response.raise_for_status()
+        data = response.json()
+        return data["candidates"][0]["content"]["parts"][0]["text"]
+
+
 def categorize_question(prompt, has_image=False):
     if has_image:
         return "image"
@@ -253,7 +272,7 @@ async def ask_kiemaen(*args, **kwargs):
         base_identity = ADMIN_IDENTITY if is_admin else PUBLIC_IDENTITY
         system_prompt = datetime_note + base_identity + "\n\n" + CATEGORY_PROMPTS.get(category, CATEGORY_PROMPTS["general"])
 
-    model = await get_best_model(api_key, is_vision)
+    model = await get_best_model(api_key, is_vision=False)
 
     MAX_HISTORY_MESSAGES = 12
     MAX_CONTENT_CHARS = 3000
@@ -269,30 +288,23 @@ async def ask_kiemaen(*args, **kwargs):
         return safe
 
     safe_prompt = str(prompt)[:6000]
-
-    messages = [{"role": "system", "content": system_prompt}]
-    messages.extend(_trim_history(history))
-
-    if is_vision:
-        base64_image = encode_image(image_bytes)
-        messages.append({
-            "role": "user",
-            "content": [
-                {"type": "text", "text": safe_prompt},
-                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
-            ]
-        })
-    else:
-        messages.append({"role": "user", "content": safe_prompt})
-
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    payload = {"model": model, "messages": messages, "temperature": 0.7}
 
-    async with httpx.AsyncClient() as client:
-        response = await client.post(url, headers=headers, json=payload, timeout=60.0)
-        response.raise_for_status()
-        ai_text = response.json()["choices"][0]["message"]["content"]
+    if is_vision:
+        gemini_key = os.getenv("GEMINI_API_KEY")
+        if not gemini_key:
+            raise Exception("GEMINI_API_KEY not found in environment. Image analysis is unavailable.")
+        ai_text = await get_gemini_vision_response(image_bytes, safe_prompt, system_prompt, gemini_key)
+    else:
+        messages = [{"role": "system", "content": system_prompt}]
+        messages.extend(_trim_history(history))
+        messages.append({"role": "user", "content": safe_prompt})
+        payload = {"model": model, "messages": messages, "temperature": 0.7}
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=headers, json=payload, timeout=60.0)
+            response.raise_for_status()
+            ai_text = response.json()["choices"][0]["message"]["content"]
 
     store_memory(user_key, "user", str(prompt), category)
     store_memory(user_key, "assistant", ai_text, category)
