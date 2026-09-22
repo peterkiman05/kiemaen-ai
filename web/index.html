@@ -59,6 +59,21 @@ textarea { flex-grow:1; background:transparent; border:none; color:#e3e3e3; font
 .modal-box button.submit { background:#8ab4f8; color:#131314; border:none; padding:10px; border-radius:20px; font-weight:600; cursor:pointer; }
 .modal-box .switch-link { color:#8ab4f8; font-size:13px; text-align:center; cursor:pointer; }
 .modal-box .close-x { align-self:flex-end; cursor:pointer; color:#888; }
+
+
+.read-aloud-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    margin-left: 8px;
+    vertical-align: middle;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+.read-aloud-btn:hover {
+    opacity: 1;
+}
 </style>
 
 
@@ -138,6 +153,7 @@ body {
   70% { box-shadow:0 0 0 12px rgba(66,133,244,0); }
   100% { box-shadow:0 0 0 0 rgba(66,133,244,0); }
 }
+
 </style>
 <style id="kiemaen-history-patch">
 * { box-sizing: border-box; }
@@ -178,6 +194,7 @@ body {
 #input-area, #chat-container, .input-wrapper {
   max-width: 100vw;
 }
+
 </style>
 \n</head>
 <body>
@@ -204,11 +221,17 @@ body {
     <span id="adminBadge" class="badge" style="display:none;">ADMIN</span>
   </div>
   <button class="login-btn" id="authBtn" onclick="openAuthModal()">Login</button>
+  <button class="login-btn" id="logoutBtn" style="display:none;" onclick="doLogout()">Logout</button>
 </div>
 
 <div id="chat-wrapper"><div id="chat-container"></div></div>
 
 <div id="input-area">
+  <div id="filePreviewBar" style="display:none; align-items:center; gap:8px; padding:8px 12px; background:#1a1f2e; border-radius:10px; margin-bottom:6px;">
+    <span class="material-symbols-outlined" style="font-size:18px; color:#8ab4f8;">attach_file</span>
+    <span id="filePreviewName" style="font-size:13px; color:#ccc; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
+    <span class="material-symbols-outlined" id="filePreviewCancel" style="cursor:pointer; font-size:18px; color:#f28b82;" onclick="clearFilePreview()">close</span>
+  </div>
   <div class="input-wrapper">
     <input type="file" id="imageInput" accept="image/*,.pdf,.txt,.docx,.csv,.json,.md" style="display:none">
     <button class="icon-btn" onclick="document.getElementById('imageInput').click()" title="Upload Image">
@@ -382,8 +405,24 @@ function resetAuthModal(){
   document.getElementById('authPassword').value = '';
   document.getElementById('authCode').value = '';
 }
+async function doLogout(){
+  if(token){
+    try{ await fetch('/logout', { method:'POST', headers: { 'X-Session-Token': token } }); }catch(e){}
+  }
+  localStorage.removeItem('kiemaen_token');
+  token = null;
+  isAdmin = false;
+  document.getElementById('authBtn').innerText = 'Login';
+  document.getElementById('authBtn').style.display = 'inline-block';
+  document.getElementById('logoutBtn').style.display = 'none';
+  document.getElementById('adminBadge').style.display = 'none';
+  location.reload();
+}
+
 function updateAuthUI(username, admin){
-  document.getElementById('authBtn').innerText = username;
+  document.getElementById('authBtn').style.display = 'none';
+  document.getElementById('logoutBtn').style.display = 'inline-block';
+  document.getElementById('logoutBtn').innerText = username + ' (Logout)';
   document.getElementById('adminBadge').style.display = admin ? 'inline-block' : 'none';
 }
 async function checkSession(){
@@ -525,7 +564,7 @@ function toggleJarvis(){
 }
 
 function speak(text){
-  if(!ttsEnabled || !('speechSynthesis' in window)) return;
+  if(!jarvisMode || !ttsEnabled || !('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
 
   if(jarvisMode){
@@ -582,6 +621,18 @@ function addMessage(text, sender, category){
 
   if(sender === 'bot'){
     bubbleDiv.innerHTML = DOMPurify.sanitize(marked.parse(String(text)));
+    const readBtn = document.createElement("button");
+    readBtn.className = "read-aloud-btn";
+    readBtn.innerHTML = '<span class="material-symbols-outlined">volume_up</span>';
+    readBtn.onclick = () => {
+        if (!window.speechSynthesis) return;
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(String(text));
+        utterance.rate = 1.0;
+        window.speechSynthesis.speak(utterance);
+    };
+    bubbleDiv.appendChild(readBtn);
+
     bubbleDiv.querySelectorAll("pre code").forEach((block) => {
       hljs.highlightElement(block);
       const pre = block.parentElement;
@@ -624,7 +675,19 @@ async function sendMessage(){
 
   const formData = new FormData();
   if(text){ formData.append("msg", text); formData.append("prompt", text); }
-  if(file){ formData.append("image", file); imageInput.value = ""; }
+  if(file){ formData.append("image", file); imageInput.value = ""; document.getElementById('filePreviewBar').style.display = 'none'; }
+
+  document.getElementById('imageInput').onchange = function(){
+    const f = this.files[0];
+    const bar = document.getElementById('filePreviewBar');
+    const nameSpan = document.getElementById('filePreviewName');
+    if(f){ nameSpan.innerText = f.name; bar.style.display = 'flex'; }
+    else { bar.style.display = 'none'; }
+  };
+  function clearFilePreview(){
+    document.getElementById('imageInput').value = '';
+    document.getElementById('filePreviewBar').style.display = 'none';
+  }
 
   const loadingId = "load-" + Date.now();
   document.getElementById("chat-container").insertAdjacentHTML('beforeend',
@@ -958,107 +1021,5 @@ async function sendMessage(){
   console.log('[Kiemaen] Voice speed + natural voice patch applied.');
 })();
 </script>
-<script id="kiemaen-voice-speed-v2">
-(function(){
-  if (window.__kiemaenVoiceSpeedPatched) return;
-  window.__kiemaenVoiceSpeedPatched = true;
-
-  let bestVoice = null;
-
-  function pickBestVoice(){
-    if (!window.speechSynthesis) return null;
-    const voices = window.speechSynthesis.getVoices();
-    if (!voices || voices.length === 0) return null;
-
-    const preferredNames = [
-      "Google US English", "Microsoft Aria Online", "Microsoft Guy Online",
-      "Samantha", "Daniel", "Alex", "Google UK English Male", "Google UK English Female"
-    ];
-    for (const name of preferredNames) {
-      const match = voices.find(v => v.name.includes(name));
-      if (match) return match;
-    }
-    const enVoice = voices.find(v => v.lang && v.lang.startsWith("en") && !v.localService === false);
-    if (enVoice) return enVoice;
-    return voices[0];
-  }
-
-  function warmVoices(){
-    if (!window.speechSynthesis) return;
-    bestVoice = pickBestVoice();
-    window.speechSynthesis.onvoiceschanged = function(){
-      bestVoice = pickBestVoice();
-    };
-  }
-  warmVoices();
-  setTimeout(warmVoices, 300);
-  setTimeout(warmVoices, 1000);
-
-  // Wrap speak() to: use best voice, cancel queue instantly, slightly faster rate
-  function wrapSpeak(){
-    if (typeof window.speak !== 'function') { setTimeout(wrapSpeak, 200); return; }
-    const originalSpeak = window.speak;
-    window.speak = function(text){
-      if (window.speechSynthesis) window.speechSynthesis.cancel(); // instantly clear any queued/pending speech
-      const result = originalSpeak.apply(this, arguments);
-      return result;
-    };
-  }
-  wrapSpeak();
-
-  // Patch every new SpeechSynthesisUtterance created after this point to use the best voice + faster rate
-  const OriginalUtterance = window.SpeechSynthesisUtterance;
-  if (OriginalUtterance) {
-    window.SpeechSynthesisUtterance = function(text){
-      const utter = new OriginalUtterance(text);
-      if (bestVoice) utter.voice = bestVoice;
-      utter.rate = 1.05;   // slightly faster than default 1.0 - snappier without sounding rushed
-      utter.pitch = 1.0;
-      return utter;
-    };
-    window.SpeechSynthesisUtterance.prototype = OriginalUtterance.prototype;
-  }
-
-  // Speed up recognition restart loop - reduce debounce delay if safeStartRecognition exists
-  function speedUpRecognitionRestart(){
-    if (typeof window.recognition === 'undefined' || !window.recognition) {
-      setTimeout(speedUpRecognitionRestart, 300);
-      return;
-    }
-    try {
-      window.recognition.interimResults = true; // live partial results = feels instant
-    } catch(e){}
-
-    // Instant visual feedback the moment mic actually activates (not after a delay)
-    window.recognition.addEventListener('audiostart', function(){
-      const btn = document.getElementById('actionBtn');
-      if (btn) btn.classList.add('jarvis-active');
-    });
-    window.recognition.addEventListener('end', function(){
-      const btn = document.getElementById('actionBtn');
-      if (btn && !window.jarvisMode) btn.classList.remove('jarvis-active');
-    });
-  }
-  speedUpRecognitionRestart();
-
-  // Show "Thinking..." indicator INSTANTLY on send (0ms) instead of waiting on network
-  function wrapSendMessage(){
-    if (typeof window.sendMessage !== 'function') { setTimeout(wrapSendMessage, 200); return; }
-    const originalSend = window.sendMessage;
-    window.sendMessage = async function(){
-      const btn = document.getElementById('actionBtn');
-      if (btn) btn.style.opacity = '0.6'; // immediate visual "processing" cue
-      try {
-        return await originalSend.apply(this, arguments);
-      } finally {
-        if (btn) btn.style.opacity = '1';
-      }
-    };
-  }
-  wrapSendMessage();
-
-  console.log('[Kiemaen] Voice speed + natural voice patch applied.');
-})();
-</script>
-\n</body>
+</body>
 </html>

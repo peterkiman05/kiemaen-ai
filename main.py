@@ -1,6 +1,6 @@
 import os
 import difflib
-from fastapi import FastAPI, Form, File, UploadFile, Header
+from fastapi import FastAPI, Form, File, UploadFile, Header, Cookie, Response
 from fastapi.responses import FileResponse, JSONResponse
 from dotenv import load_dotenv
 
@@ -11,7 +11,7 @@ from core.auth import (init_auth_db, ensure_admin_exists, create_user, verify_us
 from core.mailer import send_verification_email
 from core.auth import (get_pending_code_admin, create_login_code, verify_login_code,
     get_user_email, get_user_by_username, log_admin_alert, get_admin_alerts,
-    add_pin, get_pins, remove_pin)
+    add_pin, get_pins, remove_pin, revoke_all_sessions)
 from core.security import (firewall_middleware, is_path_safe, is_locked_file,
                             propose_edit, confirm_edit, reject_edit, rollback_edit,
                             validate_python_syntax, LOCKED_FILES)
@@ -19,11 +19,29 @@ from tools.coder import read_file, write_file, extract_code, run_script
 
 load_dotenv()
 
-app = FastAPI()
+DOCS_ENABLED = os.environ.get("ENABLE_API_DOCS", "false").lower() == "true"
+app = FastAPI(
+    docs_url="/docs" if DOCS_ENABLED else None,
+    redoc_url="/redoc" if DOCS_ENABLED else None,
+    openapi_url="/openapi.json" if DOCS_ENABLED else None,
+)
 app.middleware("http")(firewall_middleware)
 
 init_auth_db()
 ensure_admin_exists()
+
+def issue_session_cookie(response: Response, user_id, username, is_admin):
+    token = create_session(user_id)
+    response.set_cookie(
+        key="session_token",
+        value=token,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        max_age=86400,
+        path="/"
+    )
+    return {"status": "ok", "username": username, "is_admin": is_admin}
 
 def get_user(token):
     if not token:
@@ -38,7 +56,7 @@ async def home():
     return FileResponse("web/index.html")
 
 @app.get("/admin/pending-code")
-async def admin_pending_code(email: str, x_session_token: str = Header(default=None)):
+async def admin_pending_code(email: str, x_session_token: str = Cookie(default=None, alias="session_token")):
     user = get_user(x_session_token)
     if not user["is_admin"]:
         return JSONResponse(status_code=403, content={"status": "error", "message": "Admin access required."})
@@ -65,67 +83,62 @@ async def register_request_code(username: str = Form(...), email: str = Form(...
     return {"status": "ok", "message": f"Verification code sent to {email}."}
 
 @app.post("/register/verify")
-async def register_verify(email: str = Form(...), code: str = Form(...)):
+async def register_verify(response: Response, email: str = Form(...), code: str = Form(...)):
     user, error = verify_and_create_user(email, code)
     if error:
         return {"status": "error", "message": error}
-    token = create_session(user["id"])
-    return {"status": "ok", "token": token, "username": user["username"], "is_admin": user["is_admin"]}
+    return issue_session_cookie(response, user["id"], user["username"], user["is_admin"])
 
 @app.post("/register")
-async def register(username: str = Form(...), password: str = Form(...)):
+async def register(response: Response, username: str = Form(...), password: str = Form(...)):
     if len(username) < 3 or len(password) < 4:
         return {"status": "error", "message": "Username or password too short."}
     ok = create_user(username, password)
     if not ok:
         return {"status": "error", "message": "Username already taken."}
     user = verify_user(username, password)
-    token = create_session(user["id"])
-    return {"status": "ok", "token": token, "username": user["username"], "is_admin": user["is_admin"]}
+    return issue_session_cookie(response, user["id"], user["username"], user["is_admin"])
 
 @app.post("/login")
-async def login(username: str = Form(...), password: str = Form(...)):
+async def login(response: Response, username: str = Form(...), password: str = Form(...)):
     user = verify_user(username, password)
     if not user:
         return {"status": "error", "message": "Invalid username or password."}
 
     if user["is_admin"]:
-        token = create_session(user["id"])
-        return {"status": "ok", "token": token, "username": user["username"], "is_admin": user["is_admin"]}
+        return issue_session_cookie(response, user["id"], user["username"], user["is_admin"])
 
     email = get_user_email(username)
     if not email:
-        token = create_session(user["id"])
-        return {"status": "ok", "token": token, "username": user["username"], "is_admin": user["is_admin"]}
+        return issue_session_cookie(response, user["id"], user["username"], user["is_admin"])
 
     code = create_login_code(username)
     sent, msg = send_verification_email(email, code, username)
     if not sent:
         log_admin_alert(f"Login code email FAILED for user '{username}' ({email}): {msg}. User was let in with password-only fallback.")
-        token = create_session(user["id"])
-        return {"status": "ok", "token": token, "username": user["username"], "is_admin": user["is_admin"]}
+        return issue_session_cookie(response, user["id"], user["username"], user["is_admin"])
 
     return {"status": "verification_required", "username": username}
 
 @app.post("/login/verify")
-async def login_verify(username: str = Form(...), code: str = Form(...)):
+async def login_verify(response: Response, username: str = Form(...), code: str = Form(...)):
     ok, msg = verify_login_code(username, code)
     if not ok:
         return {"status": "error", "message": msg}
     user = get_user_by_username(username)
     if not user:
         return {"status": "error", "message": "User not found."}
-    token = create_session(user["id"])
-    return {"status": "ok", "token": token, "username": user["username"], "is_admin": user["is_admin"]}
+    return issue_session_cookie(response, user["id"], user["username"], user["is_admin"])
 
 @app.post("/logout")
-async def logout(x_session_token: str = Header(default=None)):
+async def logout(response: Response, x_session_token: str = Cookie(default=None, alias="session_token")):
     if x_session_token:
         delete_session(x_session_token)
+    response.delete_cookie("session_token", path="/")
     return {"status": "ok"}
 
 @app.get("/me")
-async def me(x_session_token: str = Header(default=None)):
+async def me(x_session_token: str = Cookie(default=None, alias="session_token")):
     user = get_user(x_session_token)
     return {"username": user["username"], "is_admin": user["is_admin"]}
 
@@ -156,7 +169,7 @@ async def chat(
     prompt: str = Form(default=""),
     msg: str = Form(default=""),
     image: UploadFile = File(default=None),
-    x_session_token: str = Header(default=None)
+    x_session_token: str = Cookie(default=None, alias="session_token")
 ):
     user = get_user(x_session_token)
     user_key = f"user_{user['id']}" if user["id"] else "guest"
@@ -167,6 +180,20 @@ async def chat(
 
     try:
         stripped_cmd = text.strip()
+
+        if stripped_cmd.upper() == "LOGOUT_ALL_DEVICES":
+            revoke_all_sessions(user["id"])
+            return {"status": "ok", "response": "All your active sessions have been revoked. You will need to log in again on all devices.", "category": "meta"}
+
+        if stripped_cmd.upper().startswith("REVOKE_USER") and is_admin:
+            parts = stripped_cmd.split()
+            if len(parts) < 2:
+                return {"status": "ok", "response": "Usage: REVOKE_USER <username>", "category": "meta"}
+            target = get_user_by_username(parts[1])
+            if not target:
+                return {"status": "ok", "response": f"User '{parts[1]}' not found.", "category": "meta"}
+            revoke_all_sessions(target["id"])
+            return {"status": "ok", "response": f"All sessions for '{parts[1]}' have been revoked.", "category": "meta"}
 
         if stripped_cmd.upper() == "SHOW_ALERTS" and is_admin:
             alerts = get_admin_alerts()

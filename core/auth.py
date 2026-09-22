@@ -85,7 +85,7 @@ def create_session(user_id):
     c = conn.cursor()
     token = secrets.token_hex(32)
     now = datetime.utcnow()
-    expires = now + timedelta(days=14)
+    expires = now + timedelta(hours=24)
     c.execute("INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
               (token, user_id, now.isoformat(), expires.isoformat()))
     conn.commit()
