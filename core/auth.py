@@ -80,6 +80,8 @@ def verify_user(username, password):
         return {"id": user_id, "username": username, "is_admin": bool(is_admin)}
     return None
 
+MAX_CONCURRENT_SESSIONS = 3
+
 def create_session(user_id):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -89,8 +91,25 @@ def create_session(user_id):
     c.execute("INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
               (token, user_id, now.isoformat(), expires.isoformat()))
     conn.commit()
+
+    # Enforce concurrent session limit - delete oldest sessions beyond the cap
+    c.execute("SELECT token FROM sessions WHERE user_id=? ORDER BY created_at DESC", (user_id,))
+    rows = c.fetchall()
+    if len(rows) > MAX_CONCURRENT_SESSIONS:
+        old_tokens = [r[0] for r in rows[MAX_CONCURRENT_SESSIONS:]]
+        c.executemany("DELETE FROM sessions WHERE token=?", [(t,) for t in old_tokens])
+        conn.commit()
+
     conn.close()
     return token
+
+
+def revoke_all_sessions(user_id):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("DELETE FROM sessions WHERE user_id=?", (user_id,))
+    conn.commit()
+    conn.close()
 
 def get_session_user(token):
     if not token:
