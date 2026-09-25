@@ -16,7 +16,28 @@ from core.security import (firewall_middleware, is_path_safe, is_locked_file,
                             propose_edit, confirm_edit, reject_edit, rollback_edit,
                             validate_python_syntax, LOCKED_FILES)
 from tools.coder import read_file, write_file, extract_code, run_script
+# In utils/email.py
+import smtplib, asyncio
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import os
 
+async def send_login_email(to_email: str, username: str):
+    msg = MIMEMultipart()
+    msg['From'] = os.getenv('SMTP_USER')
+    msg['To'] = to_email
+    msg['Subject'] = "Kiemaen Login Alert"
+    msg.attach(MIMEText(f"Hello {username}, your account was just accessed.", 'plain'))
+    
+    # Use a thread executor to avoid blocking the event loop
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, _send_sync, msg)
+
+def _send_sync(msg):
+    with smtplib.SMTP(os.getenv('SMTP_HOST'), int(os.getenv('SMTP_PORT'))) as s:
+        s.starttls()
+        s.login(os.getenv('SMTP_USER'), os.getenv('SMTP_PASS'))
+        s.send_message(msg)
 load_dotenv()
 
 DOCS_ENABLED = os.environ.get("ENABLE_API_DOCS", "false").lower() == "true"
@@ -64,7 +85,16 @@ async def admin_pending_code(email: str, x_session_token: str = Cookie(default=N
     if not result:
         return JSONResponse(status_code=404, content={"status": "error", "message": "No pending verification found for this email."})
     return {"status": "ok", "data": result}
+# In main.py
+from fastapi import UploadFile, File
+import base64
 
+@app.post("/upload")
+async def upload_image(file: UploadFile = File(...)):
+    contents = await file.read()
+    base64_image = base64.b64encode(contents).decode("utf-8")
+    # Return base64 to client, or pass directly to LLM if you want server-side processing
+    return {"image_base64": base64_image}
 @app.post("/register/request-code")
 async def register_request_code(username: str = Form(...), email: str = Form(...), password: str = Form(...)):
     if len(username) < 3 or len(password) < 4:

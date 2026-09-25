@@ -73,7 +73,16 @@ textarea { flex-grow:1; background:transparent; border:none; color:#e3e3e3; font
 }
 .read-aloud-btn:hover {
     opacity: 1;
+
+<button onclick="readAloud()" id="tts-btn">🔊 Read Aloud</button>
+
+<script>
+function readAloud() {
+    const text = document.getElementById('response-text').innerText;
+    const utterance = new SpeechSynthesisUtterance(text);
+    speechSynthesis.speak(utterance);
 }
+</script>}
 </style>
 
 
