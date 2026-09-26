@@ -2,9 +2,13 @@
 __pycache__/
 *.db
 *.sqlite3
-.ssh/
 .cache/
 .config/
 .local/
-.termux/
 .cargo/
+.npm/
+.ssh/
+.termux/
+downloads/
+*.zip
+*.tar.gz
