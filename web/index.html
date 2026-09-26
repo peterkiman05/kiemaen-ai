@@ -323,7 +323,8 @@
         async function submitAuth() {
             const username = document.getElementById('authUsername').value.trim();
             const password = document.getElementById('authPassword').value;
-            const email = document.getElementById('authEmail').value.trim();
+            const emailEl = document.getElementById('authEmail');
+    const email = emailEl ? emailEl.value.trim() : '';
             const code = document.getElementById('authOtpCode').value.trim();
 
             const fd = new FormData();
