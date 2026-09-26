@@ -1,3 +1,20 @@
+
+import sqlite3
+import os
+
+def init_db():
+    try:
+        conn = sqlite3.connect("kiemaen.db")
+        cursor = conn.cursor()
+        cursor.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, user_key TEXT UNIQUE, email TEXT, password TEXT, role TEXT DEFAULT 'user')")
+        cursor.execute("CREATE TABLE IF NOT EXISTS pending_verifications (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, email TEXT, password TEXT, code TEXT)")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Database init error: {e}")
+
+init_db()
+
 import datetime
 import time
 import sqlite3
