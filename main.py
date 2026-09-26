@@ -1,3 +1,24 @@
+
+import sqlite3
+import os
+from contextlib import asynccontextmanager
+
+DB_PATH = os.path.join(os.path.dirname(__file__), "kiemaen.db")
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, user_key TEXT UNIQUE, email TEXT, password TEXT, role TEXT DEFAULT 'user')")
+    cursor.execute("CREATE TABLE IF NOT EXISTS pending_verifications (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, email TEXT, password TEXT, code TEXT)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, token TEXT UNIQUE, user_id INTEGER)")
+    conn.commit()
+    conn.close()
+
+@asynccontextmanager
+async def lifespan(app):
+    init_db()
+    yield
+
 import os
 import difflib
 from fastapi import FastAPI, Form, File, UploadFile, Cookie, Response, Request, Depends, HTTPException
@@ -36,7 +57,7 @@ load_dotenv()
 # ==========================================
 # 1. INITIALIZE FASTAPI APP & FIREWALL
 # ==========================================
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 app.middleware("http")(firewall_middleware)
 
 # ==========================================
