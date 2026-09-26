@@ -1,0 +1,6 @@
+token: "changeme-generate-a-real-secret"
+interval_seconds: 300
+log_level: "INFO"
+log_file: "auto_evolve/auto_evolve.log"
+kiemaen_log_sources:
+  - "kiemaen.log"

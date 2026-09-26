@@ -1,0 +1,238 @@
+import os
+
+html_code = r'''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiemaen AGI</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #131314; color: #e3e3e3; font-family: 'Inter', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        
+        #chat-wrapper { flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; align-items: center; padding: 20px 0; scroll-behavior: smooth; }
+        #chat-container { width: 100%; max-width: 800px; padding: 0 20px; box-sizing: border-box; display: flex; flex-direction: column; }
+        
+        .message { margin-bottom: 30px; display: flex; flex-direction: column; width: 100%; }
+        .message.user { align-items: flex-end; }
+        .message.bot { align-items: flex-start; }
+        
+        .bubble { padding: 12px 20px; font-size: 15px; line-height: 1.6; word-wrap: break-word; max-width: 85%; }
+        .message.user .bubble { background-color: #282a2c; border-radius: 24px 24px 4px 24px; color: #e3e3e3; }
+        .message.bot .bubble { background-color: transparent; border-radius: 0; color: #c4c7c5; width: 100%; padding: 0; }
+        
+        .message.error .bubble { color: #ff8a80; }
+
+        pre { margin: 15px 0; border-radius: 12px; overflow: hidden; background: #1e1f20; }
+        code { font-family: monospace; font-size: 14px; }
+        .code-header { background: #282a2c; padding: 8px 15px; display: flex; justify-content: flex-end; gap: 10px; border-bottom: 1px solid #333; }
+        .code-header button { background: transparent; border: 1px solid #555; color: #c4c7c5; padding: 4px 10px; border-radius: 15px; font-size: 12px; cursor: pointer; transition: 0.2s; }
+        .code-header button:hover { background: #333; }
+
+        #input-area { width: 100%; max-width: 800px; margin: 0 auto; padding: 15px 20px 30px 20px; box-sizing: border-box; }
+        .input-wrapper { display: flex; align-items: flex-end; background-color: #1e1f20; border-radius: 26px; padding: 8px 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+        
+        textarea { flex-grow: 1; background: transparent; border: none; color: #e3e3e3; font-size: 16px; padding: 12px; outline: none; font-family: 'Inter', sans-serif; resize: none; max-height: 150px; overflow-y: auto; }
+        
+        .icon-btn { background: transparent; border: none; color: #c4c7c5; font-size: 22px; cursor: pointer; padding: 10px; border-radius: 50%; transition: 0.2s; display: flex; align-items: center; justify-content: center; height: 44px; width: 44px; margin-bottom: 2px; }
+        .icon-btn:hover { background-color: #333538; }
+        
+        .jarvis-active { background-color: #441111 !important; color: #ff5555 !important; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } }
+        
+        /* Markdown overrides for Gemini feel */
+        .bubble p { margin-top: 0; }
+        .bubble a { color: #8ab4f8; }
+    </style>
+</head>
+<body>
+    <div id="chat-wrapper">
+        <div id="chat-container"></div>
+    </div>
+    
+    <div id="input-area">
+        <div class="input-wrapper">
+            <input type="file" id="imageInput" accept="image/*" style="display:none">
+            <button class="icon-btn" onclick="document.getElementById('imageInput').click()" title="Upload Image">📷</button>
+            <textarea id="userInput" rows="1" placeholder="Ask Kiemaen..." onkeydown="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); sendMessage(); }" oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'"></textarea>
+            <button class="icon-btn" id="micBtn" onclick="toggleJarvis()" title="Voice Mode">🎙️</button>
+            <button class="icon-btn" onclick="sendMessage()" title="Send">🚀</button>
+        </div>
+    </div>
+
+    <script>
+        let recognition;
+        let jarvisMode = false;
+        let isSpeaking = false;
+        
+        // Setup Web Speech API for Jarvis Loop
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = false; // We use a manual loop for better control
+            recognition.interimResults = false;
+            
+            recognition.onstart = () => { document.getElementById("micBtn").classList.add("jarvis-active"); };
+            
+            recognition.onresult = (event) => {
+                const text = event.results[0][0].transcript;
+                document.getElementById("userInput").value = text;
+                sendMessage();
+            };
+            
+            recognition.onend = () => {
+                // If Jarvis mode is on, and the bot isn't currently speaking, restart listening
+                if (jarvisMode && !isSpeaking) {
+                    setTimeout(() => { try { recognition.start(); } catch(e){} }, 300);
+                } else if (!jarvisMode) {
+                    document.getElementById("micBtn").classList.remove("jarvis-active");
+                }
+            };
+            
+            recognition.onerror = (e) => {
+                console.warn("Speech recognition error:", e.error);
+                if (e.error === 'not-allowed') toggleJarvis();
+            };
+        }
+
+        function toggleJarvis() {
+            if (!recognition) return alert("Voice not supported in this browser.");
+            jarvisMode = !jarvisMode;
+            if (jarvisMode) {
+                try { recognition.start(); } catch(e){}
+            } else {
+                recognition.stop();
+                window.speechSynthesis.cancel();
+                document.getElementById("micBtn").classList.remove("jarvis-active");
+            }
+        }
+
+        function speak(text) {
+            if (!jarvisMode || !('speechSynthesis' in window)) return;
+            window.speechSynthesis.cancel();
+            
+            isSpeaking = true;
+            recognition.stop(); // Stop listening so it doesn't hear itself
+            
+            // Strip markdown and code blocks for TTS
+            let cleanText = text.replace(/```[\s\S]*?```/g, "Code provided on screen.")
+                                .replace(/[*_#]/g, "")
+                                .replace(/<[^>]*>?/gm, ''); // Remove HTML
+            
+            let utterance = new SpeechSynthesisUtterance(cleanText);
+            utterance.rate = 1.05;
+            
+            utterance.onend = () => {
+                isSpeaking = false;
+                if (jarvisMode) {
+                    // Start listening again immediately after speaking finishes
+                    setTimeout(() => { try { recognition.start(); } catch(e){} }, 300);
+                }
+            };
+            
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function addMessage(text, sender) {
+            const chat = document.getElementById("chat-container");
+            const wrapper = document.getElementById("chat-wrapper");
+            
+            const msgDiv = document.createElement("div");
+            msgDiv.className = `message ${sender}`;
+            
+            const bubbleDiv = document.createElement("div");
+            bubbleDiv.className = "bubble";
+            
+            if (sender === 'bot') {
+                bubbleDiv.innerHTML = marked.parse(text);
+                bubbleDiv.querySelectorAll("pre code").forEach((block) => {
+                    hljs.highlightElement(block);
+                    const pre = block.parentElement;
+                    const header = document.createElement("div");
+                    header.className = "code-header";
+                    
+                    const copyBtn = document.createElement("button");
+                    copyBtn.innerText = "Copy";
+                    copyBtn.onclick = () => navigator.clipboard.writeText(block.innerText);
+                    
+                    const dlBtn = document.createElement("button");
+                    dlBtn.innerText = "Save";
+                    dlBtn.onclick = () => {
+                        const blob = new Blob([block.innerText], { type: "text/plain" });
+                        const a = document.createElement("a");
+                        a.href = URL.createObjectURL(blob); a.download = `code_${Date.now()}.txt`; a.click();
+                    };
+
+                    const playBtn = document.createElement("button");
+                    playBtn.innerText = "Play";
+                    playBtn.onclick = () => {
+                        const win = window.open("", "_blank");
+                        win.document.write(block.innerText);
+                    };
+                    
+                    header.append(copyBtn, dlBtn, playBtn);
+                    pre.parentNode.insertBefore(header, pre);
+                });
+            } else {
+                bubbleDiv.innerText = text;
+            }
+            
+            msgDiv.appendChild(bubbleDiv);
+            chat.appendChild(msgDiv);
+            
+            // Auto scroll
+            setTimeout(() => { wrapper.scrollTop = wrapper.scrollHeight; }, 100);
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById("userInput");
+            const imageInput = document.getElementById("imageInput");
+            const text = input.value.trim();
+            const file = imageInput.files[0];
+            
+            if (!text && !file) return;
+
+            addMessage(text || "[Image Attached]", "user");
+            input.value = "";
+            input.style.height = ""; // Reset textarea height
+            
+            const formData = new FormData();
+            if (text) formData.append("prompt", text);
+            if (file) { formData.append("image", file); imageInput.value = ""; }
+
+            // Temporary loading indicator
+            const loadingId = "load-" + Date.now();
+            const chat = document.getElementById("chat-container");
+            chat.insertAdjacentHTML('beforeend', `<div id="${loadingId}" class="message bot"><div class="bubble">✨ Thinking...</div></div>`);
+            document.getElementById("chat-wrapper").scrollTop = document.getElementById("chat-wrapper").scrollHeight;
+
+            try {
+                let response = await fetch("/chat", { method: "POST", body: formData });
+                document.getElementById(loadingId).remove();
+
+                if (!response.ok) throw new Error("Server disconnected.");
+                let result = await response.json();
+                if (result.status === "error") throw new Error(result.message);
+
+                addMessage(result.response, "bot");
+                speak(result.response);
+            } catch (error) {
+                document.getElementById(loadingId)?.remove();
+                addMessage(`Error: ${error.message}`, "error");
+                speak("I encountered a network error.");
+                
+                // Pause Jarvis on error so it doesn't loop bad connections
+                if (jarvisMode) toggleJarvis(); 
+            }
+        }
+    </script>
+</body>
+</html>
+'''
+
+with open("web/index.html", "w", encoding="utf-8") as f:
+    f.write(html_code)
+
+print("✅ UI Successfully updated to Gemini Design & Jarvis Voice Loop.")
