@@ -2,9 +2,23 @@
 import sqlite3
 import os
 
+def get_db():
+    db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "kiemaen.db"))
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, user_key TEXT UNIQUE, email TEXT, password TEXT, role TEXT DEFAULT 'user')")
+    cursor.execute("CREATE TABLE IF NOT EXISTS pending_verifications (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, email TEXT, password TEXT, code TEXT)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, token TEXT UNIQUE, user_id INTEGER)")
+    conn.commit()
+    return conn
+
+
+import sqlite3
+import os
+
 def init_db():
     try:
-        conn = sqlite3.connect("kiemaen.db")
+        conn = get_db()
         cursor = conn.cursor()
         cursor.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, user_key TEXT UNIQUE, email TEXT, password TEXT, role TEXT DEFAULT 'user')")
         cursor.execute("CREATE TABLE IF NOT EXISTS pending_verifications (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, email TEXT, password TEXT, code TEXT)")
