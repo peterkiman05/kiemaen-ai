@@ -1,3 +1,15 @@
+
+import sqlite3
+
+def get_kiemaen_db():
+    conn = sqlite3.connect("kiemaen.db", check_same_thread=False)
+    cursor = conn.cursor()
+    cursor.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, user_key TEXT UNIQUE, email TEXT, password TEXT, role TEXT DEFAULT 'user')")
+    cursor.execute("CREATE TABLE IF NOT EXISTS pending_verifications (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, email TEXT, password TEXT, code TEXT)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, token TEXT UNIQUE, user_id INTEGER)")
+    conn.commit()
+    return conn
+
 from fastapi.responses import JSONResponse
 import traceback
 
@@ -8,7 +20,7 @@ from contextlib import asynccontextmanager
 DB_PATH = os.path.join(os.path.dirname(__file__), "kiemaen.db")
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_kiemaen_db()
     cursor = conn.cursor()
     cursor.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, user_key TEXT UNIQUE, email TEXT, password TEXT, role TEXT DEFAULT 'user')")
     cursor.execute("CREATE TABLE IF NOT EXISTS pending_verifications (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, email TEXT, password TEXT, code TEXT)")

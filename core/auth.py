@@ -1,10 +1,22 @@
 
 import sqlite3
+
+def get_kiemaen_db():
+    conn = sqlite3.connect("kiemaen.db", check_same_thread=False)
+    cursor = conn.cursor()
+    cursor.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, user_key TEXT UNIQUE, email TEXT, password TEXT, role TEXT DEFAULT 'user')")
+    cursor.execute("CREATE TABLE IF NOT EXISTS pending_verifications (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, email TEXT, password TEXT, code TEXT)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, token TEXT UNIQUE, user_id INTEGER)")
+    conn.commit()
+    return conn
+
+
+import sqlite3
 import os
 
 def get_db():
     db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "kiemaen.db"))
-    conn = sqlite3.connect(db_path)
+    conn = get_kiemaen_db()
     cursor = conn.cursor()
     cursor.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, user_key TEXT UNIQUE, email TEXT, password TEXT, role TEXT DEFAULT 'user')")
     cursor.execute("CREATE TABLE IF NOT EXISTS pending_verifications (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, email TEXT, password TEXT, code TEXT)")
@@ -59,7 +71,7 @@ def create_pending_verification(username: str, email: str, password: str):
     expires = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
     password_hash = hash_password(password)
     
-    conn = sqlite3.connect("auth.db")
+    conn = get_kiemaen_db()
     cursor = conn.cursor()
     cursor.execute("SELECT id FROM users WHERE user_key = ?", (username,))
     if cursor.fetchone():
@@ -75,7 +87,7 @@ def create_pending_verification(username: str, email: str, password: str):
     return code, None
 
 def verify_and_create_user(email: str, code: str):
-    conn = sqlite3.connect("auth.db")
+    conn = get_kiemaen_db()
     cursor = conn.cursor()
     cursor.execute("""
         SELECT id, user_key, role, verification_expires FROM users 
@@ -109,7 +121,7 @@ def verify_and_create_user(email: str, code: str):
 # ==========================================
 def create_session(user_id: int) -> str:
     token = str(uuid.uuid4())
-    conn = sqlite3.connect("auth.db")
+    conn = get_kiemaen_db()
     cursor = conn.cursor()
     cursor.execute("INSERT OR REPLACE INTO sessions (token, user_id) VALUES (?, ?)", (token, user_id))
     conn.commit()
@@ -119,7 +131,7 @@ def create_session(user_id: int) -> str:
 def get_session_user(token: str):
     if not token:
         return None
-    conn = sqlite3.connect("auth.db")
+    conn = get_kiemaen_db()
     cursor = conn.cursor()
     cursor.execute("SELECT users.id, users.user_key, users.role FROM sessions JOIN users ON sessions.user_id = users.id WHERE sessions.token = ?", (token,))
     row = cursor.fetchone()
@@ -129,28 +141,28 @@ def get_session_user(token: str):
     return {"id": row[0], "username": row[1], "is_admin": (row[2] == "admin")}
 
 def delete_session(token: str):
-    conn = sqlite3.connect("auth.db")
+    conn = get_kiemaen_db()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM sessions WHERE token = ?", (token,))
     conn.commit()
     conn.close()
 
 def revoke_all_sessions(user_id: int):
-    conn = sqlite3.connect("auth.db")
+    conn = get_kiemaen_db()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
     conn.commit()
     conn.close()
 
 def add_task(user_id: int, title: str):
-    conn = sqlite3.connect("auth.db")
+    conn = get_kiemaen_db()
     cursor = conn.cursor()
     cursor.execute("INSERT INTO tasks (user_id, title, status) VALUES (?, ?, 'pending')", (user_id, title))
     conn.commit()
     conn.close()
 
 def get_tasks(user_id: int):
-    conn = sqlite3.connect("auth.db")
+    conn = get_kiemaen_db()
     cursor = conn.cursor()
     cursor.execute("SELECT id, title, status FROM tasks WHERE user_id = ?", (user_id,))
     rows = cursor.fetchall()
@@ -158,7 +170,7 @@ def get_tasks(user_id: int):
     return [{"id": r[0], "title": r[1], "status": r[2]} for r in rows]
 
 def complete_task(user_id: int, task_id: int):
-    conn = sqlite3.connect("auth.db")
+    conn = get_kiemaen_db()
     cursor = conn.cursor()
     cursor.execute("UPDATE tasks SET status = 'completed' WHERE id = ? AND user_id = ?", (task_id, user_id))
     conn.commit()
@@ -334,7 +346,7 @@ async def logout_user(db, response: Response, current_user=Depends(get_current_u
 # PIN MANAGEMENT HELPERS (Added for compatibility)
 # ==========================================
 def add_pin(user_id: int, pin: str):
-    conn = sqlite3.connect("auth.db")
+    conn = get_kiemaen_db()
     cursor = conn.cursor()
     cursor.execute("CREATE TABLE IF NOT EXISTS pins (user_id INTEGER, pin TEXT)")
     cursor.execute("INSERT INTO pins (user_id, pin) VALUES (?, ?)", (user_id, pin))
@@ -342,7 +354,7 @@ def add_pin(user_id: int, pin: str):
     conn.close()
 
 def get_pins(user_id: int):
-    conn = sqlite3.connect("auth.db")
+    conn = get_kiemaen_db()
     cursor = conn.cursor()
     cursor.execute("CREATE TABLE IF NOT EXISTS pins (user_id INTEGER, pin TEXT)")
     cursor.execute("SELECT pin FROM pins WHERE user_id = ?", (user_id,))
@@ -351,7 +363,7 @@ def get_pins(user_id: int):
     return [r[0] for r in rows]
 
 def remove_pin(user_id: int, pin: str):
-    conn = sqlite3.connect("auth.db")
+    conn = get_kiemaen_db()
     cursor = conn.cursor()
     cursor.execute("CREATE TABLE IF NOT EXISTS pins (user_id INTEGER, pin TEXT)")
     cursor.execute("DELETE FROM pins WHERE user_id = ? AND pin = ?", (user_id, pin))
