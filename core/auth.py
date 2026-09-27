@@ -4,7 +4,18 @@ import sqlite3
 def get_kiemaen_db():
     conn = sqlite3.connect("kiemaen.db", check_same_thread=False)
     cursor = conn.cursor()
-    cursor.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, user_key TEXT UNIQUE, email TEXT, password TEXT, role TEXT DEFAULT 'user')")
+    
+    # Updated Schema
+    cursor.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, user_key TEXT UNIQUE, email TEXT, password_hash TEXT, role TEXT DEFAULT 'user', verification_code TEXT, verification_expires REAL)")
+    
+    # Safely inject missing columns into the table we created earlier
+    try: cursor.execute("ALTER TABLE users ADD COLUMN password_hash TEXT")
+    except: pass
+    try: cursor.execute("ALTER TABLE users ADD COLUMN verification_code TEXT")
+    except: pass
+    try: cursor.execute("ALTER TABLE users ADD COLUMN verification_expires REAL")
+    except: pass
+
     cursor.execute("CREATE TABLE IF NOT EXISTS pending_verifications (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, email TEXT, password TEXT, code TEXT)")
     cursor.execute("CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, token TEXT UNIQUE, user_id INTEGER)")
     conn.commit()
