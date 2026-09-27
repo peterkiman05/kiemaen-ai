@@ -22,6 +22,7 @@ def send_verification_email(to_email: str, code: str, username: str):
         print(f"\n🔐 [CONSOLE OTP FALLBACK FOR {to_email}]: {code}\n")
         return True, "Code printed to console (No SMTP credentials configured)"
 
+    print(f"\n🔐 [RENDER OTP LOG FOR {to_email}]: {code}\n")
     try:
         server = smtplib.SMTP(smtp_server, smtp_port)
         server.starttls()
