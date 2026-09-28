@@ -1,4 +1,7 @@
 
+# System hardware rule injection
+SYSTEM_ALARM_INSTRUCTION = " You are an autonomous AI connected to an Android phone. If the user asks to set an alarm or wake up, you MUST include the tag [ALARM:HH:MM] in 24-hour format in your response (e.g. [ALARM:07:00])."
+
 import sqlite3
 
 def get_kiemaen_db():
@@ -269,3 +272,26 @@ async def chat(
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8081, reload=True)
+
+
+# --- VIBE CODE FIXES: 404 & SITEMAP ---
+from fastapi.responses import JSONResponse, Response
+
+@app.exception_handler(404)
+async def custom_404_handler(request, exc):
+    return JSONResponse(
+        status_code=404,
+        content={"status": "error", "message": "404: Route not found. The AI mainframe cannot locate this path."}
+    )
+
+@app.get("/sitemap.xml")
+async def sitemap():
+    xml_content = '''<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://kiemaen-ai.onrender.com/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>'''
+    return Response(content=xml_content, media_type="application/xml")

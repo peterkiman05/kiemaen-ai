@@ -1,3 +1,6 @@
+
+# System hardware rule injection
+SYSTEM_ALARM_INSTRUCTION = " You are an autonomous AI connected to an Android phone. If the user asks to set an alarm or wake up, you MUST include the tag [ALARM:HH:MM] in 24-hour format in your response (e.g. [ALARM:07:00])."
 import os, math, time, requests
 
 API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()

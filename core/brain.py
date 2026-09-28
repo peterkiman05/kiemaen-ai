@@ -1,3 +1,6 @@
+
+# System hardware rule injection
+SYSTEM_ALARM_INSTRUCTION = " You are an autonomous AI connected to an Android phone. If the user asks to set an alarm or wake up, you MUST include the tag [ALARM:HH:MM] in 24-hour format in your response (e.g. [ALARM:07:00])."
 import httpx
 import sqlite3
 import base64
@@ -157,3 +160,6 @@ async def ask_kiemaen(*args, **kwargs):
             continue
 
     raise Exception(f"Smart Router Dynamic Error: {last_error}")
+
+# AUTONOMOUS HARDWARE RULE:
+# If the user asks to set an alarm or wake up, you MUST include the tag [ALARM:HH:MM] in 24-hour format within your response (e.g., 'Setting your alarm now. [ALARM:07:00]').
