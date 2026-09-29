@@ -60,3 +60,19 @@ async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
             background_tasks.add_task(kim_agent.design_enterprise_architecture, chat_id, company)
             
     return {"status": "ok"}
+
+from fastapi import Form
+from fastapi.responses import JSONResponse
+
+@app.post("/api/auth/login")
+async def login(username: str = Form(...), password: str = Form(...)):
+    # Admin Tier (God Mode)
+    if username == settings.ADMIN_USERNAME and password == settings.ADMIN_PASSWORD:
+        return JSONResponse({"status": "success", "role": "admin", "redirect": "/dashboard_admin"})
+    
+    # Surface Tier (Client/User Mode)
+    # (In the future, this will check your SQLite database for registered users)
+    if username.startswith("user_"): 
+        return JSONResponse({"status": "success", "role": "user", "redirect": "/dashboard_client"})
+        
+    return JSONResponse({"status": "error", "message": "Invalid credentials"}, status_code=401)

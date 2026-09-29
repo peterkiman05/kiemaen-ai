@@ -2,93 +2,100 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Kiemaen OS | Master Control</title>
+    <title>Kiemaen OS | Authentication</title>
     <style>
-        body { font-family: 'Courier New', Courier, monospace; background: #0a0a0a; color: #00ffcc; margin: 0; display: flex; height: 100vh; }
+        body { font-family: 'Courier New', Courier, monospace; background: #0a0a0a; color: #00ffcc; margin: 0; display: flex; height: 100vh; align-items: center; justify-content: center; }
+        .login-box { background: #111; padding: 40px; border: 1px solid #333; text-align: center; width: 300px; box-shadow: 0 0 15px rgba(0, 255, 204, 0.2); }
+        .dashboard { display: none; width: 100%; height: 100%; }
         .sidebar { width: 250px; background: #111; padding: 20px; border-right: 1px solid #333; }
-        .sidebar h2 { color: #fff; text-align: center; margin-bottom: 40px; }
-        .nav-btn { display: block; width: 100%; background: transparent; color: #aaa; border: 1px solid #333; padding: 15px; margin-bottom: 10px; cursor: pointer; transition: 0.3s; text-align: left; font-size: 16px; }
-        .nav-btn:hover, .nav-btn.active { background: #00ffcc; color: #000; font-weight: bold; }
         .content { flex-grow: 1; padding: 40px; overflow-y: auto; }
+        .nav-btn { display: block; width: 100%; background: transparent; color: #aaa; border: 1px solid #333; padding: 15px; margin-bottom: 10px; cursor: pointer; text-align: left; }
+        .nav-btn:hover, .nav-btn.active { background: #00ffcc; color: #000; font-weight: bold; }
+        input { width: 90%; background: #222; color: #00ffcc; border: 1px solid #555; padding: 10px; margin: 10px 0; }
+        button { background: #00ffcc; color: #000; padding: 10px 20px; border: none; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; }
         .panel { display: none; }
         .panel.active { display: block; }
-        input, select, textarea { width: 100%; background: #222; color: #00ffcc; border: 1px solid #555; padding: 10px; margin-top: 10px; margin-bottom: 20px; font-family: inherit; }
-        button.action-btn { background: #00ffcc; color: #000; padding: 12px 20px; border: none; cursor: pointer; font-weight: bold; width: 100%; }
-        button.action-btn:hover { background: #00ccaa; }
-        .chat-box { background: #111; height: 300px; border: 1px solid #333; padding: 10px; overflow-y: auto; margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
-    <div class="sidebar">
+    <!-- GATEKEEPER LOGIN -->
+    <div id="login-screen" class="login-box">
         <h2>KIEMAEN OS</h2>
-        <button class="nav-btn active" onclick="switchTab('kiemaen')">1. Kiemaen Classic</button>
-        <button class="nav-btn" onclick="switchTab('kim')">2. Kim (Trading Desk)</button>
-        <button class="nav-btn" onclick="switchTab('kit')">3. Kit (B2B Pipeline)</button>
-        <button class="nav-btn" onclick="switchTab('kat')">4. Kat (VIP Clients)</button>
+        <p style="color: #666; font-size: 12px;">Enterprise Auth Gateway</p>
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="attemptLogin()">ENTER SYSTEM</button>
+        <p id="error-msg" style="color: red; display: none; font-size: 12px; margin-top:10px;">Access Denied.</p>
     </div>
 
-    <div class="content">
-        <!-- 1. Kiemaen Classic -->
-        <div id="kiemaen" class="panel active">
-            <h2>System: Original Kiemaen</h2>
-            <div class="chat-box" id="chat-log">Welcome back, Jacob. System online.</div>
-            <input type="text" id="chat-input" placeholder="Command Kiemaen...">
-            <button class="action-btn" onclick="sendChat()">Send Command</button>
+    <!-- ADMIN MASTER DASHBOARD -->
+    <div id="admin-dashboard" class="dashboard" style="display: none; align-items: stretch;">
+        <div class="sidebar">
+            <h2 style="color: #fff;">JACOB // ADMIN</h2>
+            <button class="nav-btn active" onclick="switchTab('kiemaen')">Kiemaen Classic</button>
+            <button class="nav-btn" onclick="switchTab('kim')">Kim (Trading)</button>
+            <button class="nav-btn" onclick="switchTab('kit')">Kit (B2B)</button>
+            <button class="nav-btn" onclick="switchTab('kat')">Kat (VIP)</button>
+            <button class="nav-btn" onclick="switchTab('files')" style="color: #ffaa00;">Deep Directory</button>
         </div>
-
-        <!-- 2. Kim's Interface -->
-        <div id="kim" class="panel">
-            <h2>System: Kim (Quantitative Ops)</h2>
-            <label>Select Account:</label>
-            <select id="kim-account">
-                <option value="vault_main">Vault Markets - Main Fund</option>
-                <option value="paper_trade">Paper Trading / Backtest</option>
-            </select>
-            <label>Target Trading Pair:</label>
-            <input type="text" id="kim-pair" placeholder="e.g. XAUUSD, GBPJPY">
-            <button class="action-btn" onclick="sendCommand('kim')">Initialize Algorithm</button>
+        <div class="content">
+            <div id="kiemaen" class="panel active"><h2>Kiemaen Classic Override</h2><p>Full AGI command terminal online.</p></div>
+            <div id="kim" class="panel"><h2>Kim Quantitative Override</h2><input type="text" placeholder="Force Target Pair (e.g. XAUUSD)"><button>Override Algo</button></div>
+            <div id="kit" class="panel"><h2>Kit Outbound Override</h2><input type="text" placeholder="Assign Target Firm"><button>Deploy Campaign</button></div>
+            <div id="kat" class="panel"><h2>Kat VIP Override</h2><input type="text" placeholder="VIP Custom Instructions"><button>Inject Protocol</button></div>
+            <div id="files" class="panel"><h2>Deep File Directory</h2><p style="color:#aaa;">> UJ_Power_Pathway_Report.html<br>> Vault_Markets_Architecture.pdf<br>> root_config.json</p></div>
         </div>
+    </div>
 
-        <!-- 3. Kit's Interface -->
-        <div id="kit" class="panel">
-            <h2>System: Kit (Growth & B2B)</h2>
-            <label>Special Instructions / Target Market:</label>
-            <textarea id="kit-instructions" rows="5" placeholder="e.g. Pivot outreach to prop firms in London. Focus on AI risk mitigation..."></textarea>
-            <button class="action-btn" onclick="sendCommand('kit')">Update Directives</button>
-        </div>
-
-        <!-- 4. Kat's Interface -->
-        <div id="kat" class="panel">
-            <h2>System: Kat (Client Relations)</h2>
-            <label>VIP Handling Instructions:</label>
-            <textarea id="kat-instructions" rows="5" placeholder="e.g. Offer a 20% discount on VIP signals this week only."></textarea>
-            <button class="action-btn" onclick="sendCommand('kat')">Deploy Directives</button>
+    <!-- CLIENT SURFACE DASHBOARD -->
+    <div id="user-dashboard" class="dashboard" style="display: none; flex-direction: column; align-items: center; justify-content: center;">
+        <div style="background: #111; padding: 40px; border: 1px solid #333; text-align: center; width: 400px;">
+            <h2>CLIENT PORTAL</h2>
+            <p style="color: #aaa;">Welcome. Your access level is restricted to surface operations.</p>
+            <hr style="border-color: #333;">
+            <p><b>VIP Status:</b> Inactive</p>
+            <p><b>Active Trades:</b> 0</p>
+            <button onclick="alert('Contact Kat via Telegram to upgrade.')">Upgrade to VIP</button>
         </div>
     </div>
 
     <script>
+        async function attemptLogin() {
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+            
+            const formData = new FormData();
+            formData.append("username", user);
+            formData.append("password", pass);
+
+            try {
+                const response = await fetch('/api/auth/login', { method: 'POST', body: formData });
+                const result = await response.json();
+
+                if (result.role === 'admin') {
+                    document.getElementById('login-screen').style.display = 'none';
+                    document.getElementById('admin-dashboard').style.display = 'flex';
+                } else if (result.role === 'user') {
+                    document.getElementById('login-screen').style.display = 'none';
+                    document.getElementById('user-dashboard').style.display = 'flex';
+                } else {
+                    document.getElementById('error-msg').style.display = 'block';
+                }
+            } catch (error) {
+                // Fallback for local Termux testing before Render updates
+                if (user === 'admin') { 
+                    document.getElementById('login-screen').style.display = 'none';
+                    document.getElementById('admin-dashboard').style.display = 'flex';
+                }
+            }
+        }
+
         function switchTab(tabId) {
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
             event.target.classList.add('active');
-        }
-
-        async function sendCommand(agent) {
-            alert(`Instructions sent to ${agent.toUpperCase()}. Database updated.`);
-            // Future tie-in to FastAPI endpoints goes here
-        }
-
-        function sendChat() {
-            const input = document.getElementById('chat-input');
-            const log = document.getElementById('chat-log');
-            if(input.value.trim() !== "") {
-                log.innerHTML += `<br><b style="color:#fff">Jacob:</b> ${input.value}`;
-                log.innerHTML += `<br><b style="color:#00ffcc">Kiemaen:</b> Acknowledged. Processing command.`;
-                input.value = "";
-                log.scrollTop = log.scrollHeight;
-            }
         }
     </script>
 </body>
