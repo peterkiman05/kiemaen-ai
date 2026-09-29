@@ -6,6 +6,7 @@ groq
 httpx
 apscheduler
 pydantic
+pydantic-settings
 python-dotenv
 Pillow
 PyJWT
