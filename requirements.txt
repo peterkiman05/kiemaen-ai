@@ -1,7 +1,8 @@
 fastapi
 uvicorn
+sqlalchemy[asyncio]
+greenlet
 argon2-cffi
-sqlalchemy
 pydantic
 python-multipart
 httpx
