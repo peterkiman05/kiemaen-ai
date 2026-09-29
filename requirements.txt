@@ -3,6 +3,7 @@ uvicorn
 sqlalchemy[asyncio]
 greenlet
 argon2-cffi
+python-dotenv
 pydantic
 python-multipart
 httpx
