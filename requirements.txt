@@ -11,3 +11,4 @@ httpx
 apscheduler
 jinja2
 Pillow
+PyJWT
