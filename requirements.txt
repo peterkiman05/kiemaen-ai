@@ -11,3 +11,5 @@ Pillow
 PyJWT
 python-multipart
 passlib[bcrypt]
+pyotp
+qrcode
