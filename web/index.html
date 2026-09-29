@@ -11,17 +11,10 @@
             --input-bg: #161f33;
             --text-secondary: #9ca3af;
         }
-
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg-dark); color: #ffffff; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        /* Blue & Black Text Gradient */
-        .blue-black-text {
-            background: linear-gradient(135deg, #60a5fa 0%, #1e3a8a 40%, #000000 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            filter: drop-shadow(0px 2px 12px rgba(59, 130, 246, 0.2));
-        }
-
+        .blue-black-text { background: linear-gradient(135deg, #60a5fa 0%, #1e3a8a 40%, #000000 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0px 2px 12px rgba(59, 130, 246, 0.2)); }
+        
         .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background-color: var(--bg-dark); border-bottom: 1px solid rgba(255,255,255,0.05); z-index: 10; }
         .menu-icon { font-size: 24px; cursor: pointer; color: #fff; user-select: none; }
         .header-title { font-size: 18px; font-weight: 700; letter-spacing: 0.5px; }
@@ -46,7 +39,6 @@
         .flower-logo { width: 90px; height: 90px; filter: drop-shadow(0 0 15px rgba(29, 78, 216, 0.6)); }
         .flower-btn { width: 30px; height: 30px; filter: drop-shadow(0 0 8px rgba(29, 78, 216, 0.8)); cursor: pointer; }
 
-        /* --- NEW: POLISHED AUTHENTICATION MODAL --- */
         .auth-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: none; justify-content: center; align-items: center; z-index: 300; opacity: 0; transition: opacity 0.3s ease; }
         .auth-overlay.show { display: flex; opacity: 1; }
         .auth-card { background: var(--bg-panel); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 16px; padding: 35px 25px; width: 90%; max-width: 380px; box-shadow: 0 15px 50px rgba(0,0,0,0.8); position: relative; transform: translateY(20px); transition: transform 0.3s ease; }
@@ -68,7 +60,6 @@
     </style>
 </head>
 <body>
-    <!-- Pointy Petals + Blue/Black Gradient -->
     <svg width="0" height="0" style="position:absolute">
         <defs>
             <radialGradient id="blueBlackGlow" cx="50%" cy="50%" r="50%">
@@ -111,7 +102,6 @@
         </div>
     </div>
 
-    <!-- AUTHENTICATION MODAL -->
     <div class="auth-overlay" id="auth-modal">
         <div class="auth-card">
             <div class="auth-close" onclick="closeAuth()">×</div>
@@ -131,7 +121,6 @@
     </div>
 
     <script>
-        // --- CHAT LOGIC ---
         async function sendChat() {
             const input = document.getElementById('chat-input');
             const log = document.getElementById('chat-log');
@@ -159,7 +148,6 @@
             }
         }
 
-        // --- AUTHENTICATION UI LOGIC ---
         let isLoginMode = true;
 
         function openAuth() {
@@ -207,38 +195,19 @@
                     return;
                 }
             }
-
-            // In your classic system, this wires to core/auth.py via POST routes
-            const endpoint = isLoginMode ? '/login' : '/register'; 
             
-            try {
-                // To activate actual backend syncing, you will use standard fetch calls here:
-                /*
-                const res = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ email: email, password: pass })
-                });
-                const data = await res.json();
-                if (data.status === 'success') { ... }
-                */
-
-                // Simulating success for the UI overlay:
-                const topBtn = document.getElementById('top-login-btn');
-                topBtn.innerText = "CEO Active";
-                topBtn.style.color = "#60a5fa";
-                topBtn.style.borderColor = "#3b82f6";
-                
-                alert(isLoginMode ? "Authentication Successful. CEO Mode Unlocked." : "Registration Successful. Please Login.");
-                
-                if(!isLoginMode) {
-                    toggleAuthMode(); // Flip back to login after registering
-                } else {
-                    closeAuth(); // Close modal on successful login
-                }
-
-            } catch(err) {
-                alert("Server Connection Error during authentication.");
+            // UI Overlay success simulation for now
+            const topBtn = document.getElementById('top-login-btn');
+            topBtn.innerText = "CEO Active";
+            topBtn.style.color = "#60a5fa";
+            topBtn.style.borderColor = "#3b82f6";
+            
+            alert(isLoginMode ? "Authentication Successful. CEO Mode Unlocked." : "Registration Successful. Please Login.");
+            
+            if(!isLoginMode) {
+                toggleAuthMode();
+            } else {
+                closeAuth();
             }
         }
     </script>
