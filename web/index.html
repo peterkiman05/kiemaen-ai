@@ -1,639 +1,120 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
-    <!-- SEO & Open Graph Meta Tags -->
-    <title>Kiemaen AI | Autonomous Android Agent</title>
-    <meta name="description" content="Kiemaen AI is a powerful, locally-hosted AGI assistant built for Termux and Android.">
-    <link rel="canonical" href="https://kiemaen-ai.onrender.com/">
-    
-    <!-- Open Graph Tags -->
-    <meta property="og:title" content="Kiemaen AI Terminal">
-    <meta property="og:description" content="Autonomous Termux-based AI Assistant for Huawei.">
-    <meta property="og:image" content="https://kiemaen-ai.onrender.com/static/og-image.jpg">
-    <meta property="og:url" content="https://kiemaen-ai.onrender.com/">
-    <meta property="og:type" content="website">
-    
-    <!-- SVG Favicon (Emoji bypasses external file requests) -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
-
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kiemaen AGI</title>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
     <style>
-        body { background: linear-gradient(180deg, #05070d 0%, #0a0e1a 45%, #10213d 100%) !important; color: #e3e3e3; font-family: 'Inter', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        #header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: transparent; }
-        .header-left { display: flex; align-items: center; gap: 15px; }
-        .menu-btn, .login-btn { background: none; border: none; color: #c4c7c5; cursor: pointer; display: flex; align-items: center; }
-        .login-btn { background: #282a2c; padding: 6px 14px; border-radius: 18px; font-size: 14px; border: 1px solid #444; color: #e3e3e3; }
-        .login-btn:hover { background: #333538; color: #fff; }
-        .menu-btn:hover { color: #fff; }
-        .brand { font-size: 18px; font-weight: 500; }
+        :root {
+            --bg-dark: #070a14;
+            --input-bg: #161f33;
+            --text-secondary: #9ca3af;
+        }
 
-        #overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 998; }
-        #sidebar { position: fixed; top: 0; left: -320px; width: 300px; height: 100vh; background: #1e1f20; z-index: 999; transition: left 0.3s ease; display: flex; flex-direction: column; border-right: 1px solid #333; }
-        #sidebar.open { left: 0; }
-        #overlay.open { display: block; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg-dark); color: #ffffff; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        .sidebar-header { padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
-        .sidebar-content { padding: 20px; flex-grow: 1; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; }
-        .new-chat-btn { background: #282a2c; color: #e3e3e3; border: 1px solid #444; padding: 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 15px; }
-        .new-chat-btn:hover { background: #333538; }
+        /* New Blue & Black Text Gradient */
+        .blue-black-text {
+            background: linear-gradient(135deg, #60a5fa 0%, #1e3a8a 40%, #000000 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0px 2px 12px rgba(59, 130, 246, 0.2));
+        }
 
-        .sidebar-section { display: flex; flex-direction: column; gap: 8px; }
-        .sidebar-section h3 { margin: 0; font-size: 14px; color: #c4c7c5; font-weight: 500; display: flex; align-items: center; gap: 6px; }
-        #notebookText { height: 100px; background: #131314; border: 1px solid #333; border-radius: 8px; color: #e3e3e3; padding: 10px; font-family: monospace; resize: none; outline: none; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background-color: var(--bg-dark); border-bottom: 1px solid rgba(255,255,255,0.05); z-index: 10; }
+        .menu-icon { font-size: 24px; cursor: pointer; color: #fff; user-select: none; }
+        .header-title { font-size: 18px; font-weight: 700; letter-spacing: 0.5px; }
+        .login-btn { background-color: rgba(255,255,255,0.1); color: #fff; border: none; padding: 6px 18px; border-radius: 20px; font-size: 14px; cursor: pointer; transition: 0.2s; }
         
-        .task-input-box { display: flex; gap: 5px; }
-        .task-input-box input { flex-grow: 1; background: #131314; border: 1px solid #333; border-radius: 6px; padding: 8px; color: white; outline: none; font-size: 13px; }
-        .task-input-box button { background: #1a73e8; color: white; border: none; padding: 0 12px; border-radius: 6px; cursor: pointer; font-size: 13px; }
-        #taskList { max-height: 140px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
-        .task-item { background: #131314; padding: 8px 10px; border-radius: 6px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #333; }
-        .task-item.completed { text-decoration: line-through; color: #888; }
-
-        #chat-wrapper { flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; align-items: center; padding: 20px 0; scroll-behavior: smooth; }
-        #chat-container { width: 100%; max-width: 800px; padding: 0 20px; box-sizing: border-box; display: flex; flex-direction: column; }
+        .main-container { flex-grow: 1; position: relative; display: flex; flex-direction: column; overflow: hidden; }
+        .hero-center { position: absolute; top: 38%; left: 50%; transform: translate(-50%, -50%); text-align: center; display: flex; flex-direction: column; align-items: center; transition: 0.3s; }
+        .hero-center h1 { font-size: 34px; font-weight: 800; margin-top: 15px; letter-spacing: -0.5px; }
         
-        .kiemaen-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 15vh; text-align: center; }
-        .kiemaen-clover-logo { width: 80px; height: 80px; margin-bottom: 15px; filter: drop-shadow(0 4px 16px rgba(66,133,244,0.4)); }
-        .kiemaen-empty-state h1 { font-size: 32px; font-weight: 600; margin: 0; background: linear-gradient(135deg, #7fb2ff 0%, #1a73e8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .chat-scroll { flex-grow: 1; padding: 20px; overflow-y: auto; padding-bottom: 100px; }
+        .message { margin-bottom: 20px; max-width: 85%; line-height: 1.5; font-size: 15px; }
+        .msg-user { margin-left: auto; background-color: var(--input-bg); padding: 12px 18px; border-radius: 18px 18px 0 18px; color: #fff; border: 1px solid rgba(255,255,255,0.05); }
+        .msg-ai { margin-right: auto; padding: 12px 0; color: #e5e7eb; }
 
-        .message { margin-bottom: 30px; display: flex; flex-direction: column; width: 100%; }
-        .message.user { align-items: flex-end; }
-        .message.bot { align-items: flex-start; }
-        
-        .bubble { padding: 12px 20px; font-size: 15px; line-height: 1.6; word-wrap: break-word; max-width: 85%; }
-        .message.user .bubble { background-color: #282a2c; border-radius: 26px 26px 4px 26px; color: #e3e3e3; }
-        .message.bot .bubble { background-color: transparent; width: 100%; padding: 0; color: #c4c7c5; }
-        .message.error .bubble { color: #ff8a80; background: #3a1c1c; border-radius: 12px; padding: 15px; border: 1px solid #ff5555; }
+        .input-wrapper { position: absolute; bottom: 0; left: 0; width: 100%; padding: 15px 20px; box-sizing: border-box; background: linear-gradient(transparent, var(--bg-dark) 30%); }
+        .input-bar { display: flex; align-items: center; background-color: var(--input-bg); border-radius: 35px; padding: 10px 18px; gap: 12px; border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 4px 20px rgba(0,0,0,0.6); }
+        .icon-btn { background: none; border: none; color: var(--text-secondary); font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px; }
+        .input-field { flex-grow: 1; background: transparent; border: none; color: #fff; font-size: 16px; outline: none; padding: 4px 0; }
+        .input-field::placeholder { color: var(--text-secondary); }
 
-        pre { margin: 15px 0; border-radius: 12px; overflow: hidden; background: #1e1f20; border: 1px solid #333; }
-        code { font-family: monospace; font-size: 14px; }
-        .code-header { background: #282a2c; padding: 8px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
-        .code-lang { font-size: 12px; color: #888; text-transform: uppercase; }
-        .code-actions { display: flex; gap: 10px; }
-        .code-actions button { background: transparent; border: 1px solid #555; color: #c4c7c5; padding: 4px 10px; border-radius: 15px; font-size: 12px; cursor: pointer; }
-
-        #input-area { width: 100%; max-width: 800px; margin: 0 auto; padding: 15px 20px 20px 20px; box-sizing: border-box; }
-        .input-wrapper { display: flex; align-items: flex-end; background-color: #1e1f20; border-radius: 26px; padding: 8px 12px; gap: 5px; border: 1px solid #333; }
-        textarea { flex-grow: 1; background: transparent; border: none; color: #e3e3e3; font-size: 16px; padding: 12px 5px; outline: none; font-family: 'Inter', sans-serif; resize: none; max-height: 150px; }
-        
-        .icon-btn { background: transparent; border: none; color: #c4c7c5; cursor: pointer; padding: 8px; border-radius: 50%; display: flex; align-items: center; justify-content: center; height: 40px; width: 40px; }
-        .icon-btn:hover { background-color: #333538; }
-        
-        .clover-icon-btn svg { width: 22px; height: 22px; transition: transform 0.2s; }
-        .clover-active { background-color: #1a73e8 !important; animation: pulse 1.5s infinite; }
-        .clover-active svg { filter: drop-shadow(0 0 6px white); }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } }
-
-        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
-        .modal-box { background: #1e1f20; padding: 25px; border-radius: 16px; width: 340px; display: flex; flex-direction: column; gap: 15px; border: 1px solid #333; align-items: center; position: relative; }
-        .modal-box input { width: 100%; background: #131314; border: 1px solid #333; padding: 12px; border-radius: 8px; color: #e3e3e3; outline: none; font-size: 15px; box-sizing: border-box; }
-        .modal-buttons { display: flex; gap: 10px; width: 100%; }
-        .modal-buttons button { flex: 1; padding: 10px; border-radius: 8px; border: none; font-weight: 500; font-size: 14px; cursor: pointer; }
-        .btn-cancel { background: #333; color: #e3e3e3; }
-        .btn-confirm { background: #1a73e8; color: white; }
-        .close-x { position: absolute; top: 15px; right: 20px; cursor: pointer; color: #888; font-size: 18px; }
+        .flower-logo { width: 90px; height: 90px; filter: drop-shadow(0 0 15px rgba(29, 78, 216, 0.6)); }
+        .flower-btn { width: 30px; height: 30px; filter: drop-shadow(0 0 8px rgba(29, 78, 216, 0.8)); cursor: pointer; }
     </style>
 </head>
 <body>
-    <div id="overlay" onclick="toggleSidebar()"></div>
-    <div id="sidebar">
-        <div class="sidebar-header">
-            <span class="brand">Menu</span>
-            <button class="menu-btn" onclick="toggleSidebar()"><span class="material-symbols-outlined">close</span></button>
-        </div>
-        <div class="sidebar-content">
-            <button class="new-chat-btn" onclick="newChat()">
-                <span class="material-symbols-outlined">add</span> New Chat
-            </button>
-            <div class="sidebar-section">
-                <h3><span class="material-symbols-outlined">task_alt</span> Daily Task Planner</h3>
-                <div class="task-input-box">
-                    <input type="text" id="newTaskInput" placeholder="Add daily task..." onkeydown="if(event.key==='Enter') addNewTask()">
-                    <button onclick="addNewTask()">Add</button>
-                </div>
-                <div id="taskList"></div>
-            </div>
-            <div class="sidebar-section" style="flex-grow:1;">
-                <h3><span class="material-symbols-outlined">edit_note</span> Notebook</h3>
-                <textarea id="notebookText" placeholder="Save snippets or notes here..."></textarea>
-            </div>
-        </div>
+    <!-- Updated SVG: Pointy Petals + Blue/Black Gradient -->
+    <svg width="0" height="0" style="position:absolute">
+        <defs>
+            <radialGradient id="blueBlackGlow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#000000"/>
+                <stop offset="40%" stop-color="#1e3a8a"/>
+                <stop offset="100%" stop-color="#3b82f6"/>
+            </radialGradient>
+            <g id="pointy-flower">
+                <!-- Using Quadratic Beziers (Q) to forge sharp tips at (50,0) -->
+                <path d="M50 50 Q 35 25, 50 0 Q 65 25, 50 50" fill="url(#blueBlackGlow)" transform="rotate(0 50 50)"/>
+                <path d="M50 50 Q 35 25, 50 0 Q 65 25, 50 50" fill="url(#blueBlackGlow)" transform="rotate(72 50 50)"/>
+                <path d="M50 50 Q 35 25, 50 0 Q 65 25, 50 50" fill="url(#blueBlackGlow)" transform="rotate(144 50 50)"/>
+                <path d="M50 50 Q 35 25, 50 0 Q 65 25, 50 50" fill="url(#blueBlackGlow)" transform="rotate(216 50 50)"/>
+                <path d="M50 50 Q 35 25, 50 0 Q 65 25, 50 50" fill="url(#blueBlackGlow)" transform="rotate(288 50 50)"/>
+                <circle cx="50" cy="50" r="4" fill="#000000"/>
+            </g>
+        </defs>
+    </svg>
+
+    <div class="top-bar">
+        <div class="menu-icon">≡</div>
+        <div class="header-title blue-black-text">Kiemaen AGI</div>
+        <button class="login-btn" onclick="alert('CEO Authenticated')">Login</button>
     </div>
 
-    <div class="modal-overlay" id="imagePreviewModal">
-        <div class="modal-box">
-            <h3>Review Attachment</h3>
-            <img id="previewImg" src="" alt="Upload Preview" style="display:none;">
-            <p id="fileNamePreview" style="color:#aaa; font-size:13px; margin:0; word-break:break-all;"></p>
-            <div class="modal-buttons">
-                <button class="btn-cancel" onclick="cancelFile()">Cancel</button>
-                <button class="btn-confirm" onclick="confirmFile()">Continue</button>
-            </div>
+    <div class="main-container">
+        <div class="hero-center" id="hero-logo">
+            <svg class="flower-logo" viewBox="0 0 100 100"><use href="#pointy-flower"/></svg>
+            <h1 class="blue-black-text">Kiemaen AI</h1>
         </div>
-    </div>
-
-    <div class="modal-overlay" id="authModal">
-        <div class="modal-box">
-            <span class="close-x" onclick="closeAuthModal()">✕</span>
-            <h2 id="authTitle" style="margin:0 0 10px 0; font-size:20px;">Login</h2>
-            <div id="authFormFields" style="width:100%; display:flex; flex-direction:column; gap:12px;">
-                <input type="text" id="authUsername" placeholder="Username">
-                <input type="email" id="authEmail" placeholder="Email (for Register)" style="display:none;">
-                <input type="password" id="authPassword" placeholder="Password">
-            </div>
-            <div id="otpFieldContainer" style="width:100%; display:none; flex-direction:column; gap:12px;">
-                <p style="color:#8ab4f8; font-size:13px; margin:0; text-align:center;">Enter 6-digit verification code sent to your email:</p>
-                <input type="text" id="authOtpCode" placeholder="123456" maxlength="6" style="text-align:center; letter-spacing:4px; font-size:20px;">
-            </div>
-            <button class="btn-confirm" id="authSubmitBtn" onclick="submitAuth()" style="width:100%; padding:12px; margin-top:10px;">Login</button>
-            <span style="color:#8ab4f8; font-size:13px; cursor:pointer; text-align:center;" onclick="switchAuthMode()" id="authSwitch">Don't have an account? Register</span>
-        </div>
-    </div>
-
-    <div id="header">
-        <div class="header-left">
-            <button class="menu-btn" onclick="toggleSidebar()"><span class="material-symbols-outlined">menu</span></button>
-            <span class="brand">Kiemaen AGI</span>
-        </div>
-        <button class="login-btn" id="authBtn" onclick="openAuthModal()">Login</button>
-    </div>
-
-    <div id="chat-wrapper">
-        <div id="chat-container">
-            <div class="kiemaen-empty-state" id="emptyState">
-                <svg class="kiemaen-clover-logo" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-                    <defs><linearGradient id="cloverGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#5b9bff"/><stop offset="45%" stop-color="#1a73e8"/><stop offset="100%" stop-color="#050810"/></linearGradient></defs>
-                    <g transform="translate(100,100)">
-                        <g id="leafGroup"><path d="M0,0 C-22,-30 -22,-70 0,-95 C22,-70 22,-30 0,0 Z" fill="url(#cloverGrad)"/></g>
-                        <use href="#leafGroup" transform="rotate(72)"/><use href="#leafGroup" transform="rotate(144)"/><use href="#leafGroup" transform="rotate(216)"/><use href="#leafGroup" transform="rotate(288)"/>
-                        <circle r="10" fill="#0a0a0a" stroke="#4285f4" stroke-width="2"/>
-                    </g>
-                </svg>
-                <h1>Kiemaen AI</h1>
-            </div>
-        </div>
-    </div>
-    
-    <div id="input-area">
+        <div class="chat-scroll" id="chat-log"></div>
         <div class="input-wrapper">
-            <input type="file" id="fileInput" accept="image/*,.pdf,.txt,.py,.md,.csv,.json,.doc,.docx" style="display:none" onchange="handleFileSelected(event)">
-            <button class="icon-btn" onclick="document.getElementById('fileInput').click()" title="Upload Image or Document">
-                <span class="material-symbols-outlined">attach_file</span>
-            </button>
-            <textarea id="userInput" rows="1" placeholder="Ask Kiemaen..." oninput="handleInput()" onkeydown="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); if(this.value.trim()) sendMessage(); }"></textarea>
-            
-            <button class="icon-btn" onclick="transcribeSpeech()" title="Transcribe Speech">
-                <span class="material-symbols-outlined">mic</span>
-            </button>
-
-            <button class="icon-btn clover-icon-btn" id="cloverVoiceBtn" onclick="toggleCloverVoiceMode()" title="Autonomous Voice-to-Voice Mode">
-                <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-                    <defs><linearGradient id="btnClover" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#5b9bff"/><stop offset="45%" stop-color="#1a73e8"/><stop offset="100%" stop-color="#050810"/></linearGradient></defs>
-                    <g transform="translate(100,100)">
-                        <g id="blGroup"><path d="M0,0 C-22,-30 -22,-70 0,-95 C22,-70 22,-30 0,0 Z" fill="url(#btnClover)"/></g>
-                        <use href="#blGroup" transform="rotate(72)"/><use href="#blGroup" transform="rotate(144)"/><use href="#blGroup" transform="rotate(216)"/><use href="#blGroup" transform="rotate(288)"/>
-                        <circle r="10" fill="#0a0a0a" stroke="#4285f4" stroke-width="2"/>
-                    </g>
-                </svg>
-            </button>
-
-            <button class="icon-btn" id="sendBtn" onclick="sendMessage()" title="Send" style="display:none;">
-                <span class="material-symbols-outlined">send</span>
-            </button>
+            <div class="input-bar">
+                <button class="icon-btn">📎</button>
+                <input type="text" class="input-field" id="chat-input" placeholder="Message Kiemaen..." onkeypress="if(event.key === 'Enter') sendChat()">
+                <button class="icon-btn">🎤</button>
+                <button class="icon-btn" onclick="sendChat()">
+                    <svg class="flower-btn" viewBox="0 0 100 100"><use href="#pointy-flower"/></svg>
+                </button>
+            </div>
         </div>
     </div>
 
     <script>
-        const notebook = document.getElementById('notebookText');
-        notebook.value = localStorage.getItem('kiemaen_notebook') || '';
-        notebook.addEventListener('input', () => localStorage.setItem('kiemaen_notebook', notebook.value));
-
-        let pendingFile = null;
-        let authMode = 'login';
-        let awaitingOtp = false;
-        let registeredEmailForOtp = '';
-
-        async function checkUserSession() {
-            try {
-                let res = await fetch('/me');
-                let data = await res.json();
-                if (data.status === 'ok' && data.username !== 'Guest') {
-                    document.getElementById('authBtn').innerText = data.username;
-                    loadTasks();
-                }
-            } catch(e) {}
-        }
-        checkUserSession();
-
-        async function loadTasks() {
-            try {
-                let fd = new FormData();
-                fd.append('msg', 'SHOW_TASKS');
-                let res = await fetch('/chat', { method: 'POST', body: fd });
-                let data = await res.json();
-                renderTaskList(data.response);
-            } catch(e) {}
-        }
-
-        async function addNewTask() {
-            const input = document.getElementById('newTaskInput');
-            const title = input.value.trim();
-            if(!title) return;
-            let fd = new FormData();
-            fd.append('msg', 'TASK: ' + title);
-            let res = await fetch('/chat', { method: 'POST', body: fd });
-            let data = await res.json();
-            input.value = '';
-            loadTasks();
-        }
-
-        async function completeTask(id) {
-            let fd = new FormData();
-            fd.append('msg', 'DONE_TASK ' + id);
-            await fetch('/chat', { method: 'POST', body: fd });
-            loadTasks();
-        }
-
-        function renderTaskList(text) {
-            const listDiv = document.getElementById('taskList');
-            listDiv.innerHTML = '';
-            if(!text || text.includes("No tasks")) {
-                listDiv.innerHTML = '<div style="color:#888; font-size:12px; padding:5px;">No active daily tasks.</div>';
-                return;
-            }
-            let lines = text.split('\n');
-            lines.forEach(line => {
-                if(line.includes('[')) {
-                    let match = line.match(/\[(\d+)\]\s+\(([^)]+)\)\s+(.*)/);
-                    if(match) {
-                        let id = match[1];
-                        let status = match[2];
-                        let title = match[3];
-                        let item = document.createElement('div');
-                        item.className = `task-item ${status === 'completed' ? 'completed' : ''}`;
-                        item.innerHTML = `<span>${title}</span> <button onclick="completeTask(${id})" style="background:#333; border:none; color:white; border-radius:4px; cursor:pointer; padding:2px 6px; font-size:10px;">✓</button>`;
-                        listDiv.appendChild(item);
-                    }
-                }
-            });
-        }
-
-        function handleFileSelected(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            pendingFile = file;
-            const imgPreview = document.getElementById('previewImg');
-            const namePreview = document.getElementById('fileNamePreview');
+        async function sendChat() {
+            const input = document.getElementById('chat-input');
+            const log = document.getElementById('chat-log');
+            const hero = document.getElementById('hero-logo');
+            const msg = input.value.trim();
             
-            if (file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    imgPreview.src = e.target.result;
-                    imgPreview.style.display = 'block';
-                    namePreview.innerText = file.name;
-                    document.getElementById('imagePreviewModal').style.display = 'flex';
-                };
-                reader.readAsDataURL(file);
-            } else {
-                imgPreview.style.display = 'none';
-                namePreview.innerText = "Attached Document: " + file.name;
-                document.getElementById('imagePreviewModal').style.display = 'flex';
-            }
-        }
-
-        function cancelFile() {
-            pendingFile = null;
-            document.getElementById('fileInput').value = '';
-            document.getElementById('imagePreviewModal').style.display = 'none';
-        }
-
-        function confirmFile() {
-            document.getElementById('imagePreviewModal').style.display = 'none';
-            sendMessage(true);
-        }
-
-        function openAuthModal() { document.getElementById('authModal').style.display = 'flex'; }
-        function closeAuthModal() { document.getElementById('authModal').style.display = 'none'; awaitingOtp = false; }
-
-        function switchAuthMode() {
-            authMode = authMode === 'login' ? 'register' : 'login';
-            document.getElementById('authTitle').innerText = authMode === 'login' ? 'Login' : 'Register';
-            document.getElementById('authSubmitBtn').innerText = authMode === 'login' ? 'Login' : 'Create Account';
-            document.getElementById('authSwitch').innerText = authMode === 'login' ? "Don't have an account? Register" : "Already have an account? Login";
-            document.getElementById('authEmail').style.display = authMode === 'register' ? 'block' : 'none';
-            document.getElementById('otpFieldContainer').style.display = 'none';
-            document.getElementById('authFormFields').style.display = 'flex';
-            awaitingOtp = false;
-        }
-
-        async function submitAuth() {
-            const username = document.getElementById('authUsername').value.trim();
-            const password = document.getElementById('authPassword').value;
-            const emailEl = document.getElementById('authEmail');
-    const email = emailEl ? emailEl.value.trim() : '';
-            const code = document.getElementById('authOtpCode').value.trim();
-
-            const fd = new FormData();
-            fd.append('username', username);
-            fd.append('password', password);
-
-            if (awaitingOtp) {
-                fd.append('code', code);
-                fd.append('email', registeredEmailForOtp);
-                const endpoint = authMode === 'login' ? '/login/verify' : '/register/verify';
-                const res = await fetch(endpoint, { method: 'POST', body: fd });
-                const data = await res.json();
-                if(data.status === 'ok') {
-                    document.getElementById('authBtn').innerText = data.username;
-                    closeAuthModal();
-                    loadTasks();
-                    alert("Authentication successful!");
-                } else {
-                    alert(data.message);
-                }
-                return;
-            }
-
-            if(!username || !password) return alert('Fill in all required fields.');
-
-            if (authMode === 'register') {
-                if(!email) return alert('Email is required for registration verification.');
-                fd.append('email', email);
-                registeredEmailForOtp = email;
-                const res = await fetch('/register/request-code', { method: 'POST', body: fd });
-                const data = await res.json();
-                if(data.status === 'ok') {
-                    document.getElementById('authFormFields').style.display = 'none';
-                    document.getElementById('otpFieldContainer').style.display = 'flex';
-                    document.getElementById('authSubmitBtn').innerText = 'Verify & Register';
-                    awaitingOtp = true;
-                    alert(data.message);
-                } else {
-                    alert(data.message);
-                }
-            } else {
-                const res = await fetch('/login/request', { method: 'POST', body: fd });
-                const data = await res.json();
-                if(data.status === 'otp_required') {
-                    document.getElementById('authFormFields').style.display = 'none';
-                    document.getElementById('otpFieldContainer').style.display = 'flex';
-                    document.getElementById('authSubmitBtn').innerText = 'Verify & Login';
-                    awaitingOtp = true;
-                    registeredEmailForOtp = email;
-                    alert(data.message);
-                } else {
-                    alert(data.message);
-                }
-            }
-        }
-
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('open');
-            document.getElementById('overlay').classList.toggle('open');
-        }
-
-        function newChat() {
-            document.getElementById('chat-container').innerHTML = `
-                <div class="kiemaen-empty-state" id="emptyState">
-                    <svg class="kiemaen-clover-logo" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-                        <defs><linearGradient id="cloverGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#5b9bff"/><stop offset="45%" stop-color="#1a73e8"/><stop offset="100%" stop-color="#050810"/></linearGradient></defs>
-                        <g transform="translate(100,100)">
-                            <g id="leafGroup"><path d="M0,0 C-22,-30 -22,-70 0,-95 C22,-70 22,-30 0,0 Z" fill="url(#cloverGrad)"/></g>
-                            <use href="#leafGroup" transform="rotate(72)"/><use href="#leafGroup" transform="rotate(144)"/><use href="#leafGroup" transform="rotate(216)"/><use href="#leafGroup" transform="rotate(288)"/>
-                            <circle r="10" fill="#0a0a0a" stroke="#4285f4" stroke-width="2"/>
-                        </g>
-                    </svg>
-                    <h1>Kiemaen AI</h1>
-                </div>`;
-            toggleSidebar();
-        }
-
-        function handleInput() {
-            const input = document.getElementById("userInput");
-            const sendBtn = document.getElementById("sendBtn");
-            input.style.height = '';
-            input.style.height = Math.min(input.scrollHeight, 150) + 'px';
-            if (input.value.trim().length > 0) {
-                sendBtn.style.display = "flex";
-            } else {
-                sendBtn.style.display = "none";
-            }
-        }
-
-        function transcribeSpeech() {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SpeechRecognition) return;
-            try {
-                const recognition = new SpeechRecognition();
-                recognition.continuous = false;
-                recognition.interimResults = false;
-                recognition.onresult = (event) => {
-                    document.getElementById("userInput").value = event.results[0][0].transcript;
-                    handleInput();
-                };
-                recognition.start();
-            } catch (err) {}
-        }
-
-        let cloverRecognition;
-        let cloverActive = false;
-        let isSpeaking = false;
-
-        const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (SpeechRec) {
-            cloverRecognition = new SpeechRec();
-            cloverRecognition.continuous = false;
-            cloverRecognition.interimResults = false;
-
-            cloverRecognition.onresult = async (event) => {
-                document.getElementById("userInput").value = event.results[0][0].transcript;
-                handleInput();
-                await sendMessage(false, true);
-            };
-
-            cloverRecognition.onend = () => {
-                if (cloverActive && !isSpeaking) {
-                    setTimeout(() => { try { cloverRecognition.start(); } catch(e){} }, 400);
-                } else {
-                    document.getElementById("cloverVoiceBtn").classList.remove("clover-active");
-                }
-            };
-        }
-
-        function toggleCloverVoiceMode() {
-            if (!cloverRecognition) return alert("Voice recognition not supported.");
-            cloverActive = !cloverActive;
-            const btn = document.getElementById("cloverVoiceBtn");
-            if (cloverActive) {
-                btn.classList.add("clover-active");
-                try { cloverRecognition.start(); } catch(e){}
-            } else {
-                btn.classList.remove("clover-active");
-                cloverRecognition.stop();
-                window.speechSynthesis.cancel();
-            }
-        }
-
-        function speakResponse(text) {
-            if (!cloverActive || !('speechSynthesis' in window)) return;
-            window.speechSynthesis.cancel();
-            isSpeaking = true;
-            if(cloverRecognition) cloverRecognition.stop();
-
-            let cleanText = text.replace(/```[\s\S]*?```/g, "Code provided on screen.")
-                                .replace(/[*_#$]/g, "")
-                                .replace(/<[^>]*>?/gm, '');
-
-            let utterance = new SpeechSynthesisUtterance(cleanText);
-            utterance.rate = 1.05;
-            utterance.onend = () => {
-                isSpeaking = false;
-                if (cloverActive && cloverRecognition) {
-                    setTimeout(() => { try { cloverRecognition.start(); } catch(e){} }, 400);
-                }
-            };
-            window.speechSynthesis.speak(utterance);
-        }
-
-        function safeParseMarkdown(text) {
-            return (typeof marked !== 'undefined' && marked.parse) ? marked.parse(text) : text.replace(/\n/g, '<br>');
-        }
-
-        function addMessage(text, sender) {
-            const empty = document.getElementById("emptyState");
-            if (empty) empty.remove();
-
-            const chat = document.getElementById("chat-container");
-            const wrapper = document.getElementById("chat-wrapper");
-            const msgDiv = document.createElement("div");
-            msgDiv.className = `message ${sender}`;
-            const bubbleDiv = document.createElement("div");
-            bubbleDiv.className = "bubble";
-            
-            if (sender === 'bot') {
-                bubbleDiv.innerHTML = safeParseMarkdown(text);
+            if(msg !== "") {
+                if(hero) hero.style.display = 'none';
+                log.innerHTML += `<div class="message msg-user">${msg}</div>`;
+                input.value = "";
+                log.scrollTop = log.scrollHeight;
                 
-                bubbleDiv.querySelectorAll("pre code").forEach((block) => {
-                    if (typeof hljs !== 'undefined') hljs.highlightElement(block);
-                    const pre = block.parentElement;
-                    const header = document.createElement("div");
-                    header.className = "code-header";
-                    const langSpan = document.createElement("span");
-                    langSpan.className = "code-lang";
-                    langSpan.innerText = block.className.replace('hljs', '').trim() || "CODE";
-                    
-                    const actions = document.createElement("div");
-                    actions.className = "code-actions";
-                    const copyBtn = document.createElement("button");
-                    copyBtn.innerText = "📋 Copy";
-                    copyBtn.onclick = () => {
-                        const textToCopy = block.innerText;
-                        if (navigator.clipboard && navigator.clipboard.writeText) {
-                            navigator.clipboard.writeText(textToCopy).then(() => {
-                                copyBtn.innerText = "✓ Done";
-                                setTimeout(() => { copyBtn.innerText = "📋 Copy"; }, 2000);
-                            }).catch(() => fallbackCopy(textToCopy));
-                        } else {
-                            fallbackCopy(textToCopy);
-                        }
-                    };
-                    actions.append(copyBtn);
-                    header.append(langSpan, actions);
-                    pre.parentNode.insertBefore(header, pre);
-                });
+                const formData = new FormData();
+                formData.append("prompt", msg);
 
-                if (typeof renderMathInElement !== 'undefined') {
-                    try {
-                        renderMathInElement(bubbleDiv, {
-                            delimiters: [
-                                {left: '$$', right: '$$', display: true},
-                                {left: '$', right: '$', display: false},
-                                {left: '\\(', right: '\\)', display: false},
-                                {left: '\\[', right: '\\]', display: true}
-                            ],
-                            throwOnError: false
-                        });
-                    } catch(e) {}
+                try {
+                    const response = await fetch('/chat', { method: 'POST', body: formData });
+                    const data = await response.json();
+                    let replyText = data.status === 'error' ? (data.message || 'Error occurred.') : data.response;
+                    log.innerHTML += `<div class="message msg-ai"><svg style="width:16px;height:16px;margin-right:5px;vertical-align:middle" viewBox="0 0 100 100"><use href="#pointy-flower"/></svg> <b>Kiemaen:</b><br>${replyText}</div>`;
+                } catch (err) {
+                    log.innerHTML += `<div class="message msg-ai" style="color:#ef4444;">Connection Error.</div>`;
                 }
-            } else {
-                bubbleDiv.innerText = text;
-            }
-            msgDiv.appendChild(bubbleDiv);
-            chat.appendChild(msgDiv);
-            wrapper.scrollTop = wrapper.scrollHeight;
-        }
-
-        function fallbackCopy(text) {
-            const textarea = document.createElement("textarea");
-            textarea.value = text;
-            textarea.style.position = "fixed";
-            document.body.appendChild(textarea);
-            textarea.focus();
-            textarea.select();
-            try {
-                document.execCommand('copy');
-                alert("Code copied to clipboard!");
-            } catch (err) {
-                alert("Copy failed.");
-            }
-            document.body.removeChild(textarea);
-        }
-
-        async function sendMessage(hasFile = false, isVoiceDriven = false) {
-            const input = document.getElementById("userInput");
-            const text = input.value.trim();
-            
-            if (!text && !hasFile) return;
-
-            addMessage(text || `[File Attached: ${pendingFile ? pendingFile.name : ''}]`, "user");
-            input.value = "";
-            handleInput();
-            
-            const formData = new FormData();
-            if (text) {
-                formData.append("msg", text);
-                formData.append("prompt", text);
-            }
-            if (hasFile && pendingFile) {
-                if (pendingFile.type.startsWith('image/')) {
-                    formData.append("image", pendingFile);
-                } else {
-                    formData.append("file", pendingFile);
-                }
-                pendingFile = null;
-                document.getElementById('fileInput').value = '';
-            }
-
-            const loadingId = "load-" + Date.now();
-            const chat = document.getElementById("chat-container");
-            chat.insertAdjacentHTML('beforeend', `<div id="${loadingId}" class="message bot"><div class="bubble">✨ Thinking...</div></div>`);
-            document.getElementById("chat-wrapper").scrollTop = document.getElementById("chat-wrapper").scrollHeight;
-
-            try {
-                let response = await fetch("/chat", { method: "POST", body: formData });
-                document.getElementById(loadingId).remove();
-
-                let result = await response.json();
-                if (result.status === "error") throw new Error(result.message);
-
-                let finalResponse = result.response || result.reply || "Done.";
-                addMessage(finalResponse, "bot");
-                loadTasks();
-                speakResponse(finalResponse);
-            } catch (error) {
-                document.getElementById(loadingId)?.remove();
-                addMessage(`Server Error: ${error.message}`, "error");
-                if (cloverActive) toggleCloverVoiceMode();
+                log.scrollTop = log.scrollHeight;
             }
         }
     </script>
