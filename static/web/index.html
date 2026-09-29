@@ -5,50 +5,84 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kiemaen OS | Enterprise</title>
     <style>
-        body { font-family: 'Courier New', Courier, monospace; background: #0a0a0a; color: #00ffcc; margin: 0; display: flex; height: 100vh; align-items: center; justify-content: center; overflow: hidden; }
-        .login-box { background: #111; padding: 40px; border: 1px solid #333; text-align: center; width: 90%; max-width: 350px; box-shadow: 0 0 15px rgba(0, 255, 204, 0.2); }
+        /* BLACK & BLUE AESTHETIC */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #03050a; color: #4da6ff; margin: 0; display: flex; height: 100vh; align-items: center; justify-content: center; overflow: hidden; }
+        
+        .clover-logo { font-size: 48px; color: #007bff; text-shadow: 0 0 10px rgba(0, 123, 255, 0.5); margin-bottom: 5px; }
+        
+        .auth-box { background: #070b19; padding: 40px; border: 1px solid #003366; text-align: center; width: 90%; max-width: 360px; box-shadow: 0 0 20px rgba(0, 85, 255, 0.15); border-radius: 8px; }
+        .auth-box h2 { color: #fff; margin-top: 0; letter-spacing: 2px; font-weight: 300; }
+        
+        .toggle-btn { background: transparent; border: none; color: #4da6ff; cursor: pointer; margin: 0 10px 20px 10px; padding-bottom: 5px; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+        .toggle-btn.active { border-bottom: 2px solid #0055ff; color: #fff; font-weight: bold; }
+        
+        input, select, textarea { width: 100%; box-sizing: border-box; background: #050812; color: #4da6ff; border: 1px solid #003366; padding: 12px; margin: 8px 0; font-family: inherit; border-radius: 4px; outline: none; }
+        input:focus, textarea:focus { border-color: #0055ff; box-shadow: 0 0 5px rgba(0, 85, 255, 0.3); }
+        
+        button.action-btn { background: linear-gradient(135deg, #0044cc, #007bff); color: #fff; padding: 12px 20px; border: none; cursor: pointer; font-weight: bold; width: 100%; margin-top: 15px; border-radius: 4px; transition: 0.3s; text-transform: uppercase; letter-spacing: 1px; }
+        button.action-btn:hover { background: linear-gradient(135deg, #003399, #0055ff); box-shadow: 0 0 10px rgba(0, 123, 255, 0.4); }
+        
         .dashboard { display: none; width: 100%; height: 100%; flex-direction: row; }
         
-        .sidebar { width: 250px; background: #111; padding: 20px; border-right: 1px solid #333; display: flex; flex-direction: column; }
-        .sidebar h2 { color: #fff; text-align: center; font-size: 18px; }
-        .nav-btn { display: block; width: 100%; background: transparent; color: #aaa; border: 1px solid #333; padding: 15px; margin-bottom: 10px; cursor: pointer; text-align: left; transition: 0.2s; }
-        .nav-btn:hover, .nav-btn.active { background: #00ffcc; color: #000; font-weight: bold; }
+        .sidebar { width: 250px; background: #050812; padding: 20px; border-right: 1px solid #003366; display: flex; flex-direction: column; }
+        .sidebar-header { text-align: center; margin-bottom: 20px; }
         
-        .content { flex-grow: 1; padding: 20px; overflow-y: auto; }
+        .nav-btn { display: block; width: 100%; background: transparent; color: #66b3ff; border: 1px solid transparent; padding: 12px 15px; margin-bottom: 5px; cursor: pointer; text-align: left; transition: 0.2s; border-radius: 4px; }
+        .nav-btn:hover { background: #0a1429; border-color: #003366; }
+        .nav-btn.active { background: #0044cc; color: #fff; border-color: #0055ff; box-shadow: 0 0 8px rgba(0, 123, 255, 0.3); }
+        
+        .content { flex-grow: 1; padding: 30px; overflow-y: auto; background: #03050a; }
         .panel { display: none; height: 100%; flex-direction: column; }
         .panel.active { display: flex; }
+        .panel h2 { color: #fff; border-bottom: 1px solid #003366; padding-bottom: 10px; }
         
-        input, select, textarea { width: 100%; box-sizing: border-box; background: #222; color: #00ffcc; border: 1px solid #555; padding: 12px; margin: 10px 0; font-family: inherit; }
-        button { background: #00ffcc; color: #000; padding: 12px 20px; border: none; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; }
+        .chat-box { flex-grow: 1; background: #070b19; border: 1px solid #003366; padding: 15px; overflow-y: auto; margin-bottom: 15px; font-size: 15px; line-height: 1.6; border-radius: 4px; color: #cce0ff; }
         
-        .chat-box { flex-grow: 1; background: #111; border: 1px solid #333; padding: 15px; overflow-y: auto; margin-bottom: 10px; font-size: 14px; line-height: 1.5; }
-        
-        /* RESPONSIVE DESIGN FOR TABLETS & PHONES */
         @media (max-width: 768px) {
             .dashboard { flex-direction: column; }
-            .sidebar { width: 100%; flex-direction: row; padding: 10px; border-right: none; border-bottom: 1px solid #333; overflow-x: auto; box-sizing: border-box; white-space: nowrap; }
-            .sidebar h2 { display: none; }
-            .nav-btn { width: auto; margin: 0 10px 0 0; flex: 0 0 auto; padding: 10px 15px; font-size: 14px; }
+            .sidebar { width: 100%; flex-direction: row; padding: 10px; border-right: none; border-bottom: 1px solid #003366; overflow-x: auto; box-sizing: border-box; white-space: nowrap; }
+            .sidebar-header { display: none; }
+            .nav-btn { width: auto; margin: 0 5px 0 0; flex: 0 0 auto; padding: 10px 15px; }
             .content { padding: 15px; }
         }
     </style>
 </head>
 <body>
 
-    <!-- GATEKEEPER LOGIN -->
-    <div id="login-screen" class="login-box">
+    <!-- GATEWAY: LOGIN & REGISTRATION -->
+    <div id="auth-screen" class="auth-box">
+        <div class="clover-logo">☘️</div>
         <h2>KIEMAEN OS</h2>
-        <p style="color: #666; font-size: 12px;">Enterprise Auth Gateway</p>
-        <input type="text" id="username" placeholder="Username">
-        <input type="password" id="password" placeholder="Password">
-        <button onclick="attemptLogin()">ENTER SYSTEM</button>
-        <p id="error-msg" style="color: red; display: none; font-size: 12px; margin-top:10px;">Access Denied.</p>
+        
+        <div>
+            <button class="toggle-btn active" id="tab-login" onclick="toggleAuth('login')">Login</button>
+            <button class="toggle-btn" id="tab-register" onclick="toggleAuth('register')">Register</button>
+        </div>
+
+        <!-- Login Form -->
+        <div id="form-login">
+            <input type="text" id="login-user" placeholder="Username">
+            <input type="password" id="login-pass" placeholder="Password">
+            <button class="action-btn" onclick="attemptAuth('/api/auth/login')">Authenticate</button>
+        </div>
+
+        <!-- Registration Form -->
+        <div id="form-register" style="display: none;">
+            <input type="text" id="reg-user" placeholder="Choose Username">
+            <input type="password" id="reg-pass" placeholder="Create Password">
+            <button class="action-btn" onclick="attemptAuth('/api/auth/register')">Create Account</button>
+        </div>
+
+        <p id="msg-box" style="display: none; font-size: 13px; margin-top:15px;"></p>
     </div>
 
-    <!-- ADMIN MASTER DASHBOARD -->
-    <div id="admin-dashboard" class="dashboard">
+    <!-- MASTER DASHBOARD -->
+    <div id="main-dashboard" class="dashboard">
         <div class="sidebar">
-            <h2>JACOB // ADMIN</h2>
+            <div class="sidebar-header">
+                <div class="clover-logo" style="font-size: 32px;">☘️</div>
+                <h3 style="color: #fff; margin: 5px 0 0 0;">ADMIN C2</h3>
+            </div>
             <button class="nav-btn active" onclick="switchTab('kiemaen')">Kiemaen Classic</button>
             <button class="nav-btn" onclick="switchTab('kim')">Kim (Trading)</button>
             <button class="nav-btn" onclick="switchTab('kit')">Kit (B2B)</button>
@@ -56,61 +90,81 @@
         </div>
         
         <div class="content">
-            <!-- Kiemaen Classic -->
+            <!-- Kiemaen -->
             <div id="kiemaen" class="panel active">
-                <h2 style="margin-top:0;">Original Kiemaen Engine</h2>
+                <h2>Original Kiemaen Engine</h2>
                 <div class="chat-box" id="chat-log">System online. Connected to core.brain.</div>
                 <div style="display: flex; gap: 10px;">
                     <input type="text" id="chat-input" placeholder="Enter command..." onkeypress="if(event.key === 'Enter') sendChat()">
-                    <button style="width: auto;" onclick="sendChat()">Send</button>
+                    <button class="action-btn" style="width: 120px; margin-top: 8px;" onclick="sendChat()">Send</button>
                 </div>
             </div>
 
             <!-- Kim -->
             <div id="kim" class="panel">
-                <h2 style="margin-top:0;">Kim Quantitative Override</h2>
+                <h2>Kim Quantitative Override</h2>
                 <input type="text" placeholder="Force Target Pair (e.g. XAUUSD)">
-                <button>Override Algo</button>
+                <button class="action-btn">Override Algo</button>
             </div>
 
             <!-- Kit -->
             <div id="kit" class="panel">
-                <h2 style="margin-top:0;">Kit Outbound Override</h2>
+                <h2>Kit Outbound Override</h2>
                 <input type="text" placeholder="Assign Target Firm">
-                <button>Deploy Campaign</button>
+                <button class="action-btn">Deploy Campaign</button>
             </div>
 
             <!-- Kat -->
             <div id="kat" class="panel">
-                <h2 style="margin-top:0;">Kat VIP Override</h2>
+                <h2>Kat VIP Override</h2>
                 <input type="text" placeholder="VIP Custom Instructions">
-                <button>Inject Protocol</button>
+                <button class="action-btn">Inject Protocol</button>
             </div>
         </div>
     </div>
 
     <script>
-        async function attemptLogin() {
-            const user = document.getElementById('username').value;
-            const pass = document.getElementById('password').value;
+        function toggleAuth(mode) {
+            document.getElementById('form-login').style.display = mode === 'login' ? 'block' : 'none';
+            document.getElementById('form-register').style.display = mode === 'register' ? 'block' : 'none';
+            document.getElementById('tab-login').classList.toggle('active', mode === 'login');
+            document.getElementById('tab-register').classList.toggle('active', mode === 'register');
+            document.getElementById('msg-box').style.display = 'none';
+        }
+
+        async function attemptAuth(endpoint) {
+            const isLogin = endpoint.includes('login');
+            const user = document.getElementById(isLogin ? 'login-user' : 'reg-user').value;
+            const pass = document.getElementById(isLogin ? 'login-pass' : 'reg-pass').value;
+            const msgBox = document.getElementById('msg-box');
+            
             const formData = new FormData();
             formData.append("username", user);
             formData.append("password", pass);
 
             try {
-                const response = await fetch('/api/auth/login', { method: 'POST', body: formData });
+                const response = await fetch(endpoint, { method: 'POST', body: formData });
                 const result = await response.json();
-                if (result.role === 'admin') {
-                    document.getElementById('login-screen').style.display = 'none';
-                    document.getElementById('admin-dashboard').style.display = 'flex';
+                
+                msgBox.style.display = 'block';
+                
+                if (result.status === 'success') {
+                    if (isLogin) {
+                        document.getElementById('auth-screen').style.display = 'none';
+                        document.getElementById('main-dashboard').style.display = 'flex';
+                    } else {
+                        msgBox.style.color = '#00ffcc';
+                        msgBox.innerText = result.message;
+                        setTimeout(() => toggleAuth('login'), 2000);
+                    }
                 } else {
-                    document.getElementById('error-msg').style.display = 'block';
+                    msgBox.style.color = '#ff4444';
+                    msgBox.innerText = result.message || 'Authentication failed.';
                 }
             } catch (error) {
-                // Fallback for local testing
-                if (user === 'admin') { 
-                    document.getElementById('login-screen').style.display = 'none';
-                    document.getElementById('admin-dashboard').style.display = 'flex';
+                if (user === 'admin' && isLogin) { 
+                    document.getElementById('auth-screen').style.display = 'none';
+                    document.getElementById('main-dashboard').style.display = 'flex';
                 }
             }
         }
@@ -126,12 +180,10 @@
             const input = document.getElementById('chat-input');
             const log = document.getElementById('chat-log');
             const msg = input.value.trim();
-            
             if(msg !== "") {
                 log.innerHTML += `<br><br><b style="color:#fff">Jacob:</b> ${msg}`;
                 input.value = "";
                 log.scrollTop = log.scrollHeight;
-                
                 try {
                     const response = await fetch('/api/chat/kiemaen', {
                         method: 'POST',
@@ -139,11 +191,10 @@
                         body: JSON.stringify({ message: msg })
                     });
                     const data = await response.json();
-                    
-                    let replyColor = data.status === 'error' ? 'red' : '#00ffcc';
-                    log.innerHTML += `<br><b style="color:${replyColor}">Kiemaen:</b> ${data.response}`;
+                    let replyColor = data.status === 'error' ? '#ff4444' : '#00d4ff';
+                    log.innerHTML += `<br><b style="color:${replyColor}">☘️ Kiemaen:</b> ${data.response}`;
                 } catch (err) {
-                    log.innerHTML += `<br><b style="color:red">System Error:</b> Cannot reach cloud server.`;
+                    log.innerHTML += `<br><b style="color:#ff4444">System Error:</b> Offline.`;
                 }
                 log.scrollTop = log.scrollHeight;
             }

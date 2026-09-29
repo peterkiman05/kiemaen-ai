@@ -112,3 +112,12 @@ async def chat_kiemaen(chat: ChatMessage):
         return {"status": "success", "response": response}
     except Exception as e:
         return {"status": "error", "response": f"Original Engine Link Error: {str(e)}"}
+
+@app.post("/api/auth/register")
+async def register(username: str = Form(...), password: str = Form(...)):
+    # In a full production setup, this will insert into your SQLite DB.
+    # For now, we simulate a successful user registration.
+    if username == settings.ADMIN_USERNAME:
+        return JSONResponse({"status": "error", "message": "Username reserved."}, status_code=400)
+    
+    return JSONResponse({"status": "success", "message": "Registration successful. You may now log in.", "role": "user"})
