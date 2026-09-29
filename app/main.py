@@ -82,3 +82,33 @@ from fastapi.responses import FileResponse
 @app.get("/")
 async def serve_home():
     return FileResponse("static/web/index.html")
+
+from pydantic import BaseModel
+import sys
+import os
+import inspect
+
+# Ensure the root directory is accessible to import your old Kiemaen modules
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+class ChatMessage(BaseModel):
+    message: str
+
+@app.post("/api/chat/kiemaen")
+async def chat_kiemaen(chat: ChatMessage):
+    try:
+        from core.brain import ask_kiemaen
+        
+        # Auto-detect if your original function was async or sync
+        if inspect.iscoroutinefunction(ask_kiemaen):
+            response = await ask_kiemaen(chat.message)
+        else:
+            response = ask_kiemaen(chat.message)
+            
+        # Ensure we return a clean string even if the old AI returns a dictionary
+        if isinstance(response, dict):
+            response = str(response.get("response", response))
+            
+        return {"status": "success", "response": response}
+    except Exception as e:
+        return {"status": "error", "response": f"Original Engine Link Error: {str(e)}"}
