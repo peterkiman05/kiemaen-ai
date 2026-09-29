@@ -135,6 +135,8 @@
                 
                 const formData = new FormData();
                 formData.append("prompt", msg);
+                const isCeoActive = document.getElementById("top-login-btn").innerText === "CEO Active";
+                formData.append("ceo_mode", isCeoActive ? "true" : "false");
 
                 try {
                     const response = await fetch('/chat', { method: 'POST', body: formData });
