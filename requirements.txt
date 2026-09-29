@@ -6,3 +6,4 @@ groq
 httpx
 apscheduler
 pydantic
+python-dotenv
