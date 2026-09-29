@@ -1,117 +1,95 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kiemaen AGI | Corporate Command Center</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>body { font-family: 'Inter', sans-serif; }</style>
+    <title>Kiemaen OS | Master Control</title>
+    <style>
+        body { font-family: 'Courier New', Courier, monospace; background: #0a0a0a; color: #00ffcc; margin: 0; display: flex; height: 100vh; }
+        .sidebar { width: 250px; background: #111; padding: 20px; border-right: 1px solid #333; }
+        .sidebar h2 { color: #fff; text-align: center; margin-bottom: 40px; }
+        .nav-btn { display: block; width: 100%; background: transparent; color: #aaa; border: 1px solid #333; padding: 15px; margin-bottom: 10px; cursor: pointer; transition: 0.3s; text-align: left; font-size: 16px; }
+        .nav-btn:hover, .nav-btn.active { background: #00ffcc; color: #000; font-weight: bold; }
+        .content { flex-grow: 1; padding: 40px; overflow-y: auto; }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        input, select, textarea { width: 100%; background: #222; color: #00ffcc; border: 1px solid #555; padding: 10px; margin-top: 10px; margin-bottom: 20px; font-family: inherit; }
+        button.action-btn { background: #00ffcc; color: #000; padding: 12px 20px; border: none; cursor: pointer; font-weight: bold; width: 100%; }
+        button.action-btn:hover { background: #00ccaa; }
+        .chat-box { background: #111; height: 300px; border: 1px solid #333; padding: 10px; overflow-y: auto; margin-bottom: 10px; }
+    </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
-    <!-- Top Nav -->
-    <header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur px-6 py-4 flex justify-between items-center">
-        <div class="flex items-center space-x-3">
-            <div class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
-            <h1 class="text-lg font-bold tracking-tight text-white">KIEMAEN <span class="text-emerald-400 font-light">CORP OS</span></h1>
+<body>
+
+    <div class="sidebar">
+        <h2>KIEMAEN OS</h2>
+        <button class="nav-btn active" onclick="switchTab('kiemaen')">1. Kiemaen Classic</button>
+        <button class="nav-btn" onclick="switchTab('kim')">2. Kim (Trading Desk)</button>
+        <button class="nav-btn" onclick="switchTab('kit')">3. Kit (B2B Pipeline)</button>
+        <button class="nav-btn" onclick="switchTab('kat')">4. Kat (VIP Clients)</button>
+    </div>
+
+    <div class="content">
+        <!-- 1. Kiemaen Classic -->
+        <div id="kiemaen" class="panel active">
+            <h2>System: Original Kiemaen</h2>
+            <div class="chat-box" id="chat-log">Welcome back, Jacob. System online.</div>
+            <input type="text" id="chat-input" placeholder="Command Kiemaen...">
+            <button class="action-btn" onclick="sendChat()">Send Command</button>
         </div>
-        <div class="text-sm text-slate-400">CEO: <span class="text-white font-medium">Jacob Peter Sithole</span></div>
-    </header>
 
-    <div class="flex flex-1 overflow-hidden">
-        <!-- Sidebar Agent Selector -->
-        <aside class="w-72 border-r border-slate-800 bg-slate-900/30 p-4 flex flex-col space-y-2">
-            <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 px-2">Executive Divisions</div>
-            
-            <button onclick="switchTab('kat')" id="btn-kat" class="w-full text-left px-4 py-3 rounded-xl bg-emerald-500/10 text-emerald-400 font-medium border border-emerald-500/20 transition flex items-center justify-index">
-                <span>💬 Kat (Client Relations)</span>
-            </button>
-            <button onclick="switchTab('kit')" id="btn-kit" class="w-full text-left px-4 py-3 rounded-xl hover:bg-slate-800 text-slate-300 font-medium transition flex items-center">
-                <span>📈 Kit (B2B Growth)</span>
-            </button>
-            <button onclick="switchTab('kim')" id="btn-kim" class="w-full text-left px-4 py-3 rounded-xl hover:bg-slate-800 text-slate-300 font-medium transition flex items-center">
-                <span>⚙️ Kim (COO & Quant Desk)</span>
-            </button>
-        </aside>
+        <!-- 2. Kim's Interface -->
+        <div id="kim" class="panel">
+            <h2>System: Kim (Quantitative Ops)</h2>
+            <label>Select Account:</label>
+            <select id="kim-account">
+                <option value="vault_main">Vault Markets - Main Fund</option>
+                <option value="paper_trade">Paper Trading / Backtest</option>
+            </select>
+            <label>Target Trading Pair:</label>
+            <input type="text" id="kim-pair" placeholder="e.g. XAUUSD, GBPJPY">
+            <button class="action-btn" onclick="sendCommand('kim')">Initialize Algorithm</button>
+        </div>
 
-        <!-- Main Content Area -->
-        <main class="flex-1 p-8 overflow-y-auto bg-slate-950">
-            <!-- Global Metrics Bar -->
-            <div class="grid grid-cols-4 gap-6 mb-8">
-                <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
-                    <div class="text-sm text-slate-400 mb-1">System Status</div>
-                    <div class="text-xl font-bold text-emerald-400 flex items-center space-x-2"><span>24/7 Autonomous</span></div>
-                </div>
-                <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
-                    <div class="text-sm text-slate-400 mb-1">Leads Captured</div>
-                    <div id="stat-leads" class="text-2xl font-bold text-white">--</div>
-                </div>
-                <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
-                    <div class="text-sm text-slate-400 mb-1">Paper Trades Logged</div>
-                    <div id="stat-trades" class="text-2xl font-bold text-white">--</div>
-                </div>
-                <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
-                    <div class="text-sm text-slate-400 mb-1">Prop Desk Balance</div>
-                    <div id="stat-balance" class="text-2xl font-bold text-emerald-400">$100,000</div>
-                </div>
-            </div>
+        <!-- 3. Kit's Interface -->
+        <div id="kit" class="panel">
+            <h2>System: Kit (Growth & B2B)</h2>
+            <label>Special Instructions / Target Market:</label>
+            <textarea id="kit-instructions" rows="5" placeholder="e.g. Pivot outreach to prop firms in London. Focus on AI risk mitigation..."></textarea>
+            <button class="action-btn" onclick="sendCommand('kit')">Update Directives</button>
+        </div>
 
-            <!-- Agent Panels -->
-            <div id="panel-kat" class="space-y-6">
-                <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6">
-                    <h2 class="text-lg font-bold text-white mb-2">Kat | Director of Client Relations</h2>
-                    <p class="text-slate-400 text-sm mb-4">Manages the Telegram front-line funnel, engages incoming retail traders, and deploys the hard-coded Forex risk calculation lead magnet.</p>
-                    <div class="bg-slate-950 rounded-xl p-4 border border-slate-800 font-mono text-xs text-emerald-400">
-                        Status: Active listener on webhook. Ready to process /risk and user queries.
-                    </div>
-                </div>
-            </div>
-
-            <div id="panel-kit" class="hidden space-y-6">
-                <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6">
-                    <h2 class="text-lg font-bold text-white mb-2">Kit | Head of B2B Growth</h2>
-                    <p class="text-slate-400 text-sm mb-4">Autonomous outbound prospecting engine. Scans target companies, drafts personalized pitches, and pings CEO for approval before outreach.</p>
-                    <div class="bg-slate-950 rounded-xl p-4 border border-slate-800 font-mono text-xs text-emerald-400">
-                        Status: Pipeline active. Use command /prospect [Company] in Telegram to trigger outreach.
-                    </div>
-                </div>
-            </div>
-
-            <div id="panel-kim" class="hidden space-y-6">
-                <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6">
-                    <h2 class="text-lg font-bold text-white mb-2">Kim | Chief Operating Officer & Quant Trader</h2>
-                    <p class="text-slate-400 text-sm mb-4">Manages system diagnostics, executes paper-trading simulations with Qwen intelligence, and designs high-ticket enterprise architecture blueprints.</p>
-                    <div class="bg-slate-950 rounded-xl p-4 border border-slate-800 font-mono text-xs text-emerald-400">
-                        Status: Quantitative desk operational. Use /ops for daily briefings or /trade [Pair] for simulations.
-                    </div>
-                </div>
-            </div>
-        </main>
+        <!-- 4. Kat's Interface -->
+        <div id="kat" class="panel">
+            <h2>System: Kat (Client Relations)</h2>
+            <label>VIP Handling Instructions:</label>
+            <textarea id="kat-instructions" rows="5" placeholder="e.g. Offer a 20% discount on VIP signals this week only."></textarea>
+            <button class="action-btn" onclick="sendCommand('kat')">Deploy Directives</button>
+        </div>
     </div>
 
     <script>
-        function switchTab(agent) {
-            ['kat', 'kit', 'kim'].forEach(a => {
-                document.getElementById(`panel-${a}`).classList.add('hidden');
-                document.getElementById(`btn-${a}`).className = "w-full text-left px-4 py-3 rounded-xl hover:bg-slate-800 text-slate-300 font-medium transition flex items-center";
-            });
-            document.getElementById(`panel-${agent}`).classList.remove('hidden');
-            document.getElementById(`btn-${agent}`).className = "w-full text-left px-4 py-3 rounded-xl bg-emerald-500/10 text-emerald-400 font-medium border border-emerald-500/20 transition flex items-center";
+        function switchTab(tabId) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
         }
 
-        async function fetchStats() {
-            try {
-                const res = await fetch('/api/stats');
-                const data = await res.json();
-                document.getElementById('stat-leads').innerText = data.leads_captured;
-                document.getElementById('stat-trades').innerText = data.paper_trades_executed;
-                document.getElementById('stat-balance').innerText = '$' + data.paper_balance.toLocaleString(undefined, {minimumFractionDigits: 2});
-            } catch (e) {
-                console.error("Failed to fetch stats", e);
+        async function sendCommand(agent) {
+            alert(`Instructions sent to ${agent.toUpperCase()}. Database updated.`);
+            // Future tie-in to FastAPI endpoints goes here
+        }
+
+        function sendChat() {
+            const input = document.getElementById('chat-input');
+            const log = document.getElementById('chat-log');
+            if(input.value.trim() !== "") {
+                log.innerHTML += `<br><b style="color:#fff">Jacob:</b> ${input.value}`;
+                log.innerHTML += `<br><b style="color:#00ffcc">Kiemaen:</b> Acknowledged. Processing command.`;
+                input.value = "";
+                log.scrollTop = log.scrollHeight;
             }
         }
-        fetchStats();
-        setInterval(fetchStats, 5000);
     </script>
 </body>
 </html>
