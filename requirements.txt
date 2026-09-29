@@ -8,3 +8,6 @@ apscheduler
 pydantic
 python-dotenv
 Pillow
+PyJWT
+python-multipart
+passlib[bcrypt]
