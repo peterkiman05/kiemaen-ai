@@ -76,3 +76,9 @@ async def login(username: str = Form(...), password: str = Form(...)):
         return JSONResponse({"status": "success", "role": "user", "redirect": "/dashboard_client"})
         
     return JSONResponse({"status": "error", "message": "Invalid credentials"}, status_code=401)
+
+from fastapi.responses import FileResponse
+
+@app.get("/")
+async def serve_home():
+    return FileResponse("static/web/index.html")
