@@ -135,3 +135,9 @@ async def kat_broadcast(signal: str = Form(...)):
 async def kim_connect(account_id: str = Form(...), password: str = Form(...), server: str = Form("VaultMarkets-Live")):
     result = await kim_agent.connect_live_account(account_id, password, server)
     return JSONResponse(result)
+
+
+@app.post("/api/kim/trade")
+async def kim_trade(symbol: str = Form("EURUSD"), action: str = Form("BUY"), sl_pips: float = Form(20.0), tp_pips: float = Form(40.0)):
+    result = await kim_agent.execute_trade(symbol=symbol, action=action, stop_loss_pips=sl_pips, take_profit_pips=tp_pips)
+    return JSONResponse(result)
