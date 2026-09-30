@@ -49,7 +49,7 @@
         .action-svg { width: 14px; height: 14px; fill: currentColor; }
 
         .input-wrapper { position: absolute; bottom: 0; left: 0; width: 100%; padding: 15px 20px; box-sizing: border-box; background: linear-gradient(transparent, var(--bg-dark) 30%); z-index: 100; }
-        .input-bar { display: flex; align-items: center; background-color: var(--input-bg); border-radius: 35px; padding: 10px 18px; gap: 12px; border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 4px 20px rgba(0,0,0,0.6); }
+        .input-bar { display: flex; align-items: center; background-color: var(--input-bg); border-radius: 35px; padding: 10px 18px; gap: 12px; border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 4px 20px rgba(0,0,0,0.6); position: relative; }
         .icon-btn { background: none; border: none; color: var(--text-secondary); font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px; z-index: 105; }
         .icon-btn:focus { outline: 2px solid #3b82f6; border-radius: 50%; }
         .ui-icon { width: 22px; height: 22px; fill: var(--text-secondary); transition: 0.2s; }
@@ -60,6 +60,8 @@
         .flower-logo { width: 90px; height: 90px; filter: drop-shadow(0 0 15px rgba(29, 78, 216, 0.6)); }
         .flower-btn { width: 26px; height: 26px; filter: drop-shadow(0 0 8px rgba(29, 78, 216, 0.8)); cursor: pointer; }
 
+        .file-badge { font-size: 11px; background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 8px; border-radius: 6px; margin-top: 5px; display: inline-block; }
+
         .enterprise-card { background: var(--bg-panel); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
         .enterprise-card h3 { margin-top: 0; color: #60a5fa; display: flex; align-items: center; gap: 8px; font-size: 18px; }
         .metric-row { display: flex; justify-content: space-between; margin: 10px 0; font-size: 14px; color: var(--text-secondary); }
@@ -68,9 +70,7 @@
         .broker-input { width: 100%; box-sizing: border-box; background: var(--bg-dark); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 10px 14px; border-radius: 8px; margin-bottom: 10px; font-size: 14px; outline: none; }
         .broker-input:focus { border-color: #3b82f6; }
         .action-btn { background: #3b82f6; color: #fff; border: none; padding: 10px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; z-index: 105; position: relative; }
-        .action-btn:focus { outline: 2px solid #fff; }
-
-        /* LEGAL FOOTER & COOKIE BANNER */
+        
         .legal-footer { text-align: center; font-size: 11px; color: #6b7280; padding: 10px; z-index: 50; }
         .legal-footer span { margin: 0 5px; cursor: pointer; }
         .legal-footer span:hover { color: #9ca3af; text-decoration: underline; }
@@ -78,22 +78,17 @@
         .cookie-banner { position: fixed; bottom: -100px; left: 0; width: 100%; background: #111827; border-top: 1px solid #374151; padding: 15px 20px; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; z-index: 4000; transition: bottom 0.4s ease; font-size: 12px; }
         .cookie-banner.show { bottom: 0; }
         .cookie-banner button { background: #3b82f6; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        
         .disclaimer { font-size: 11px; color: #6b7280; margin-top: 15px; text-align: justify; }
 
-        /* MODALS */
         .auth-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); display: none; justify-content: center; align-items: center; z-index: 3000; opacity: 0; transition: opacity 0.3s ease; }
         .auth-overlay.show { display: flex; opacity: 1; }
         .auth-card { background: var(--bg-panel); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 16px; padding: 35px 25px; width: 90%; max-width: 380px; box-shadow: 0 15px 50px rgba(0,0,0,0.8); position: relative; max-height: 80vh; overflow-y: auto; }
         .auth-close { position: absolute; top: 15px; right: 20px; color: var(--text-secondary); font-size: 28px; cursor: pointer; padding: 5px; }
         .auth-title { font-size: 26px; font-weight: 800; margin-bottom: 25px; text-align: center; }
         .auth-input { width: 100%; box-sizing: border-box; background: var(--bg-dark); border: 1px solid rgba(255,255,255,0.08); color: #fff; padding: 14px 16px; border-radius: 12px; margin-bottom: 15px; font-size: 15px; outline: none; }
-        .auth-input:focus { border-color: #3b82f6; }
         .auth-btn { width: 100%; background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); color: #fff; border: none; padding: 14px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 15px; }
-        .auth-btn:focus { outline: 2px solid #fff; }
         .auth-switch { text-align: center; font-size: 14px; color: var(--text-secondary); cursor: pointer; padding: 10px; }
         .auth-switch span { color: #60a5fa; font-weight: 600; }
-        
         .legal-content { font-size: 12px; color: #d1d5db; line-height: 1.6; }
         .legal-content h4 { color: #fff; margin-top: 15px; margin-bottom: 5px; }
     </style>
@@ -120,7 +115,7 @@
     </svg>
 
     <div class="top-bar">
-        <div class="menu-icon" onclick="toggleSidebar()" tabindex="0" aria-label="Open Menu" onkeypress="if(event.key === 'Enter') toggleSidebar()">≡</div>
+        <div class="menu-icon" onclick="toggleSidebar()" tabindex="0" aria-label="Open Menu">≡</div>
         <div class="header-title blue-black-text" id="top-bar-title">Kiemaen AGI</div>
         <button class="login-btn" id="top-login-btn" onclick="openAuth()" aria-label="Login">Login</button>
     </div>
@@ -154,10 +149,18 @@
             </div>
             
             <div class="input-wrapper">
+                <!-- Hidden File Input for Attachment Upload -->
+                <input type="file" id="file-upload-input" style="display:none;" onchange="handleFileSelected()">
+                
                 <div class="input-bar">
-                    <button class="icon-btn" aria-label="Attach File"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#icon-clip"/></svg></button>
-                    <label for="chat-input" style="display:none;">Message Kiemaen</label>
-                    <input type="text" class="input-field" id="chat-input" placeholder="Message Kiemaen..." aria-label="Message Kiemaen" oninput="toggleInputMode()" onkeypress="if(event.key === 'Enter') handleDynamicSubmit()">
+                    <button class="icon-btn" aria-label="Attach File" onclick="document.getElementById('file-upload-input').click()">
+                        <svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#icon-clip"/></svg>
+                    </button>
+                    
+                    <div style="flex-grow:1; display:flex; flex-direction:column;">
+                        <span id="file-indicator" style="display:none;" class="file-badge"></span>
+                        <input type="text" class="input-field" id="chat-input" placeholder="Message Kiemaen..." aria-label="Message Kiemaen" oninput="toggleInputMode()" onkeypress="if(event.key === 'Enter') handleDynamicSubmit()">
+                    </div>
                     
                     <button class="icon-btn" id="dynamic-btn" onclick="handleDynamicSubmit()" aria-label="Voice or Send">
                         <svg id="btn-mic" class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" style="display:block;"><use href="#icon-mic"/></svg>
@@ -167,50 +170,26 @@
             </div>
         </div>
 
-        <!-- KIM PANEL -->
-        <div id="kim-panel" class="panel">
-            <div class="enterprise-card">
-                <h3>📈 Kim: Quantitative & Trading Manager</h3>
-                <p style="color:var(--text-secondary); font-size:14px;">Automanaging positions and computing telemetry.</p>
-                <div class="metric-row"><span>Broker:</span><span class="metric-val">Vault Markets Live</span></div>
-                <div class="metric-row"><span>Account Status:</span><span class="metric-val" id="kim-status">Active & Monitoring</span></div>
-                <div class="metric-row"><span>Simulated Win Rate:</span><span class="metric-val" id="kim-winrate">Data Synchronizing...</span></div>
-                
-                <div style="margin-top: 20px;">
-                    <label for="vm-login" style="font-size: 13px; color: var(--text-secondary);">Vault Markets Account ID</label>
-                    <input type="text" class="broker-input" id="vm-login" placeholder="Enter VM Account Number">
-                    <label for="vm-pass" style="font-size: 13px; color: var(--text-secondary);">API Key / Password</label>
-                    <input type="password" class="broker-input" id="vm-pass" placeholder="Enter API Token">
-                    <button class="action-btn" onclick="connectBroker()">Link Vault Markets Account</button>
-                </div>
-                <p class="disclaimer">*DISCLAIMER: Kiemaen Enterprise and its AI agents (Kim) are software tools, not licensed financial advisors. Trading Forex and CFDs carries a high level of risk and may not be suitable for all investors. Metrics shown before live connection are simulated.</p>
-            </div>
-        </div>
-
-        <!-- KIT, KAT, TASKS PANELS -->
-        <div id="kit-panel" class="panel"><div class="enterprise-card"><h3>🤝 Kit: B2B Growth & Sales</h3><p style="color:var(--text-secondary); font-size:14px;">Automating product usage metrics with outreach.</p><div class="metric-row"><span>Active Campaigns:</span><span class="metric-val">3 Pipelines</span></div><div class="metric-row"><span>Target Conversion:</span><span class="metric-val">18.5%</span></div><button class="action-btn" style="margin-top:15px;" onclick="alert('Kit: Deploying new batch of outbound sequences.')">Trigger B2B Campaign</button></div></div>
-        <div id="kat-panel" class="panel"><div class="enterprise-card"><h3>⭐ Kat: VIP Client Relations & Monetization</h3><p style="color:var(--text-secondary); font-size:14px;">Managing high-net-worth relationships.</p><div class="metric-row"><span>VIP Network:</span><span class="metric-val">42 Active Members</span></div><div class="metric-row"><span>Signal Status:</span><span class="metric-val" style="color:var(--accent-green);">Broadcasting Ready</span></div><button class="action-btn" style="margin-top:15px;" onclick="alert('Kat: Broadcasting strategic monetization signal to VIP channel.')">Broadcast Signal</button></div></div>
-        <div id="tasks-panel" class="panel"><div class="enterprise-card"><h3>📊 Enterprise Task Manager</h3><p style="color:var(--text-secondary); font-size:14px;">Daily automated reports and items awaiting Chairman approval.</p><div class="metric-row"><span>Pending Approvals:</span><span class="metric-val" style="color:#f59e0b;">2 Items</span></div><div class="metric-row"><span>Daily Telegram Report:</span><span class="metric-val" style="color:var(--accent-green);">Scheduled (08:00 SAST)</span></div><div style="background:var(--bg-dark); padding:12px; border-radius:8px; margin-top:15px; font-size:13px; border-left:3px solid #3b82f6;"><b>Kim's Notice:</b> Volatility detected. Awaiting Chairman sign-off.</div><button class="action-btn" style="margin-top:15px;" onclick="alert('Chairman Approval Granted.')">Approve & Dispatch</button></div></div>
+        <!-- OTHER PANELS -->
+        <div id="kim-panel" class="panel"><div class="enterprise-card"><h3>📈 Kim: Quantitative & Trading Manager</h3><p style="color:var(--text-secondary); font-size:14px;">Automanaging positions and computing telemetry.</p><div class="metric-row"><span>Broker:</span><span class="metric-val">Vault Markets Live</span></div><div class="metric-row"><span>Account Status:</span><span class="metric-val" id="kim-status">Active & Monitoring</span></div><div class="metric-row"><span>Simulated Win Rate:</span><span class="metric-val">Data Synchronizing...</span></div><div style="margin-top: 20px;"><label for="vm-login" style="font-size: 13px; color: var(--text-secondary);">Vault Markets Account ID</label><input type="text" class="broker-input" id="vm-login" placeholder="Enter VM Account Number"><label for="vm-pass" style="font-size: 13px; color: var(--text-secondary);">API Key / Password</label><input type="password" class="broker-input" id="vm-pass" placeholder="Enter API Token"><button class="action-btn" onclick="connectBroker()">Link Vault Markets Account</button></div><p class="disclaimer">*DISCLAIMER: Kiemaen Enterprise and its AI agents are software tools, not licensed financial advisors.</p></div></div>
+        <div id="kit-panel" class="panel"><div class="enterprise-card"><h3>🤝 Kit: B2B Growth & Sales</h3><p style="color:var(--text-secondary); font-size:14px;">Automating product usage metrics with outreach.</p><div class="metric-row"><span>Active Campaigns:</span><span class="metric-val">3 Pipelines</span></div><button class="action-btn" style="margin-top:15px;" onclick="alert('Kit: Deploying new batch of outbound sequences.')">Trigger B2B Campaign</button></div></div>
+        <div id="kat-panel" class="panel"><div class="enterprise-card"><h3>⭐ Kat: VIP Client Relations & Monetization</h3><p style="color:var(--text-secondary); font-size:14px;">Managing high-net-worth relationships.</p><div class="metric-row"><span>VIP Network:</span><span class="metric-val">42 Active Members</span></div><button class="action-btn" style="margin-top:15px;" onclick="alert('Kat: Broadcasting strategic monetization signal.')">Broadcast Signal</button></div></div>
+        <div id="tasks-panel" class="panel"><div class="enterprise-card"><h3>📊 Enterprise Task Manager</h3><p style="color:var(--text-secondary); font-size:14px;">Daily automated reports and items awaiting Chairman approval.</p><div class="metric-row"><span>Pending Approvals:</span><span class="metric-val" style="color:#f59e0b;">2 Items</span></div><button class="action-btn" style="margin-top:15px;" onclick="alert('Chairman Approval Granted.')">Approve & Dispatch</button></div></div>
     </div>
 
     <!-- AUTH MODAL -->
-    <div class="auth-overlay" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+    <div class="auth-overlay" id="auth-modal" role="dialog" aria-modal="true">
         <div class="auth-card">
-            <div class="auth-close" onclick="closeAuth()" tabindex="0" aria-label="Close Authentication">×</div>
+            <div class="auth-close" onclick="closeAuth()" tabindex="0">×</div>
             <div class="auth-title blue-black-text" id="auth-title">Chairman Login</div>
             <form id="auth-form" onsubmit="submitAuth(event)">
-                <label for="auth-email" style="display:none;">Chairman Email</label>
-                <input type="email" id="auth-email" class="auth-input" placeholder="Chairman Email" required aria-required="true">
-                <label for="auth-pass" style="display:none;">Password</label>
-                <input type="password" id="auth-pass" class="auth-input" placeholder="Security Password" required aria-required="true">
-                <label for="auth-pass-confirm" style="display:none;">Confirm Password</label>
+                <input type="email" id="auth-email" class="auth-input" placeholder="Chairman Email" required>
+                <input type="password" id="auth-pass" class="auth-input" placeholder="Security Password" required>
                 <input type="password" id="auth-pass-confirm" class="auth-input" placeholder="Confirm Password" style="display:none;">
-                
-                <p style="font-size: 11px; color: #6b7280; margin-bottom: 10px;">By authenticating, you agree to our Terms and consent to data processing per our Privacy Policy.</p>
                 <button type="submit" class="auth-btn" id="auth-submit-btn">Authenticate Chairman</button>
             </form>
-            <div class="auth-switch" style="margin-bottom: 10px; color: #9ca3af;" onclick="forgotPassword()" tabindex="0" role="button">Forgot Password?</div>
-            <div class="auth-switch" id="auth-switch" onclick="toggleAuthMode()" tabindex="0" role="button">New Chairman? <span>Register here</span></div>
+            <div class="auth-switch" style="margin-bottom: 10px; color: #9ca3af;" onclick="forgotPassword()" tabindex="0">Forgot Password?</div>
+            <div class="auth-switch" id="auth-switch" onclick="toggleAuthMode()" tabindex="0">New Chairman? <span>Register here</span></div>
         </div>
     </div>
 
@@ -223,9 +202,8 @@
         </div>
     </div>
 
-    <!-- COOKIE CONSENT BANNER -->
     <div id="cookie-consent" class="cookie-banner">
-        <div>We use strictly necessary cookies and local storage to secure your CEO Dashboard sessions per POPIA and GDPR standards. <span style="color:#60a5fa; cursor:pointer;" onclick="openLegal('cookie')">Read Policy</span></div>
+        <div>We use strictly necessary cookies to secure your CEO Dashboard per POPIA/GDPR standards. <span style="color:#60a5fa; cursor:pointer;" onclick="openLegal('cookie')">Read Policy</span></div>
         <button onclick="acceptCookies()">Accept</button>
     </div>
 
@@ -240,10 +218,22 @@
             toggleSidebar();
         }
 
-        // --- DYNAMIC INPUT LOGIC ---
+        // --- FILE UPLOAD LOGIC ---
+        let selectedFile = null;
+        function handleFileSelected() {
+            const input = document.getElementById('file-upload-input');
+            if (input.files && input.files[0]) {
+                selectedFile = input.files[0];
+                const indicator = document.getElementById('file-indicator');
+                indicator.innerText = "📎 Attached: " + selectedFile.name;
+                indicator.style.display = "block";
+            }
+        }
+
+        // --- DYNAMIC INPUT & VOICE ACTIVATION LOGIC ---
         function toggleInputMode() {
             const input = document.getElementById('chat-input').value.trim();
-            if (input.length > 0) {
+            if (input.length > 0 || selectedFile !== null) {
                 document.getElementById('btn-mic').style.display = 'none';
                 document.getElementById('btn-send').style.display = 'block';
             } else {
@@ -251,27 +241,52 @@
                 document.getElementById('btn-send').style.display = 'none';
             }
         }
+
         function handleDynamicSubmit() {
             const input = document.getElementById('chat-input').value.trim();
-            if (input.length > 0) { sendChat(); } else { startVoice(); }
+            if (input.length > 0 || selectedFile !== null) { 
+                sendChat(); 
+            } else { 
+                startVoice(); 
+            }
         }
 
         function startVoice() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SpeechRecognition) { alert("Voice recognition is not supported in this browser."); return; }
+            if (!SpeechRecognition) { 
+                alert("Voice recognition is not supported in this browser. Please use Chrome or Safari."); 
+                return; 
+            }
             const recognition = new SpeechRecognition();
             recognition.lang = 'en-US';
-            document.getElementById('btn-mic').classList.add('active');
+            const micIcon = document.getElementById('btn-mic');
+            micIcon.style.fill = '#3b82f6';
+            
             recognition.start();
+            
             recognition.onresult = function(event) {
                 document.getElementById('chat-input').value = event.results[0][0].transcript;
-                toggleInputMode(); sendChat();
+                toggleInputMode(); 
+                sendChat();
             };
-            recognition.onspeechend = function() { recognition.stop(); document.getElementById('btn-mic').classList.remove('active'); }
-            recognition.onerror = function() { document.getElementById('btn-mic').classList.remove('active'); }
+            recognition.onspeechend = function() { 
+                recognition.stop(); 
+                micIcon.style.fill = 'var(--text-secondary)';
+            }
+            recognition.onerror = function() { 
+                micIcon.style.fill = 'var(--text-secondary)';
+            }
         }
 
-        function copyMsg(id) { navigator.clipboard.writeText(document.getElementById(id).innerText); }
+        // --- COPY & CLEANED READ ALOUD LOGIC ---
+        function copyMsg(id) { 
+            const textElement = document.getElementById(id);
+            if(textElement) {
+                navigator.clipboard.writeText(textElement.innerText);
+                alert("Response copied to clipboard.");
+            }
+        }
+
         function speakMsg(element) {
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
@@ -279,6 +294,8 @@
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'en-US';
                 window.speechSynthesis.speak(utterance);
+            } else {
+                alert("Text-to-speech is not supported in this browser.");
             }
         }
 
@@ -288,21 +305,35 @@
             const hero = document.getElementById('hero-logo');
             const msg = input.value.trim();
             
-            if(msg !== "") {
+            if(msg !== "" || selectedFile !== null) {
                 if(hero) hero.style.display = 'none';
-                log.innerHTML += `<div class="message msg-user">${msg}</div>`;
-                input.value = ""; toggleInputMode();
+                
+                let displayMsg = msg;
+                if(selectedFile) displayMsg += `<br><span class="file-badge">📎 ${selectedFile.name}</span>`;
+                
+                log.innerHTML += `<div class="message msg-user">${displayMsg}</div>`;
+                
+                input.value = ""; 
+                toggleInputMode();
                 log.scrollTop = log.scrollHeight;
                 
                 const formData = new FormData();
-                formData.append("prompt", msg);
+                formData.append("prompt", msg !== "" ? msg : "Analyze this attached file.");
                 formData.append("ceo_mode", document.getElementById('top-login-btn').innerText === "Chairman Active" ? "true" : "false");
+                if(selectedFile) {
+                    formData.append("file", selectedFile);
+                    selectedFile = null;
+                    document.getElementById('file-indicator').style.display = "none";
+                    document.getElementById('file-upload-input').value = "";
+                }
 
                 try {
                     const response = await fetch('/chat', { method: 'POST', body: formData });
                     const data = await response.json();
                     let replyText = data.status === 'error' ? (data.message || 'Error occurred.') : data.response;
-                    let cleanText = replyText.replace(/[*_#\-~|]/g, '').replace(/\n/g, ' ').replace(/(https?:\/\/[^\s]+)/g, 'link removed').trim();
+                    
+                    // Cleaner for Read Aloud: strips markdown, formatting hashes, long dashes, and code blocks
+                    let cleanText = replyText.replace(/[*_#\-~|`]/g, '').replace(/\n/g, ' ').replace(/(https?:\/\/[^\s]+)/g, 'link removed').trim();
                     const msgId = 'msg-' + Date.now();
 
                     log.innerHTML += `
@@ -310,16 +341,22 @@
                         <svg style="width:16px;height:16px;margin-right:5px;vertical-align:middle" viewBox="0 0 100 100"><use href="#pointy-flower"/></svg> 
                         <b>Kiemaen:</b><br><div id="${msgId}">${replyText}</div>
                         <div class="msg-actions">
-                            <span onclick="copyMsg('${msgId}')" tabindex="0" role="button" aria-label="Copy message"><svg viewBox="0 0 24 24" class="action-svg"><use href="#icon-copy"/></svg> Copy</span>
-                            <span onclick="speakMsg(this)" data-text="${encodeURIComponent(cleanText)}" tabindex="0" role="button" aria-label="Read Aloud"><svg viewBox="0 0 24 24" class="action-svg"><use href="#icon-volume"/></svg> Read Aloud</span>
+                            <span onclick="copyMsg('${msgId}')" tabindex="0" role="button" aria-label="Copy message">
+                                <svg viewBox="0 0 24 24" class="action-svg"><use href="#icon-copy"/></svg> Copy
+                            </span>
+                            <span onclick="speakMsg(this)" data-text="${encodeURIComponent(cleanText)}" tabindex="0" role="button" aria-label="Read Aloud">
+                                <svg viewBox="0 0 24 24" class="action-svg"><use href="#icon-volume"/></svg> Read Aloud
+                            </span>
                         </div>
                     </div>`;
-                } catch (err) { log.innerHTML += `<div class="message msg-ai" style="color:#ef4444;">Connection Error.</div>`; }
+                } catch (err) { 
+                    log.innerHTML += `<div class="message msg-ai" style="color:#ef4444;">Connection Error.</div>`; 
+                }
                 log.scrollTop = log.scrollHeight;
             }
         }
 
-        // --- AUTH ---
+        // --- AUTH & MISC ---
         let isLoginMode = true;
         function openAuth() { document.getElementById('auth-modal').classList.add('show'); }
         function closeAuth() { document.getElementById('auth-modal').classList.remove('show'); document.getElementById('auth-form').reset(); }
@@ -354,12 +391,11 @@
             alert(`Kim: Linked Account [${login}].`); document.getElementById('kim-status').innerText = "Live Synchronized";
         }
 
-        // --- LEGAL & COOKIES LOGIC ---
         const legalTexts = {
-            privacy: "<h4>Privacy Policy</h4><p>Effective Date: September 2026</p><p>Kiemaen Enterprise operates in compliance with POPIA (South Africa) and GDPR standards. We practice data minimization. We only collect the email address you provide for authentication and maintain secure local logs of AI interactions. We do not sell your personal data. Third-party integrations (Vault Markets, Groq API) are processed securely using your explicitly provided API keys.</p><p>Contact: Legal Operations, Kiemaen Enterprise, Johannesburg, SA.</p>",
-            terms: "<h4>Terms and Conditions</h4><p>By using Kiemaen AGI, you agree to our terms. Kiemaen is an AI assistant software tool. <strong>Disclaimer:</strong> Kiemaen Enterprise, including the Kim agent, is NOT a registered financial advisor. Any Vault Markets integration or metrics provided are software readouts and simulations. Trading carries severe financial risk.</p>",
-            cookie: "<h4>Cookie Policy</h4><p>We do not use tracking, advertising, or third-party behavioral cookies. We only use Strictly Necessary Cookies and Local Storage (JWT tokens) required to keep your Chairman session secure and to remember your interface preferences.</p>",
-            refund: "<h4>Refund Policy</h4><p>As Kiemaen Enterprise primarily deals in B2B integrations and custom AI deployment, all software licensing and enterprise API costs are final and non-refundable once the service is deployed, unless otherwise stipulated in a direct service contract.</p>"
+            privacy: "<h4>Privacy Policy</h4><p>Effective Date: September 2026</p><p>Kiemaen Enterprise operates in compliance with POPIA (South Africa) and GDPR standards. We practice data minimization. We only collect the email address you provide for authentication and maintain secure local logs of AI interactions. We do not sell your personal data.</p>",
+            terms: "<h4>Terms and Conditions</h4><p>By using Kiemaen AGI, you agree to our terms. Kiemaen is an AI assistant software tool. <strong>Disclaimer:</strong> Kiemaen Enterprise, including the Kim agent, is NOT a registered financial advisor.</p>",
+            cookie: "<h4>Cookie Policy</h4><p>We do not use tracking cookies. We only use Strictly Necessary Cookies and Local Storage (JWT tokens) required to keep your Chairman session secure.</p>",
+            refund: "<h4>Refund Policy</h4><p>All software licensing and enterprise API costs are final and non-refundable once deployed.</p>"
         };
 
         function openLegal(type) {
@@ -368,7 +404,6 @@
             document.getElementById('legal-modal').classList.add('show');
         }
         function closeLegal() { document.getElementById('legal-modal').classList.remove('show'); }
-        
         function acceptCookies() {
             localStorage.setItem('kiemaen_cookie_consent', 'accepted');
             document.getElementById('cookie-consent').classList.remove('show');
