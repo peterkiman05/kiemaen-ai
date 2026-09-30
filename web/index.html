@@ -388,11 +388,29 @@
         async function triggerKitLive() {
             const target = prompt("Kit B2B System: Enter target client email address:");
             if(!target) return;
-            alert("Kit: Processing live B2B outreach...");
+            
+            const subject = "Kiemaen Enterprise Integration";
+            const body = "We have analyzed your business operations. Our AI systems have identified a 15% efficiency gap. Let us schedule a brief technical consultation.";
+            
+            // The Chairman Approval Checkpoint
+            const isApproved = confirm(`Kit drafted the following email to ${target}:
+
+SUBJECT: ${subject}
+
+BODY: ${body}
+
+Do you approve sending this live? (OK to Send, Cancel to Abort)`);
+            
+            if(!isApproved) {
+                alert("Kit: Campaign aborted by Chairman.");
+                return;
+            }
+            
+            alert("Kit: Approval received. Dispatching live B2B outreach...");
             const fd = new FormData();
             fd.append("target_email", target);
-            fd.append("subject", "Kiemaen Enterprise Integration");
-            fd.append("body", "We have analyzed your business operations. Our AI systems have identified a 15% efficiency gap. Let us schedule a brief technical consultation.");
+            fd.append("subject", subject);
+            fd.append("body", body);
             try {
                 const res = await fetch("/api/kit/outreach", {method: "POST", body: fd});
                 const data = await res.json();
