@@ -32,8 +32,9 @@ async def ask_kiemaen(prompt: str, is_ceo: bool = False) -> str:
             mode_text = "[CHAIRMAN LINK ACTIVE]" if is_ceo else "[STANDARD AI]"
             return f"{mode_text} Enterprise neural net online. (Set GROQ_API_KEY in Render for live LLM responses). You requested: {prompt}"
 
+        # Upgraded to the active Llama 3.1 model
         completion = await client.chat.completions.create(
-            model="llama3-8b-8192", 
+            model="llama-3.1-8b-instant", 
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
