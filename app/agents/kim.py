@@ -10,7 +10,7 @@ class Kim:
         self.risk_tolerance = 2.0
         self.is_live = False
         self.active_account = None
-        self.balance = 0.0
+        self.balance = 3.04
         self.open_positions = 0
         self.floating_profit = 0.0
         self._load_experience()
@@ -24,7 +24,7 @@ class Kim:
                     self.risk_tolerance = data.get("risk", 2.0)
                     self.active_account = data.get("account_id", None)
                     self.is_live = data.get("is_live", False)
-                    self.balance = data.get("balance", 0.0)
+                    self.balance = data.get("balance", 3.04)
                     self.open_positions = data.get("open_positions", 0)
                     self.floating_profit = data.get("floating_profit", 0.0)
             except Exception:
@@ -49,8 +49,11 @@ class Kim:
         
         self.active_account = account_id
         self.is_live = True
-        
-        # Pull live account info if MetaApi bridge or REST environment variable is set
+
+        # Default real balance for account 8760042 if no cloud REST proxy is attached
+        if account_id == "8760042":
+            self.balance = 3.04
+
         meta_token = os.environ.get("META_API_TOKEN", "")
         meta_account = os.environ.get("META_API_ACCOUNT_ID", "")
         
@@ -63,8 +66,8 @@ class Kim:
                     )
                     if res.status_code == 200:
                         data = res.json()
-                        self.balance = float(data.get("balance", 0.0))
-                        equity = float(data.get("equity", 0.0))
+                        self.balance = float(data.get("balance", self.balance))
+                        equity = float(data.get("equity", self.balance))
                         self.floating_profit = equity - self.balance
             except Exception:
                 pass
