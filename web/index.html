@@ -431,10 +431,32 @@ Do you approve sending this live? (OK to Send, Cancel to Abort)`);
             } catch(e) { alert("Network Error: Could not reach Kat."); }
         }
 
-        function connectBroker() {
-            const login = document.getElementById('vm-login').value;
-            if(!login) { alert("Enter Vault Markets credentials."); return; }
-            alert(`Kim: Linked Account [${login}].`); document.getElementById('kim-status').innerText = "Live Synchronized";
+        async function connectBroker() {
+            const login = document.getElementById('vm-login').value.trim();
+            const pass = document.getElementById('vm-pass').value.trim();
+            if(!login || !pass) { 
+                alert("Please enter both your Vault Markets Account Number and Password."); 
+                return; 
+            }
+            alert("Kim: Contacting Vault Markets live servers...");
+            const fd = new FormData();
+            fd.append("account_id", login);
+            fd.append("password", pass);
+            fd.append("server", "VaultMarkets-Live");
+
+            try {
+                const res = await fetch("/api/kim/connect", {method: "POST", body: fd});
+                const data = await res.json();
+                if(data.status === "success") {
+                    alert(data.message);
+                    document.getElementById('kim-status').innerText = "Live Real Account [" + login + "]";
+                    document.getElementById('kim-status').style.color = "#10b981";
+                } else {
+                    alert("Vault Markets Authentication Error: " + data.message);
+                }
+            } catch(e) {
+                alert("Network Error: Could not establish live bridge with Kim.");
+            }
         }
 
         const legalTexts = {

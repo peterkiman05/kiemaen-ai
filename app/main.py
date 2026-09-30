@@ -129,3 +129,9 @@ async def kat_broadcast(signal: str = Form(...)):
          return JSONResponse({"status": "error", "message": "Bot Token or VIP Chat ID missing in Render."})
     result = await kat_agent.broadcast_vip_signal(token, vip_chat_id, signal)
     return JSONResponse({"status": "success", "message": result})
+
+
+@app.post("/api/kim/connect")
+async def kim_connect(account_id: str = Form(...), password: str = Form(...), server: str = Form("VaultMarkets-Live")):
+    result = await kim_agent.connect_live_account(account_id, password, server)
+    return JSONResponse(result)
