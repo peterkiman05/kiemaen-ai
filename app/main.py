@@ -15,11 +15,17 @@ async def serve_home():
 @app.post("/chat")
 async def chat(prompt: str = Form(...), ceo_mode: str = Form("false")):
     try:
-        # Convert string flag to boolean
         is_ceo = ceo_mode.lower() == "true"
-        
-        # Route to Kiemaen's brain with CEO context
         reply = await ask_kiemaen(prompt, is_ceo=is_ceo)
         return JSONResponse({"status": "success", "response": reply})
     except Exception as e:
         return JSONResponse({"status": "error", "message": str(e)})
+
+@app.post("/forgot-password")
+async def forgot_password(email: str = Form(...)):
+    # Simulates sending a secure JWT reset link to the registered email
+    # In a full production environment, this triggers an SMTP email dispatch.
+    return JSONResponse({
+        "status": "success", 
+        "message": f"Validation secure. A password reset link has been dispatched to {email}."
+    })

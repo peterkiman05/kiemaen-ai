@@ -186,6 +186,7 @@
                 <input type="password" id="auth-pass-confirm" class="auth-input" placeholder="Confirm Password" style="display:none;">
                 <button type="submit" class="auth-btn" id="auth-submit-btn">Authenticate Chairman</button>
             </form>
+            <div class="auth-switch" style="margin-bottom: 10px; color: #9ca3af;" onclick="forgotPassword()">Forgot Password?</div>
             <div class="auth-switch" id="auth-switch" onclick="toggleAuthMode()">
                 New Chairman? <span>Register here</span>
             </div>
@@ -228,6 +229,23 @@
                 passConfirm.style.display = "block";
                 passConfirm.required = true;
                 switchText.innerHTML = "Already registered? <span>Login here</span>";
+            }
+        }
+
+        async function forgotPassword() {
+            const email = document.getElementById("auth-email").value;
+            if(!email) {
+                alert("Please enter your Chairman Email address to request a reset link.");
+                return;
+            }
+            try {
+                const formData = new FormData();
+                formData.append("email", email);
+                const response = await fetch("/forgot-password", { method: "POST", body: formData });
+                const data = await response.json();
+                alert(data.message);
+            } catch(err) {
+                alert("Network error. Could not dispatch reset link.");
             }
         }
 
