@@ -141,3 +141,14 @@ async def kim_connect(account_id: str = Form(...), password: str = Form(...), se
 async def kim_trade(symbol: str = Form("EURUSD"), action: str = Form("BUY"), sl_pips: float = Form(20.0), tp_pips: float = Form(40.0)):
     result = await kim_agent.execute_trade(symbol=symbol, action=action, stop_loss_pips=sl_pips, take_profit_pips=tp_pips)
     return JSONResponse(result)
+
+
+@app.get("/api/kim/live-metrics")
+async def kim_live_metrics():
+    metrics = await kim_agent.get_live_metrics()
+    return JSONResponse(metrics)
+
+@app.post("/api/kim/push-telemetry")
+async def kim_push_telemetry(balance: float = Form(...), equity: float = Form(...), open_trades: int = Form(0)):
+    res = await kim_agent.update_telemetry_direct(balance, equity, open_trades)
+    return JSONResponse(res)

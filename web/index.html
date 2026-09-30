@@ -494,6 +494,27 @@ Do you approve sending this live? (OK to Send, Cancel to Abort)`);
                 setTimeout(() => document.getElementById('cookie-consent').classList.add('show'), 1500);
             }
         }
-    </script>
+    
+        // Auto-refresh Kim's live telemetry every 5 seconds
+        async function refreshKimLiveMetrics() {
+            try {
+                const res = await fetch("/api/kim/live-metrics");
+                const data = await res.json();
+                if (data.account_id && data.account_id !== "Not Linked") {
+                    document.getElementById('kim-balance').innerText = data.balance;
+                    document.getElementById('kim-positions').innerText = data.open_positions;
+                    document.getElementById('kim-profit').innerText = data.floating_profit;
+                    
+                    if (data.floating_profit && data.floating_profit.includes('-')) {
+                        document.getElementById('kim-profit').style.color = "#ef4444";
+                    } else {
+                        document.getElementById('kim-profit').style.color = "#10b981";
+                    }
+                }
+            } catch(e) {}
+        }
+        setInterval(refreshKimLiveMetrics, 5000);
+
+</script>
 </body>
 </html>
