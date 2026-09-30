@@ -45,7 +45,7 @@ async def ask_kiemaen(prompt: str, is_ceo: bool = False) -> str:
             return f"[CHAIRMAN LINK] Kiemaen Level {evo['kiemaen']} Online. Tasks and Research subsystems active. Request: {prompt}"
 
         completion = await client.chat.completions.create(
-            model="llama-3.1-8b-instant", 
+            model="openai/gpt-oss-120b", 
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
