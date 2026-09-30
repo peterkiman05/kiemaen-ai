@@ -100,3 +100,32 @@ async def telegram_webhook(request: Request):
         return {"status": "ok"}
     except Exception:
         return {"status": "error"}
+
+# --- ENTERPRISE LIVE EXECUTION ENDPOINTS ---
+from app.agents.kim import Kim
+from app.agents.kit import Kit
+from app.agents.kat import Kat
+
+kim_agent = Kim()
+kit_agent = Kit()
+kat_agent = Kat()
+
+@app.post("/api/kit/outreach")
+async def kit_outreach(target_email: str = Form(...), subject: str = Form(...), body: str = Form(...)):
+    # Requires SMTP_USER and SMTP_PASS in Render Environment Variables
+    user = os.environ.get("SMTP_USER", "")
+    password = os.environ.get("SMTP_PASS", "")
+    if not user or not password:
+        return JSONResponse({"status": "error", "message": "SMTP credentials missing in Render."})
+    result = kit_agent.deploy_live_campaign(user, password, target_email, subject, body)
+    return JSONResponse({"status": "success", "message": result})
+
+@app.post("/api/kat/broadcast")
+async def kat_broadcast(signal: str = Form(...)):
+    # Requires TELEGRAM_BOT_TOKEN and VIP_CHAT_ID in Render
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    vip_chat_id = os.environ.get("VIP_CHAT_ID", "")
+    if not token or not vip_chat_id:
+         return JSONResponse({"status": "error", "message": "Bot Token or VIP Chat ID missing in Render."})
+    result = await kat_agent.broadcast_vip_signal(token, vip_chat_id, signal)
+    return JSONResponse({"status": "success", "message": result})
