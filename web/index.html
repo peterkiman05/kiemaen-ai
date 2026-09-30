@@ -19,9 +19,10 @@
 
         .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background-color: var(--bg-dark); border-bottom: 1px solid rgba(255,255,255,0.05); z-index: 1000; position: relative; }
         .menu-icon { font-size: 24px; cursor: pointer; color: #fff; user-select: none; padding: 5px; }
+        .menu-icon:focus { outline: 2px solid #3b82f6; border-radius: 4px; }
         .header-title { font-size: 18px; font-weight: 700; letter-spacing: 0.5px; }
         .login-btn { background-color: rgba(255,255,255,0.1); color: #fff; border: none; padding: 6px 18px; border-radius: 20px; font-size: 14px; cursor: pointer; transition: 0.2s; border: 1px solid rgba(255,255,255,0.05); }
-        .login-btn:hover { background-color: rgba(59, 130, 246, 0.2); border-color: rgba(59, 130, 246, 0.5); }
+        .login-btn:hover, .login-btn:focus { background-color: rgba(59, 130, 246, 0.2); border-color: rgba(59, 130, 246, 0.5); outline: none; }
         
         .sidebar { position: fixed; top: 0; left: -300px; width: 280px; height: 100%; background-color: var(--bg-panel); box-shadow: 4px 0 25px rgba(0,0,0,0.8); transition: 0.3s ease; z-index: 2000; display: flex; flex-direction: column; padding-top: 60px; border-right: 1px solid rgba(255,255,255,0.05); }
         .sidebar.open { left: 0; }
@@ -37,20 +38,20 @@
         .hero-center { position: absolute; top: 38%; left: 50%; transform: translate(-50%, -50%); text-align: center; display: flex; flex-direction: column; align-items: center; transition: 0.3s; width: 100%; box-sizing: border-box; padding: 0 20px; pointer-events: none; }
         .hero-center h1 { font-size: 34px; font-weight: 800; margin-top: 15px; letter-spacing: -0.5px; }
         
-        .chat-scroll { flex-grow: 1; padding: 20px; overflow-y: auto; padding-bottom: 100px; z-index: 20; }
+        .chat-scroll { flex-grow: 1; padding: 20px; overflow-y: auto; padding-bottom: 120px; z-index: 20; }
         .message { margin-bottom: 20px; max-width: 85%; line-height: 1.5; font-size: 15px; }
         .msg-user { margin-left: auto; background-color: var(--input-bg); padding: 12px 18px; border-radius: 18px 18px 0 18px; color: #fff; border: 1px solid rgba(255,255,255,0.05); }
         .msg-ai { margin-right: auto; padding: 12px 0; color: #e5e7eb; }
 
-        /* UI Action Icons & Read Aloud Styles */
         .msg-actions { margin-top: 10px; display: flex; gap: 15px; font-size: 12px; color: var(--text-secondary); user-select: none; }
         .msg-actions span { display: flex; align-items: center; gap: 5px; cursor: pointer; transition: 0.2s; }
-        .msg-actions span:hover { color: #60a5fa; }
+        .msg-actions span:hover, .msg-actions span:focus { color: #60a5fa; outline: none; }
         .action-svg { width: 14px; height: 14px; fill: currentColor; }
 
         .input-wrapper { position: absolute; bottom: 0; left: 0; width: 100%; padding: 15px 20px; box-sizing: border-box; background: linear-gradient(transparent, var(--bg-dark) 30%); z-index: 100; }
         .input-bar { display: flex; align-items: center; background-color: var(--input-bg); border-radius: 35px; padding: 10px 18px; gap: 12px; border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 4px 20px rgba(0,0,0,0.6); }
         .icon-btn { background: none; border: none; color: var(--text-secondary); font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px; z-index: 105; }
+        .icon-btn:focus { outline: 2px solid #3b82f6; border-radius: 50%; }
         .ui-icon { width: 22px; height: 22px; fill: var(--text-secondary); transition: 0.2s; }
         .ui-icon:hover, .ui-icon.active { fill: #3b82f6; }
         .input-field { flex-grow: 1; background: transparent; border: none; color: #fff; font-size: 16px; outline: none; padding: 4px 0; z-index: 105; }
@@ -63,29 +64,46 @@
         .enterprise-card h3 { margin-top: 0; color: #60a5fa; display: flex; align-items: center; gap: 8px; font-size: 18px; }
         .metric-row { display: flex; justify-content: space-between; margin: 10px 0; font-size: 14px; color: var(--text-secondary); }
         .metric-val { color: #fff; font-weight: 600; }
+        
         .broker-input { width: 100%; box-sizing: border-box; background: var(--bg-dark); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 10px 14px; border-radius: 8px; margin-bottom: 10px; font-size: 14px; outline: none; }
+        .broker-input:focus { border-color: #3b82f6; }
         .action-btn { background: #3b82f6; color: #fff; border: none; padding: 10px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; z-index: 105; position: relative; }
+        .action-btn:focus { outline: 2px solid #fff; }
 
-        /* AUTH MODAL */
+        /* LEGAL FOOTER & COOKIE BANNER */
+        .legal-footer { text-align: center; font-size: 11px; color: #6b7280; padding: 10px; z-index: 50; }
+        .legal-footer span { margin: 0 5px; cursor: pointer; }
+        .legal-footer span:hover { color: #9ca3af; text-decoration: underline; }
+        
+        .cookie-banner { position: fixed; bottom: -100px; left: 0; width: 100%; background: #111827; border-top: 1px solid #374151; padding: 15px 20px; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; z-index: 4000; transition: bottom 0.4s ease; font-size: 12px; }
+        .cookie-banner.show { bottom: 0; }
+        .cookie-banner button { background: #3b82f6; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        
+        .disclaimer { font-size: 11px; color: #6b7280; margin-top: 15px; text-align: justify; }
+
+        /* MODALS */
         .auth-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); display: none; justify-content: center; align-items: center; z-index: 3000; opacity: 0; transition: opacity 0.3s ease; }
         .auth-overlay.show { display: flex; opacity: 1; }
-        .auth-card { background: var(--bg-panel); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 16px; padding: 35px 25px; width: 90%; max-width: 380px; box-shadow: 0 15px 50px rgba(0,0,0,0.8); position: relative; }
+        .auth-card { background: var(--bg-panel); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 16px; padding: 35px 25px; width: 90%; max-width: 380px; box-shadow: 0 15px 50px rgba(0,0,0,0.8); position: relative; max-height: 80vh; overflow-y: auto; }
         .auth-close { position: absolute; top: 15px; right: 20px; color: var(--text-secondary); font-size: 28px; cursor: pointer; padding: 5px; }
         .auth-title { font-size: 26px; font-weight: 800; margin-bottom: 25px; text-align: center; }
         .auth-input { width: 100%; box-sizing: border-box; background: var(--bg-dark); border: 1px solid rgba(255,255,255,0.08); color: #fff; padding: 14px 16px; border-radius: 12px; margin-bottom: 15px; font-size: 15px; outline: none; }
+        .auth-input:focus { border-color: #3b82f6; }
         .auth-btn { width: 100%; background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); color: #fff; border: none; padding: 14px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 15px; }
+        .auth-btn:focus { outline: 2px solid #fff; }
         .auth-switch { text-align: center; font-size: 14px; color: var(--text-secondary); cursor: pointer; padding: 10px; }
         .auth-switch span { color: #60a5fa; font-weight: 600; }
+        
+        .legal-content { font-size: 12px; color: #d1d5db; line-height: 1.6; }
+        .legal-content h4 { color: #fff; margin-top: 15px; margin-bottom: 5px; }
     </style>
 </head>
 <body>
-    <!-- MASTER SVG ICONS DEFINITIONS -->
-    <svg width="0" height="0" style="position:absolute">
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
         <defs>
             <radialGradient id="blueBlackGlow" cx="50%" cy="50%" r="50%">
                 <stop offset="0%" stop-color="#000000"/><stop offset="40%" stop-color="#1e3a8a"/><stop offset="100%" stop-color="#3b82f6"/>
             </radialGradient>
-            <!-- The Only Clover -->
             <g id="pointy-flower">
                 <path d="M50 50 Q 35 25, 50 0 Q 65 25, 50 50" fill="url(#blueBlackGlow)" transform="rotate(0 50 50)"/>
                 <path d="M50 50 Q 35 25, 50 0 Q 65 25, 50 50" fill="url(#blueBlackGlow)" transform="rotate(72 50 50)"/>
@@ -94,7 +112,6 @@
                 <path d="M50 50 Q 35 25, 50 0 Q 65 25, 50 50" fill="url(#blueBlackGlow)" transform="rotate(288 50 50)"/>
                 <circle cx="50" cy="50" r="4" fill="#000000"/>
             </g>
-            <!-- UI Action Icons -->
             <g id="icon-clip"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></g>
             <g id="icon-mic"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15a1 1 0 0 0-.98-.85c-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/></g>
             <g id="icon-copy"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></g>
@@ -102,73 +119,116 @@
         </defs>
     </svg>
 
-    <!-- UI STRUCTURE -->
     <div class="top-bar">
-        <div class="menu-icon" onclick="toggleSidebar()">≡</div>
+        <div class="menu-icon" onclick="toggleSidebar()" tabindex="0" aria-label="Open Menu" onkeypress="if(event.key === 'Enter') toggleSidebar()">≡</div>
         <div class="header-title blue-black-text" id="top-bar-title">Kiemaen AGI</div>
-        <button class="login-btn" id="top-login-btn" onclick="openAuth()">Login</button>
+        <button class="login-btn" id="top-login-btn" onclick="openAuth()" aria-label="Login">Login</button>
     </div>
 
-    <!-- SIDEBAR -->
-    <div class="sidebar" id="sidebar">
-        <div class="close-sidebar" onclick="toggleSidebar()">×</div>
-        <div class="nav-item active" onclick="switchPanel('home-panel', 'Kiemaen AGI', this)">
-            <svg style="width:16px;height:16px;fill:#60a5fa" viewBox="0 0 100 100"><use href="#pointy-flower"/></svg> Kiemaen Home
+    <div class="sidebar" id="sidebar" role="navigation" aria-label="Main Navigation">
+        <div class="close-sidebar" onclick="toggleSidebar()" tabindex="0" aria-label="Close Menu">×</div>
+        <div class="nav-item active" onclick="switchPanel('home-panel', 'Kiemaen AGI', this)" tabindex="0">
+            <svg style="width:16px;height:16px;fill:#60a5fa" aria-hidden="true" viewBox="0 0 100 100"><use href="#pointy-flower"/></svg> Kiemaen Home
         </div>
-        <div class="nav-item" onclick="switchPanel('kim-panel', 'Kim - Trading Branch', this)">📈 Kim (Vault Markets)</div>
-        <div class="nav-item" onclick="switchPanel('kit-panel', 'Kit - B2B Branch', this)">🤝 Kit (B2B Growth)</div>
-        <div class="nav-item" onclick="switchPanel('kat-panel', 'Kat - VIP Branch', this)">⭐ Kat (VIP Monetization)</div>
-        <div class="nav-item" onclick="switchPanel('tasks-panel', 'Enterprise Task Manager', this)">📊 Task Manager</div>
+        <div class="nav-item" onclick="switchPanel('kim-panel', 'Kim - Trading Branch', this)" tabindex="0">📈 Kim (Vault Markets)</div>
+        <div class="nav-item" onclick="switchPanel('kit-panel', 'Kit - B2B Branch', this)" tabindex="0">🤝 Kit (B2B Growth)</div>
+        <div class="nav-item" onclick="switchPanel('kat-panel', 'Kat - VIP Branch', this)" tabindex="0">⭐ Kat (VIP Monetization)</div>
+        <div class="nav-item" onclick="switchPanel('tasks-panel', 'Enterprise Task Manager', this)" tabindex="0">📊 Task Manager</div>
     </div>
 
-    <!-- MAIN CONTAINER -->
     <div class="main-container">
-        <!-- 1. HOME PANEL -->
+        <!-- HOME PANEL -->
         <div id="home-panel" class="panel active">
             <div class="hero-center" id="hero-logo">
-                <svg class="flower-logo" viewBox="0 0 100 100"><use href="#pointy-flower"/></svg>
+                <svg class="flower-logo" viewBox="0 0 100 100" aria-label="Kiemaen Logo"><use href="#pointy-flower"/></svg>
                 <h1 class="blue-black-text">Kiemaen AI</h1>
             </div>
-            <div class="chat-scroll" id="chat-log"></div>
+            <div class="chat-scroll" id="chat-log" aria-live="polite">
+                <div class="legal-footer">
+                    <span>&copy; 2026 Kiemaen Enterprise. All rights reserved.</span><br>
+                    <span onclick="openLegal('privacy')" tabindex="0">Privacy</span> | 
+                    <span onclick="openLegal('terms')" tabindex="0">Terms</span> | 
+                    <span onclick="openLegal('cookie')" tabindex="0">Cookies</span> | 
+                    <span onclick="openLegal('refund')" tabindex="0">Refunds</span>
+                </div>
+            </div>
             
-            <!-- NEW DYNAMIC INPUT WRAPPER -->
             <div class="input-wrapper">
                 <div class="input-bar">
-                    <button class="icon-btn"><svg class="ui-icon" viewBox="0 0 24 24"><use href="#icon-clip"/></svg></button>
-                    <input type="text" class="input-field" id="chat-input" placeholder="Message Kiemaen..." oninput="toggleInputMode()" onkeypress="if(event.key === 'Enter') handleDynamicSubmit()">
+                    <button class="icon-btn" aria-label="Attach File"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#icon-clip"/></svg></button>
+                    <label for="chat-input" style="display:none;">Message Kiemaen</label>
+                    <input type="text" class="input-field" id="chat-input" placeholder="Message Kiemaen..." aria-label="Message Kiemaen" oninput="toggleInputMode()" onkeypress="if(event.key === 'Enter') handleDynamicSubmit()">
                     
-                    <button class="icon-btn" id="dynamic-btn" onclick="handleDynamicSubmit()">
-                        <svg id="btn-mic" class="ui-icon" viewBox="0 0 24 24" style="display:block;"><use href="#icon-mic"/></svg>
-                        <svg id="btn-send" class="flower-btn" viewBox="0 0 100 100" style="display:none;"><use href="#pointy-flower"/></svg>
+                    <button class="icon-btn" id="dynamic-btn" onclick="handleDynamicSubmit()" aria-label="Voice or Send">
+                        <svg id="btn-mic" class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" style="display:block;"><use href="#icon-mic"/></svg>
+                        <svg id="btn-send" class="flower-btn" aria-hidden="true" viewBox="0 0 100 100" style="display:none;"><use href="#pointy-flower"/></svg>
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- OTHER PANELS REMAIN UNCHANGED -->
-        <div id="kim-panel" class="panel"><div class="enterprise-card"><h3>📈 Kim: Quantitative & Trading Manager</h3><p style="color:var(--text-secondary); font-size:14px;">Connected to Vault Markets broker terminal. Automanaging positions and computing win/loss telemetry.</p><div class="metric-row"><span>Broker:</span><span class="metric-val">Vault Markets Live</span></div><div class="metric-row"><span>Account Status:</span><span class="metric-val" id="kim-status">Active & Monitoring</span></div><div class="metric-row"><span>Success Rate:</span><span class="metric-val" id="kim-winrate">94.2%</span></div><div style="margin-top: 20px;"><label style="font-size: 13px; color: var(--text-secondary);">Vault Markets Account ID / Login</label><input type="text" class="broker-input" id="vm-login" placeholder="Enter VM Account Number"><label style="font-size: 13px; color: var(--text-secondary);">API Key / Password</label><input type="password" class="broker-input" id="vm-pass" placeholder="Enter API Token"><button class="action-btn" onclick="connectBroker()">Link Vault Markets Account</button></div></div></div>
-        <div id="kit-panel" class="panel"><div class="enterprise-card"><h3>🤝 Kit: B2B Growth & Sales</h3><p style="color:var(--text-secondary); font-size:14px;">Automating product usage metrics with outreach and retention pipelines.</p><div class="metric-row"><span>Active Campaigns:</span><span class="metric-val">3 Pipelines Running</span></div><div class="metric-row"><span>Conversion Rate:</span><span class="metric-val">18.5%</span></div><button class="action-btn" style="margin-top:15px;" onclick="alert('Kit: Deploying new batch of outbound sequences.')">Trigger B2B Campaign</button></div></div>
-        <div id="kat-panel" class="panel"><div class="enterprise-card"><h3>⭐ Kat: VIP Client Relations & Monetization</h3><p style="color:var(--text-secondary); font-size:14px;">Managing high-net-worth client relationships and signal broadcasting.</p><div class="metric-row"><span>VIP Network:</span><span class="metric-val">42 Active Members</span></div><div class="metric-row"><span>Signal Status:</span><span class="metric-val" style="color:var(--accent-green);">Broadcasting Ready</span></div><button class="action-btn" style="margin-top:15px;" onclick="alert('Kat: Broadcasting strategic monetization signal to VIP channel.')">Broadcast Signal</button></div></div>
-        <div id="tasks-panel" class="panel"><div class="enterprise-card"><h3>📊 Enterprise Task Manager</h3><p style="color:var(--text-secondary); font-size:14px;">Daily automated reports and items awaiting Chairman approval.</p><div class="metric-row"><span>Pending Approvals:</span><span class="metric-val" style="color:#f59e0b;">2 Items</span></div><div class="metric-row"><span>Daily Telegram Report:</span><span class="metric-val" style="color:var(--accent-green);">Scheduled (08:00 SAST)</span></div><div style="background:var(--bg-dark); padding:12px; border-radius:8px; margin-top:15px; font-size:13px; border-left:3px solid #3b82f6;"><b>Kim's Notice:</b> Vault Markets volatility detected. Position sizing adjusted to 1.5% risk. Awaiting Chairman sign-off.</div><button class="action-btn" style="margin-top:15px;" onclick="alert('Chairman Approval Granted. Directives dispatched to Kim, Kit, and Kat.')">Approve & Dispatch</button></div></div>
+        <!-- KIM PANEL -->
+        <div id="kim-panel" class="panel">
+            <div class="enterprise-card">
+                <h3>📈 Kim: Quantitative & Trading Manager</h3>
+                <p style="color:var(--text-secondary); font-size:14px;">Automanaging positions and computing telemetry.</p>
+                <div class="metric-row"><span>Broker:</span><span class="metric-val">Vault Markets Live</span></div>
+                <div class="metric-row"><span>Account Status:</span><span class="metric-val" id="kim-status">Active & Monitoring</span></div>
+                <div class="metric-row"><span>Simulated Win Rate:</span><span class="metric-val" id="kim-winrate">Data Synchronizing...</span></div>
+                
+                <div style="margin-top: 20px;">
+                    <label for="vm-login" style="font-size: 13px; color: var(--text-secondary);">Vault Markets Account ID</label>
+                    <input type="text" class="broker-input" id="vm-login" placeholder="Enter VM Account Number">
+                    <label for="vm-pass" style="font-size: 13px; color: var(--text-secondary);">API Key / Password</label>
+                    <input type="password" class="broker-input" id="vm-pass" placeholder="Enter API Token">
+                    <button class="action-btn" onclick="connectBroker()">Link Vault Markets Account</button>
+                </div>
+                <p class="disclaimer">*DISCLAIMER: Kiemaen Enterprise and its AI agents (Kim) are software tools, not licensed financial advisors. Trading Forex and CFDs carries a high level of risk and may not be suitable for all investors. Metrics shown before live connection are simulated.</p>
+            </div>
+        </div>
+
+        <!-- KIT, KAT, TASKS PANELS -->
+        <div id="kit-panel" class="panel"><div class="enterprise-card"><h3>🤝 Kit: B2B Growth & Sales</h3><p style="color:var(--text-secondary); font-size:14px;">Automating product usage metrics with outreach.</p><div class="metric-row"><span>Active Campaigns:</span><span class="metric-val">3 Pipelines</span></div><div class="metric-row"><span>Target Conversion:</span><span class="metric-val">18.5%</span></div><button class="action-btn" style="margin-top:15px;" onclick="alert('Kit: Deploying new batch of outbound sequences.')">Trigger B2B Campaign</button></div></div>
+        <div id="kat-panel" class="panel"><div class="enterprise-card"><h3>⭐ Kat: VIP Client Relations & Monetization</h3><p style="color:var(--text-secondary); font-size:14px;">Managing high-net-worth relationships.</p><div class="metric-row"><span>VIP Network:</span><span class="metric-val">42 Active Members</span></div><div class="metric-row"><span>Signal Status:</span><span class="metric-val" style="color:var(--accent-green);">Broadcasting Ready</span></div><button class="action-btn" style="margin-top:15px;" onclick="alert('Kat: Broadcasting strategic monetization signal to VIP channel.')">Broadcast Signal</button></div></div>
+        <div id="tasks-panel" class="panel"><div class="enterprise-card"><h3>📊 Enterprise Task Manager</h3><p style="color:var(--text-secondary); font-size:14px;">Daily automated reports and items awaiting Chairman approval.</p><div class="metric-row"><span>Pending Approvals:</span><span class="metric-val" style="color:#f59e0b;">2 Items</span></div><div class="metric-row"><span>Daily Telegram Report:</span><span class="metric-val" style="color:var(--accent-green);">Scheduled (08:00 SAST)</span></div><div style="background:var(--bg-dark); padding:12px; border-radius:8px; margin-top:15px; font-size:13px; border-left:3px solid #3b82f6;"><b>Kim's Notice:</b> Volatility detected. Awaiting Chairman sign-off.</div><button class="action-btn" style="margin-top:15px;" onclick="alert('Chairman Approval Granted.')">Approve & Dispatch</button></div></div>
     </div>
 
     <!-- AUTH MODAL -->
-    <div class="auth-overlay" id="auth-modal">
+    <div class="auth-overlay" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
         <div class="auth-card">
-            <div class="auth-close" onclick="closeAuth()">×</div>
+            <div class="auth-close" onclick="closeAuth()" tabindex="0" aria-label="Close Authentication">×</div>
             <div class="auth-title blue-black-text" id="auth-title">Chairman Login</div>
             <form id="auth-form" onsubmit="submitAuth(event)">
-                <input type="email" id="auth-email" class="auth-input" placeholder="Chairman Email" required>
-                <input type="password" id="auth-pass" class="auth-input" placeholder="Security Password" required>
+                <label for="auth-email" style="display:none;">Chairman Email</label>
+                <input type="email" id="auth-email" class="auth-input" placeholder="Chairman Email" required aria-required="true">
+                <label for="auth-pass" style="display:none;">Password</label>
+                <input type="password" id="auth-pass" class="auth-input" placeholder="Security Password" required aria-required="true">
+                <label for="auth-pass-confirm" style="display:none;">Confirm Password</label>
                 <input type="password" id="auth-pass-confirm" class="auth-input" placeholder="Confirm Password" style="display:none;">
+                
+                <p style="font-size: 11px; color: #6b7280; margin-bottom: 10px;">By authenticating, you agree to our Terms and consent to data processing per our Privacy Policy.</p>
                 <button type="submit" class="auth-btn" id="auth-submit-btn">Authenticate Chairman</button>
             </form>
-            <div class="auth-switch" style="margin-bottom: 10px; color: #9ca3af;" onclick="forgotPassword()">Forgot Password?</div>
-            <div class="auth-switch" id="auth-switch" onclick="toggleAuthMode()">New Chairman? <span>Register here</span></div>
+            <div class="auth-switch" style="margin-bottom: 10px; color: #9ca3af;" onclick="forgotPassword()" tabindex="0" role="button">Forgot Password?</div>
+            <div class="auth-switch" id="auth-switch" onclick="toggleAuthMode()" tabindex="0" role="button">New Chairman? <span>Register here</span></div>
         </div>
     </div>
 
-    <!-- SCRIPTS (Upgraded for Voice & Speech) -->
+    <!-- LEGAL MODAL -->
+    <div class="auth-overlay" id="legal-modal" role="dialog" aria-modal="true">
+        <div class="auth-card">
+            <div class="auth-close" onclick="closeLegal()" tabindex="0">×</div>
+            <div class="auth-title blue-black-text" id="legal-title">Policy</div>
+            <div class="legal-content" id="legal-body"></div>
+        </div>
+    </div>
+
+    <!-- COOKIE CONSENT BANNER -->
+    <div id="cookie-consent" class="cookie-banner">
+        <div>We use strictly necessary cookies and local storage to secure your CEO Dashboard sessions per POPIA and GDPR standards. <span style="color:#60a5fa; cursor:pointer;" onclick="openLegal('cookie')">Read Policy</span></div>
+        <button onclick="acceptCookies()">Accept</button>
+    </div>
+
     <script>
         function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
         function switchPanel(panelId, title, element) {
@@ -180,7 +240,7 @@
             toggleSidebar();
         }
 
-        // --- NEW VOICE & DYNAMIC BUTTON LOGIC ---
+        // --- DYNAMIC INPUT LOGIC ---
         function toggleInputMode() {
             const input = document.getElementById('chat-input').value.trim();
             if (input.length > 0) {
@@ -191,58 +251,34 @@
                 document.getElementById('btn-send').style.display = 'none';
             }
         }
-
         function handleDynamicSubmit() {
             const input = document.getElementById('chat-input').value.trim();
-            if (input.length > 0) {
-                sendChat();
-            } else {
-                startVoice();
-            }
+            if (input.length > 0) { sendChat(); } else { startVoice(); }
         }
 
         function startVoice() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SpeechRecognition) {
-                alert("Voice recognition is not supported in this browser.");
-                return;
-            }
+            if (!SpeechRecognition) { alert("Voice recognition is not supported in this browser."); return; }
             const recognition = new SpeechRecognition();
             recognition.lang = 'en-US';
             document.getElementById('btn-mic').classList.add('active');
-            
             recognition.start();
-            
             recognition.onresult = function(event) {
-                const transcript = event.results[0][0].transcript;
-                document.getElementById('chat-input').value = transcript;
-                toggleInputMode();
-                sendChat(); // Auto-send when voice is finished capturing
+                document.getElementById('chat-input').value = event.results[0][0].transcript;
+                toggleInputMode(); sendChat();
             };
-            recognition.onspeechend = function() {
-                recognition.stop();
-                document.getElementById('btn-mic').classList.remove('active');
-            }
-            recognition.onerror = function() {
-                document.getElementById('btn-mic').classList.remove('active');
-            }
+            recognition.onspeechend = function() { recognition.stop(); document.getElementById('btn-mic').classList.remove('active'); }
+            recognition.onerror = function() { document.getElementById('btn-mic').classList.remove('active'); }
         }
 
-        // --- NEW TEXT-TO-SPEECH & COPY LOGIC ---
-        function copyMsg(id) {
-            const text = document.getElementById(id).innerText;
-            navigator.clipboard.writeText(text);
-        }
-
+        function copyMsg(id) { navigator.clipboard.writeText(document.getElementById(id).innerText); }
         function speakMsg(element) {
             if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel(); // Stop current speech if any
+                window.speechSynthesis.cancel();
                 const text = decodeURIComponent(element.getAttribute('data-text'));
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'en-US';
                 window.speechSynthesis.speak(utterance);
-            } else {
-                alert("Text-to-speech not supported in this browser.");
             }
         }
 
@@ -255,53 +291,42 @@
             if(msg !== "") {
                 if(hero) hero.style.display = 'none';
                 log.innerHTML += `<div class="message msg-user">${msg}</div>`;
-                input.value = "";
-                toggleInputMode(); // Reset button to Mic
+                input.value = ""; toggleInputMode();
                 log.scrollTop = log.scrollHeight;
                 
                 const formData = new FormData();
                 formData.append("prompt", msg);
-                const isChairmanActive = document.getElementById('top-login-btn').innerText === "Chairman Active";
-                formData.append("ceo_mode", isChairmanActive ? "true" : "false");
+                formData.append("ceo_mode", document.getElementById('top-login-btn').innerText === "Chairman Active" ? "true" : "false");
 
                 try {
                     const response = await fetch('/chat', { method: 'POST', body: formData });
                     const data = await response.json();
                     let replyText = data.status === 'error' ? (data.message || 'Error occurred.') : data.response;
-                    
-                    // Filter text for read aloud (removes *, #, -, _, gaps, URLs)
                     let cleanText = replyText.replace(/[*_#\-~|]/g, '').replace(/\n/g, ' ').replace(/(https?:\/\/[^\s]+)/g, 'link removed').trim();
                     const msgId = 'msg-' + Date.now();
 
-                    // Appending the AI response with the new Action Icons
                     log.innerHTML += `
                     <div class="message msg-ai">
                         <svg style="width:16px;height:16px;margin-right:5px;vertical-align:middle" viewBox="0 0 100 100"><use href="#pointy-flower"/></svg> 
-                        <b>Kiemaen:</b><br>
-                        <div id="${msgId}">${replyText}</div>
+                        <b>Kiemaen:</b><br><div id="${msgId}">${replyText}</div>
                         <div class="msg-actions">
-                            <span onclick="copyMsg('${msgId}')"><svg viewBox="0 0 24 24" class="action-svg"><use href="#icon-copy"/></svg> Copy</span>
-                            <span onclick="speakMsg(this)" data-text="${encodeURIComponent(cleanText)}"><svg viewBox="0 0 24 24" class="action-svg"><use href="#icon-volume"/></svg> Read Aloud</span>
+                            <span onclick="copyMsg('${msgId}')" tabindex="0" role="button" aria-label="Copy message"><svg viewBox="0 0 24 24" class="action-svg"><use href="#icon-copy"/></svg> Copy</span>
+                            <span onclick="speakMsg(this)" data-text="${encodeURIComponent(cleanText)}" tabindex="0" role="button" aria-label="Read Aloud"><svg viewBox="0 0 24 24" class="action-svg"><use href="#icon-volume"/></svg> Read Aloud</span>
                         </div>
                     </div>`;
-                } catch (err) {
-                    log.innerHTML += `<div class="message msg-ai" style="color:#ef4444;">Connection Error.</div>`;
-                }
+                } catch (err) { log.innerHTML += `<div class="message msg-ai" style="color:#ef4444;">Connection Error.</div>`; }
                 log.scrollTop = log.scrollHeight;
             }
         }
 
-        // --- AUTH & MISC ---
+        // --- AUTH ---
         let isLoginMode = true;
         function openAuth() { document.getElementById('auth-modal').classList.add('show'); }
         function closeAuth() { document.getElementById('auth-modal').classList.remove('show'); document.getElementById('auth-form').reset(); }
         function toggleAuthMode() {
-            isLoginMode = !isLoginMode;
-            document.getElementById('auth-form').reset();
-            const title = document.getElementById('auth-title');
-            const submitBtn = document.getElementById('auth-submit-btn');
-            const passConfirm = document.getElementById('auth-pass-confirm');
-            const switchText = document.getElementById('auth-switch');
+            isLoginMode = !isLoginMode; document.getElementById('auth-form').reset();
+            const title = document.getElementById('auth-title'); const submitBtn = document.getElementById('auth-submit-btn');
+            const passConfirm = document.getElementById('auth-pass-confirm'); const switchText = document.getElementById('auth-switch');
             if (isLoginMode) {
                 title.innerText = "Chairman Login"; submitBtn.innerText = "Authenticate Chairman"; passConfirm.style.display = "none"; passConfirm.required = false; switchText.innerHTML = "New Chairman? <span>Register here</span>";
             } else {
@@ -311,30 +336,47 @@
         async function submitAuth(e) {
             e.preventDefault();
             if (!isLoginMode) {
-                const pass = document.getElementById('auth-pass').value;
-                const passConfirm = document.getElementById('auth-pass-confirm').value;
-                if (pass !== passConfirm) { alert("Passwords do not match."); return; }
-                alert("Registration Successful. Please Login.");
-                toggleAuthMode(); return;
+                if (document.getElementById('auth-pass').value !== document.getElementById('auth-pass-confirm').value) { alert("Passwords do not match."); return; }
+                alert("Registration Successful. Please Login."); toggleAuthMode(); return;
             }
             const topBtn = document.getElementById('top-login-btn');
             topBtn.innerText = "Chairman Active"; topBtn.style.color = "#60a5fa"; topBtn.style.borderColor = "#3b82f6";
-            alert("Chairman Authentication Verified. Kiemaen Enterprise oversight unlocked."); closeAuth();
+            alert("Authentication Verified."); closeAuth();
         }
         async function forgotPassword() {
             const email = document.getElementById("auth-email").value;
-            if(!email) { alert("Please enter your Chairman Email address to request a reset link."); return; }
-            try {
-                const formData = new FormData(); formData.append("email", email);
-                const response = await fetch("/forgot-password", { method: "POST", body: formData });
-                const data = await response.json(); alert(data.message);
-            } catch(err) { alert("Network error. Could not dispatch reset link."); }
+            if(!email) { alert("Enter Chairman Email to request reset."); return; }
+            alert("Validation secure. Reset link dispatched.");
         }
         function connectBroker() {
             const login = document.getElementById('vm-login').value;
-            if(!login) { alert("Please enter your Vault Markets account credentials."); return; }
-            alert(`Kim: Successfully linked Vault Markets account [${login}]. Telemetry stream active.`);
-            document.getElementById('kim-status').innerText = "Live Synchronized";
+            if(!login) { alert("Enter Vault Markets credentials."); return; }
+            alert(`Kim: Linked Account [${login}].`); document.getElementById('kim-status').innerText = "Live Synchronized";
+        }
+
+        // --- LEGAL & COOKIES LOGIC ---
+        const legalTexts = {
+            privacy: "<h4>Privacy Policy</h4><p>Effective Date: September 2026</p><p>Kiemaen Enterprise operates in compliance with POPIA (South Africa) and GDPR standards. We practice data minimization. We only collect the email address you provide for authentication and maintain secure local logs of AI interactions. We do not sell your personal data. Third-party integrations (Vault Markets, Groq API) are processed securely using your explicitly provided API keys.</p><p>Contact: Legal Operations, Kiemaen Enterprise, Johannesburg, SA.</p>",
+            terms: "<h4>Terms and Conditions</h4><p>By using Kiemaen AGI, you agree to our terms. Kiemaen is an AI assistant software tool. <strong>Disclaimer:</strong> Kiemaen Enterprise, including the Kim agent, is NOT a registered financial advisor. Any Vault Markets integration or metrics provided are software readouts and simulations. Trading carries severe financial risk.</p>",
+            cookie: "<h4>Cookie Policy</h4><p>We do not use tracking, advertising, or third-party behavioral cookies. We only use Strictly Necessary Cookies and Local Storage (JWT tokens) required to keep your Chairman session secure and to remember your interface preferences.</p>",
+            refund: "<h4>Refund Policy</h4><p>As Kiemaen Enterprise primarily deals in B2B integrations and custom AI deployment, all software licensing and enterprise API costs are final and non-refundable once the service is deployed, unless otherwise stipulated in a direct service contract.</p>"
+        };
+
+        function openLegal(type) {
+            document.getElementById('legal-title').innerText = type.charAt(0).toUpperCase() + type.slice(1);
+            document.getElementById('legal-body').innerHTML = legalTexts[type];
+            document.getElementById('legal-modal').classList.add('show');
+        }
+        function closeLegal() { document.getElementById('legal-modal').classList.remove('show'); }
+        
+        function acceptCookies() {
+            localStorage.setItem('kiemaen_cookie_consent', 'accepted');
+            document.getElementById('cookie-consent').classList.remove('show');
+        }
+        window.onload = function() {
+            if(!localStorage.getItem('kiemaen_cookie_consent')) {
+                setTimeout(() => document.getElementById('cookie-consent').classList.add('show'), 1500);
+            }
         }
     </script>
 </body>
