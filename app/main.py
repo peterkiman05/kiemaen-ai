@@ -197,3 +197,49 @@ async def kim_live_metrics():
 async def kim_push_telemetry(balance: float = Form(...), equity: float = Form(...), open_trades: int = Form(0)):
     res = await kim_agent.update_telemetry_direct(balance, equity, open_trades)
     return JSONResponse(res)
+
+# --- KIM EXECUTION INTERCEPTOR ---
+from starlette.middleware.base import BaseHTTPMiddleware
+from fastapi.responses import JSONResponse
+import json
+
+class KimExecutionInterceptor(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        if request.method == "POST" and ("chat" in request.url.path or "message" in request.url.path):
+            try:
+                body_bytes = await request.body()
+                body = json.loads(body_bytes)
+                
+                # Extract the prompt text
+                msg = body.get("message", body.get("text", body.get("prompt", ""))).lower()
+                
+                if "kim" in msg and ("execute" in msg or "scalp" in msg or "trade" in msg):
+                    from app.agents.kim import Kim
+                    kim = Kim()
+                    symbol = "XAUUSD.m" if "xau" in msg else "EURUSD.m"
+                    action = "SELL" if "sell" in msg else "BUY"
+                    
+                    # 1. Fetch the REAL 2026 price to bypass the LLM hallucination
+                    price = await kim.get_real_world_price(symbol)
+                    
+                    # 2. Force the actual MetaApi execution hook
+                    res = await kim.execute_trade(symbol, action, is_manual=True)
+                    status_text = res.get('message', res.get('reason', 'Trade processed.'))
+                    
+                    real_text = f"⚙️ **SYSTEM OVERRIDE: LIVE EXECUTION** ⚙️\n\n✅ **Asset:** {symbol.upper()}\n✅ **True Live Price:** ${price:,.2f}\n✅ **Action:** {action.upper()}\n✅ **Status:** {status_text}\n\n*(Note: LLM chat generation was bypassed to prevent outdated price hallucinations.)*"
+                    
+                    # 3. Return the real data, blocking the LLM from generating fake text
+                    return JSONResponse(status_code=200, content={"response": real_text, "reply": real_text, "message": real_text})
+            except Exception:
+                pass
+            
+            # Reconstruct the request body so normal non-trading chat requests pass through
+            async def receive(): return {"type": "http.request", "body": body_bytes}
+            request._receive = receive
+            
+        return await call_next(request)
+
+try:
+    app.add_middleware(KimExecutionInterceptor)
+except NameError:
+    pass
