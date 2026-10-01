@@ -121,7 +121,7 @@ class Kim:
     def _taylor_series_velocity(self, candles) -> bool:
         if not candles or len(candles) < 3: return False
         c1, c2, c3 = candles[-3].get("close", 0), candles[-2].get("close", 0), candles[-1].get("close", 0)
-        return abs((c3 - c2) - (c2 - c1)) < 0.0005 
+        return abs((c3 - c2) - (c2 - c1)) < 0.0025 
 
     async def _check_economic_calendar(self) -> bool: return True 
 
@@ -129,7 +129,7 @@ class Kim:
 
     def _session_volatility_lock(self) -> bool:
         sast_hour = (datetime.utcnow().hour + 2) % 24
-        return 14 <= sast_hour < 18
+        return 8 <= sast_hour <= 20
 
     def _risk_manager_review(self, proposal_dict: dict, is_manual: bool = False) -> dict:
         if is_manual: return {"approved": True} # OVERRIDE: GUARANTEED EXECUTION FOR USER COMMANDS
