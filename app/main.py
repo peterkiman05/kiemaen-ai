@@ -202,57 +202,58 @@ async def kim_push_telemetry(balance: float = Form(...), equity: float = Form(..
 # --- KIM EXECUTION INTERCEPTOR ---
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.responses import JSONResponse
-import json
+import traceback
 
 class KimExecutionInterceptor(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
-        # Scan all POST requests except login/auth endpoints
+        # Target POST requests, ignore authentication routes
         if request.method == "POST" and "login" not in request.url.path.lower() and "auth" not in request.url.path.lower():
             body_bytes = b""
             try:
+                # 1. Read the raw stream safely
                 body_bytes = await request.body()
+                
                 if body_bytes:
-                    body = json.loads(body_bytes)
-                    msg_str = str(body).lower()
+                    # 2. Decode raw bytes directly to a flat string (Ignores JSON structure completely)
+                    raw_payload = body_bytes.decode('utf-8', errors='ignore').lower()
                     
-                    # Detect Kim execution trigger keywords
-                    if "kim" in msg_str and any(w in msg_str for w in ["execute", "scalp", "trade", "buy", "sell", "analyze"]):
+                    # 3. Detect Kim keywords anywhere in the raw text stream
+                    if "kim" in raw_payload and any(w in raw_payload for w in ["execute", "scalp", "trade", "buy", "sell", "analyze"]):
                         try:
                             from app.agents.kim import Kim
                             kim = Kim()
                             
-                            symbol = "XAUUSD.mic" if ("xau" in msg_str or "gold" in msg_str) else "EURUSD.mic"
-                            action = "SELL" if "sell" in msg_str else "BUY"
+                            symbol = "XAUUSD.mic" if ("xau" in raw_payload or "gold" in raw_payload) else "EURUSD.mic"
+                            action = "SELL" if "sell" in raw_payload else "BUY"
                             
                             live_price = await kim.get_real_world_price("XAUUSD")
                             res = await kim.execute_trade(symbol, action, is_manual=True)
-                            status_msg = res.get('message', res.get('reason', 'Executed.'))
+                            status_msg = res.get('message', res.get('reason', 'Executed successfully.'))
                             
-                            real_reply = (
-                                f"⚙️ **REAL-TIME EXECUTION ENGINE OVERRIDE** ⚙️\n\n"
-                                f"✅ **Asset:** {symbol}\n"
-                                f"✅ **Live Price:** ${live_price:,.2f}\n"
-                                f"✅ **Action:** {action}\n"
-                                f"✅ **Broker Status:** {status_msg}"
+                            reply = (
+                                f"⚙️ **SYSTEM OVERRIDE: LIVE TRADE INITIATED** ⚙️\n\n"
+                                f"✅ **Asset:** {symbol.upper()}\n"
+                                f"✅ **Live Oracle Price:** ${live_price:,.2f}\n"
+                                f"✅ **Command:** {action.upper()}\n"
+                                f"✅ **Engine Status:** {status_msg}"
                             )
-                        except Exception as err:
-                            real_reply = (
-                                f"⚠️ **EXECUTION ENGINE ALERT** ⚠️\n\n"
-                                f"Kim intercepted the command but encountered an error: `{str(err)}`.\n"
-                                f"Please verify that `META_API_TOKEN` and `META_API_ACCOUNT_ID` are set in your Render environment."
-                            )
+                        except Exception as e:
+                            err_trace = traceback.format_exc()
+                            reply = f"⚠️ **EXECUTION CRASH** ⚠️\n\nKim encountered an internal backend error:\n`{str(e)}`\n\nTrace:\n{err_trace}"
 
-                        # Return direct JSONResponse to block LLM safety refusals completely
+                        # 4. Block the LLM completely and return the direct response
                         return JSONResponse(status_code=200, content={
-                            "response": real_reply,
-                            "reply": real_reply,
-                            "message": real_reply,
-                            "choices": [{"message": {"content": real_reply}}]
+                            "response": reply,
+                            "reply": reply,
+                            "message": reply,
+                            "content": reply,
+                            "text": reply,
+                            "choices": [{"message": {"content": reply}}]
                         })
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"Interceptor Error: {e}")
             
-            # Reconstruct body stream for standard non-trading requests
+            # 5. Always reconstruct the stream so normal backend routes don't break
             if body_bytes:
                 async def receive():
                     return {"type": "http.request", "body": body_bytes}
