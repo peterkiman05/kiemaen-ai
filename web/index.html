@@ -550,7 +550,7 @@ Do you approve sending this live? (OK to Send, Cancel to Abort)`);
 </script>
     
     <script id="persistent-login-engine">
-        const SESSION_TTL = 60 * 60 * 1000; // 1 hour
+        const SESSION_TTL = 3 * 24 * 60 * 60 * 1000; // 1 hour
 
         function persistSessionData() {
             const chatBox = document.querySelector('.chat-box, #chat-box, .messages-panel');
@@ -575,6 +575,7 @@ Do you approve sending this live? (OK to Send, Cancel to Abort)`);
 
             // Continuously scan the DOM until the login inputs and button appear
             const loginChecker = setInterval(() => {
+                if (document.querySelector(".chairman-active, .logged-in-indicator")) { clearInterval(loginChecker); return; }
                 const inputs = document.querySelectorAll('input');
                 const buttons = Array.from(document.querySelectorAll('button'));
                 const linkBtn = buttons.find(b => b.innerText.toLowerCase().includes('link'));
@@ -599,7 +600,7 @@ Do you approve sending this live? (OK to Send, Cancel to Abort)`);
             }, 300);
 
             // Timeout check after 10 seconds
-            setTimeout(() => clearInterval(loginChecker), 10000);
+            setTimeout(() => clearInterval(loginChecker), 30000);
         }
 
         // Capture credentials when user manually clicks link
