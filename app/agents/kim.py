@@ -17,9 +17,9 @@ class Kim:
         self.open_positions = []
         self.floating_profit = 0.0
         
-        # Trading Modes: 'scalper', 'day_trader', 'full_time'
         self.trading_mode = "scalper" 
-        self.analysis_speed_ms = 200  # Sub-second analysis engine
+        self.account_type = "micro"  # Switched to Micro Account Math
+        self.analysis_speed_ms = 200
         self._load_experience()
 
     def _load_experience(self):
@@ -27,8 +27,6 @@ class Kim:
             try:
                 with open("data/kim_exp.json", "r") as f:
                     data = json.load(f)
-                    self.evolution_level = data.get("level", 1)
-                    self.risk_tolerance = data.get("risk", 2.0)
                     self.active_account = data.get("account_id", None)
                     self.is_live = data.get("is_live", False)
                     self.balance = data.get("balance", 3.04)
@@ -36,6 +34,7 @@ class Kim:
                     self.open_positions = data.get("open_positions", [])
                     self.floating_profit = data.get("floating_profit", 0.0)
                     self.trading_mode = data.get("trading_mode", "scalper")
+                    self.account_type = data.get("account_type", "micro")
             except Exception:
                 pass
 
@@ -43,46 +42,36 @@ class Kim:
         os.makedirs("data", exist_ok=True)
         with open("data/kim_exp.json", "w") as f:
             json.dump({
-                "level": self.evolution_level,
-                "risk": self.risk_tolerance,
                 "account_id": self.active_account,
                 "is_live": self.is_live,
                 "balance": self.balance,
                 "equity": self.equity,
                 "open_positions": self.open_positions,
                 "floating_profit": self.floating_profit,
-                "trading_mode": self.trading_mode
+                "trading_mode": self.trading_mode,
+                "account_type": self.account_type
             }, f)
 
-    def set_trading_mode(self, mode: str):
-        """Tailors risk & execution profile for Scalpers, Day Traders, or Full-Time Traders."""
-        valid_modes = ["scalper", "day_trader", "full_time"]
-        mode = mode.lower().strip()
-        if mode in valid_modes:
-            self.trading_mode = mode
-            self._save_experience()
-            return {"status": "success", "mode": self.trading_mode}
-        return {"status": "error", "message": f"Invalid mode. Choose from {valid_modes}"}
-
     def calculate_risk_and_lot(self, symbol: str, stop_loss_pips: float) -> dict:
-        """Calibrated risk engine for micro to full-time trading accounts."""
-        if self.balance < 2.00:
-            return {"allowed": False, "reason": f"Insufficient balance (${self.balance:.2f}). Minimum $2.00 required."}
+        # Micro account contract sizes slash margin and pip value by 100x
+        contract_size = 1000 if self.account_type == "micro" else 100000
+        min_required = 0.50 if self.account_type == "micro" else 2.00
         
-        # Max open position controls based on mode
-        max_positions = 1 if self.balance < 50.00 else (3 if self.trading_mode == "scalper" else 5)
+        if self.balance < min_required:
+            return {"allowed": False, "reason": f"Insufficient balance (${self.balance:.2f}). Minimum ${min_required:.2f} required."}
+        
+        max_positions = 2 if self.balance < 10.00 else (3 if self.trading_mode == "scalper" else 5)
         if len(self.open_positions) >= max_positions:
-            return {"allowed": False, "reason": f"Active position limit ({max_positions} max) reached for {self.trading_mode.upper()} profile."}
+            return {"allowed": False, "reason": f"Active position limit ({max_positions} max) reached."}
         
-        # Mode-specific lot sizing and stop loss defaults
-        lot_size = 0.01  # Safe micro lot baseline
-        estimated_margin = (100000 * lot_size) / self.leverage
+        lot_size = 0.01  
+        estimated_margin = (contract_size * lot_size) / self.leverage
         free_margin = self.balance + self.floating_profit
         
         if free_margin < estimated_margin:
-            return {"allowed": False, "reason": "Free margin lower than required lot margin."}
+            return {"allowed": False, "reason": f"Free margin (${free_margin:.2f}) lower than required lot margin (${estimated_margin:.2f})."}
             
-        pip_value = 0.10  # $0.10 per pip on 0.01 EURUSD
+        pip_value = 0.001 if self.account_type == "micro" else 0.10
         risk_amount = stop_loss_pips * pip_value
 
         return {
@@ -93,34 +82,17 @@ class Kim:
             "trading_mode": self.trading_mode
         }
 
-    async def fast_market_analysis(self, symbol: str = "EURUSD"):
-        """High-speed quantitative analysis engine optimized for M1, M5, M15 timeframes."""
-        # Rapid technical computation logic
-        return {
-            "symbol": symbol,
-            "mode": self.trading_mode.upper(),
-            "execution_speed": f"{self.analysis_speed_ms}ms",
-            "timeframes": ["M1", "M5", "M15"] if self.trading_mode == "scalper" else ["M15", "H1", "H4"],
-            "bias": "BULLISH_MOMENTUM",
-            "scalp_target_pips": 10 if self.trading_mode == "scalper" else 30,
-            "stop_loss_pips": 8 if self.trading_mode == "scalper" else 20,
-            "recommendation": "EXECUTE_MICRO_BUY"
-        }
-
     async def execute_trade(self, symbol: str, action: str, stop_loss_pips: float = None, take_profit_pips: float = None):
         action = action.upper()
-        if action not in ["BUY", "SELL"]: 
-            return {"status": "error", "message": "Invalid action."}
+        if action not in ["BUY", "SELL"]: return {"status": "error", "message": "Invalid action."}
 
-        # Apply profile default stops if not specified
         if stop_loss_pips is None:
-            stop_loss_pips = 8.0 if self.trading_mode == "scalper" else (20.0 if self.trading_mode == "day_trader" else 35.0)
+            stop_loss_pips = 8.0 if self.trading_mode == "scalper" else 20.0
         if take_profit_pips is None:
-            take_profit_pips = 15.0 if self.trading_mode == "scalper" else (40.0 if self.trading_mode == "day_trader" else 80.0)
+            take_profit_pips = 15.0 if self.trading_mode == "scalper" else 40.0
 
         risk = self.calculate_risk_and_lot(symbol, stop_loss_pips)
-        if not risk["allowed"]: 
-            return {"status": "rejected", "reason": risk["reason"]}
+        if not risk["allowed"]: return {"status": "rejected", "reason": risk["reason"]}
 
         meta_token = os.environ.get("META_API_TOKEN", "")
         meta_account = os.environ.get("META_API_ACCOUNT_ID", "")
@@ -151,15 +123,11 @@ class Kim:
                             "takeProfit": take_profit_pips
                         }
                     )
-            except Exception:
-                pass
+            except Exception: pass
             
         self.open_positions.append(trade_record)
         self._save_experience()
-        return {
-            "status": "success",
-            "message": f"Kim [{self.trading_mode.upper()}]: Executed {action} {risk['lot_size']} {symbol}. SL: {stop_loss_pips} pips, TP: {take_profit_pips} pips."
-        }
+        return {"status": "success", "message": f"Kim [{self.trading_mode.upper()} - MICRO]: Executed {action} {risk['lot_size']} {symbol}. Margin Used: ${risk['estimated_margin']:.4f}."}
 
     async def connect_live_account(self, account_id: str, password: str, server: str = "VaultMarkets-Live"):
         self.active_account = account_id
@@ -167,7 +135,7 @@ class Kim:
         self._save_experience()
         return {
             "status": "success",
-            "message": f"Kim: Successfully authenticated live Vault Markets Account [{account_id}]. High-speed quantitative engine engaged.",
+            "message": f"Kim: Successfully authenticated live Vault Markets Account [{account_id}].",
             "account_id": account_id,
             "balance": f"${self.balance:,.2f}",
             "open_positions": f"{len(self.open_positions)} Active Trades",
@@ -176,33 +144,24 @@ class Kim:
         }
 
     async def get_live_metrics(self):
-        """High-speed parallelized telemetry stream from MetaApi London region."""
         meta_token = os.environ.get("META_API_TOKEN", "")
         meta_account = os.environ.get("META_API_ACCOUNT_ID", "")
-        
         if meta_token and meta_account:
             headers = {"auth-token": meta_token}
             base_url = f"https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/{meta_account}"
-            
             try:
-                # Concurrent parallel requests for zero latency telemetry updates
                 async with httpx.AsyncClient(timeout=2.0) as client:
                     acc_task = client.get(f"{base_url}/account-information", headers=headers)
                     pos_task = client.get(f"{base_url}/positions", headers=headers)
-                    
                     res, pos = await asyncio.gather(acc_task, pos_task, return_exceptions=True)
-                    
                     if isinstance(res, httpx.Response) and res.status_code == 200:
                         data = res.json()
                         self.balance = float(data.get("balance", self.balance))
                         self.equity = float(data.get("equity", self.equity))
                         self.floating_profit = self.equity - self.balance
-                    
                     if isinstance(pos, httpx.Response) and pos.status_code == 200:
                         self.open_positions = pos.json()
-            except Exception:
-                pass
-                
+            except Exception: pass
         self._save_experience()
         return {
             "account_id": self.active_account or "Not Linked",
@@ -214,11 +173,3 @@ class Kim:
             "analysis_speed": "200ms",
             "is_live": self.is_live and bool(meta_token)
         }
-
-    async def update_telemetry_direct(self, balance: float, equity: float, open_trades_count: int):
-        self.balance = balance
-        self.equity = equity
-        self.floating_profit = equity - balance
-        self.open_positions = [{} for _ in range(open_trades_count)]
-        self._save_experience()
-        return {"status": "updated", "balance": self.balance, "equity": self.equity}
