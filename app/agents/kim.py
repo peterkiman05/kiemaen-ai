@@ -3,7 +3,7 @@ import os
 import httpx
 import asyncio
 import sqlite3
-from datetime import datetime
+from datetime import datetime, date
 from pydantic import BaseModel, ValidationError
 
 class TradeProposal(BaseModel):
@@ -15,12 +15,13 @@ class TradeProposal(BaseModel):
     news_safe: bool
     spread_safe: bool
     session_active: bool
+    daily_drawdown_safe: bool
 
 class Kim:
     def __init__(self):
-        self.role = "Autonomous High-Frequency Scalper"
+        self.role = "Institutional Autonomous Quant"
         self.broker_name = "Vault Markets"
-        self.evolution_level = 4
+        self.evolution_level = 5
         self.is_live = False
         self.active_account = None
         self.balance = 3.04
@@ -35,6 +36,7 @@ class Kim:
         
         self.heartbeat_active = False
         self.news_block_active = False
+        self.max_daily_loss = 0.45  # $0.45 maximum daily drawdown limit for micro protection
         
         self._init_prop_infrastructure()
         self._load_experience()
@@ -74,9 +76,8 @@ class Kim:
                 "trading_mode": self.trading_mode, "account_type": self.account_type
             }, f)
 
-    # REAL-WORLD FINANCIAL ORACLE (2026 DATA SYNC)
+    # 1. REAL-WORLD FINANCIAL ORACLE
     async def get_real_world_price(self, symbol: str) -> float:
-        """Bypasses broker constraints to fetch live global internet financial data."""
         ticker = "GC=F" if "XAU" in symbol.upper() else f"{symbol[:6]}=X"
         try:
             async with httpx.AsyncClient(timeout=3.0) as client:
@@ -90,80 +91,147 @@ class Kim:
         return 0.0
 
     async def _smart_symbol_correction(self, symbol: str) -> str:
-        """Detects dead standard symbols and auto-corrects them for Vault Micro."""
         if self.account_type == "micro" and not symbol.endswith(".m"):
             return f"{symbol}.m"
         return symbol
 
+    # 2. DYNAMIC COMPOUNDING LOT SIZE CALCULATOR
     def calculate_risk_and_lot(self, symbol: str, stop_loss_pips: float) -> dict:
         contract_size = 1000 if self.account_type == "micro" else 100000
         min_required = 0.50 if self.account_type == "micro" else 2.00
-        if self.balance < min_required: return {"allowed": False, "reason": f"Insufficient balance (${self.balance:.2f})."}
-        lot_size = 0.01  
-        estimated_margin = (contract_size * lot_size) / self.leverage
+        if self.balance < min_required: 
+            return {"allowed": False, "reason": f"Insufficient balance (${self.balance:.2f})."}
+        
+        # Scale lot size progressively as account balance grows
+        base_lot = 0.01
+        if self.balance > 10.0:
+            base_lot = round(0.01 * (self.balance / 5.0), 2)
+            
+        estimated_margin = (contract_size * base_lot) / self.leverage
         free_margin = self.balance + self.floating_profit
-        if free_margin < estimated_margin: return {"allowed": False, "reason": "Free margin lower than required."}
-        return {"allowed": True, "lot_size": lot_size, "estimated_margin": estimated_margin}
+        
+        if free_margin < estimated_margin: 
+            return {"allowed": False, "reason": "Free margin lower than required."}
+            
+        return {"allowed": True, "lot_size": base_lot, "estimated_margin": estimated_margin}
 
-    async def fetch_ohlcv(self, symbol: str, timeframe: str = "1m"):
+    async def fetch_ohlcv(self, symbol: str, timeframe: str = "1m", limit: int = 10):
         meta_token, meta_account = os.environ.get("META_API_TOKEN", ""), os.environ.get("META_API_ACCOUNT_ID", "")
         if not meta_token or not meta_account: return None
         try:
             async with httpx.AsyncClient() as client:
                 res = await client.get(
-                    f"https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/{meta_account}/historical-market-data/symbols/{symbol}/timeframes/{timeframe}/candles?limit=5",
+                    f"https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/{meta_account}/historical-market-data/symbols/{symbol}/timeframes/{timeframe}/candles?limit={limit}",
                     headers={"auth-token": meta_token}
                 )
                 if res.status_code == 200: return res.json()
         except Exception: pass
         return None
 
-    def _taylor_series_velocity(self, candles) -> bool:
-        if not candles or len(candles) < 3: return False
-        c1, c2, c3 = candles[-3].get("close", 0), candles[-2].get("close", 0), candles[-1].get("close", 0)
-        return abs((c3 - c2) - (c2 - c1)) < 0.0025 
+    # 3. MULTI-TIMEFRAME CONFLUENCE FILTER (1m Velocity + 5m Micro-Trend)
+    async def _multi_timeframe_confluence(self, symbol: str) -> dict:
+        m1_candles = await self.fetch_ohlcv(symbol, "1m", 5)
+        m5_candles = await self.fetch_ohlcv(symbol, "5m", 5)
+        
+        if not m1_candles or not m5_candles or len(m1_candles) < 3 or len(m5_candles) < 3:
+            return {"valid": True, "suggested_action": "BUY"}  # Default fallback
+            
+        # M1 Taylor Series Acceleration
+        c1, c2, c3 = m1_candles[-3].get("close", 0), m1_candles[-2].get("close", 0), m1_candles[-1].get("close", 0)
+        m1_exhaustion = abs((c3 - c2) - (c2 - c1)) < 0.0025
+        
+        # M5 Trend Bias (Fast Moving Average Comparison)
+        m5_closes = [c.get("close", 0) for c in m5_candles]
+        m5_avg = sum(m5_closes) / len(m5_closes)
+        current_price = m5_closes[-1]
+        
+        suggested_action = "BUY" if current_price >= m5_avg else "SELL"
+        return {"valid": m1_exhaustion, "suggested_action": suggested_action}
 
-    async def _check_economic_calendar(self) -> bool: return True 
+    # 4. ADAPTIVE ATR VOLATILITY SL/TP CALCULATOR
+    def _calculate_atr_pips(self, candles) -> dict:
+        if not candles or len(candles) < 5:
+            return {"sl_pips": 8.0, "tp_pips": 12.0}
+            
+        tr_list = []
+        for i in range(1, len(candles)):
+            high = candles[i].get("high", 0)
+            low = candles[i].get("low", 0)
+            prev_close = candles[i-1].get("close", 0)
+            tr = max(high - low, abs(high - prev_close), abs(low - prev_close))
+            tr_list.append(tr)
+            
+        atr = sum(tr_list) / len(tr_list)
+        pip_multiplier = 10000 if "EUR" in candles[0].get("symbol", "") else 100
+        atr_pips = max(round(atr * pip_multiplier, 1), 5.0)
+        
+        return {
+            "sl_pips": round(atr_pips * 1.5, 1), # 1:1.5 Asymmetrical Risk/Reward
+            "tp_pips": round(atr_pips * 2.2, 1)
+        }
 
-    async def _check_live_spread(self, symbol: str) -> bool: return True
+    # 5. DAILY MAX DRAWDOWN PROTECTION GUARD
+    def _check_daily_drawdown_limit(self) -> bool:
+        try:
+            today_str = date.today().isoformat()
+            cursor = self.db_conn.cursor()
+            cursor.execute("SELECT SUM(profit) FROM trade_journal WHERE DATE(timestamp) = ?", (today_str,))
+            row = cursor.fetchone()
+            daily_pnl = row[0] if row and row[0] is not None else 0.0
+            
+            # Lock trading if daily losses hit max limit
+            if daily_pnl <= -self.max_daily_loss:
+                return False
+        except Exception: pass
+        return True
 
     def _session_volatility_lock(self) -> bool:
         sast_hour = (datetime.utcnow().hour + 2) % 24
         return 8 <= sast_hour <= 20
 
     def _risk_manager_review(self, proposal_dict: dict, is_manual: bool = False) -> dict:
-        if is_manual: return {"approved": True} # OVERRIDE: GUARANTEED EXECUTION FOR USER COMMANDS
+        if is_manual: 
+            return {"approved": True} # Guaranteed execution override for direct chat commands
+            
         try:
             proposal = TradeProposal(**proposal_dict)
-            if not proposal.session_active: return {"approved": False, "reason": "Risk Agent: Outside active London/NY volume session."}
-            if not proposal.spread_safe: return {"approved": False, "reason": "Risk Agent: Spread exceeds 1.5 pip threshold."}
-            if not proposal.news_safe: return {"approved": False, "reason": "Risk Agent: Blocked by Macro-Economic Shield."}
-            if not proposal.quant_exhaustion_confirmed: return {"approved": False, "reason": "Risk Agent: Velocity model did not confirm exhaustion."}
-            if proposal.free_margin < 0.20: return {"approved": False, "reason": "Risk Agent: Margin buffer is too thin."}
+            if not proposal.daily_drawdown_safe: 
+                return {"approved": False, "reason": "Risk Agent: Daily drawdown limit reached. Engine locked for preservation."}
+            if not proposal.session_active: 
+                return {"approved": False, "reason": "Risk Agent: Outside active 08:00-20:00 SAST trading session."}
+            if not proposal.spread_safe: 
+                return {"approved": False, "reason": "Risk Agent: Spread exceeds safety threshold."}
+            if not proposal.news_safe: 
+                return {"approved": False, "reason": "Risk Agent: Blocked by Macro-Economic Shield."}
+            if not proposal.quant_exhaustion_confirmed: 
+                return {"approved": False, "reason": "Risk Agent: Multi-timeframe trend/momentum filter did not align."}
+            if proposal.free_margin < 0.20: 
+                return {"approved": False, "reason": "Risk Agent: Margin buffer too thin."}
             return {"approved": True}
         except ValidationError as e:
             return {"approved": False, "reason": f"Risk Agent: Schema validation failed - {e}"}
 
-    async def execute_trade(self, raw_symbol: str, action: str, stop_loss_pips: float = 8.0, take_profit_pips: float = 15.0):
+    async def execute_trade(self, raw_symbol: str, action: str, stop_loss_pips: float = 8.0, take_profit_pips: float = 12.0, is_manual: bool = False):
         action = action.upper()
         if action not in ["BUY", "SELL"]: return {"status": "error", "message": "Invalid action."}
 
-        # Auto-correct dead broker symbols instantly
         symbol = await self._smart_symbol_correction(raw_symbol)
-
         risk = self.calculate_risk_and_lot(symbol, stop_loss_pips)
         if not risk["allowed"]: return {"status": "rejected", "reason": risk["reason"]}
 
-        candles = await self.fetch_ohlcv(symbol)
+        confluence = await self._multi_timeframe_confluence(symbol)
+        daily_safe = self._check_daily_drawdown_limit()
         
         proposal = {
             "symbol": symbol, "action": action, "volume": risk["lot_size"],
-            "quant_exhaustion_confirmed": True, # Forced True for explicit manual override
+            "quant_exhaustion_confirmed": confluence["valid"],
             "free_margin": self.balance + self.floating_profit, 
-            "news_safe": True, "spread_safe": True, "session_active": True # Overrides session locks for manual commands
+            "news_safe": True, "spread_safe": True, 
+            "session_active": self._session_volatility_lock(),
+            "daily_drawdown_safe": daily_safe
         }
         
-        review = self._risk_manager_review(proposal, is_manual=True)
+        review = self._risk_manager_review(proposal, is_manual=is_manual)
         if not review["approved"]: return {"status": "rejected", "reason": review["reason"]}
 
         meta_token, meta_account = os.environ.get("META_API_TOKEN", ""), os.environ.get("META_API_ACCOUNT_ID", "")
@@ -185,27 +253,26 @@ class Kim:
         
         self.open_positions.append({"id": trade_id, "symbol": symbol, "action": action})
         self._save_experience()
-        return {"status": "success", "message": f"Kim: Auto-Executed {action} {risk['lot_size']} {symbol}."}
+        return {"status": "success", "message": f"Kim: Executed {action} {risk['lot_size']} {symbol}."}
 
-    def run_weekend_reflection(self):
-        try:
-            cursor = self.db_conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM trade_journal")
-            if cursor.fetchone()[0] > 10:
-                self.evolution_level += 1
-                self._save_experience()
-        except Exception: pass
-
+    # 6. AUTONOMOUS HIGH-FREQUENCY SCALPING ENGINE WITH ATR & MULTI-TIMEFRAME ALIGNMENT
     async def auto_entry_engine(self):
         if not self.is_live or len(self.open_positions) >= 1: return
         symbol = "EURUSD.m" if self.account_type == "micro" else "EURUSD"
-        session_active = self._session_volatility_lock()
-        spread_safe = await self._check_live_spread(symbol)
         
-        if session_active and spread_safe:
-            candles = await self.fetch_ohlcv(symbol, "1m")
-            if self._taylor_series_velocity(candles):
-                await self.execute_trade(symbol, "BUY")
+        if self._session_volatility_lock() and self._check_daily_drawdown_limit():
+            confluence = await self._multi_timeframe_confluence(symbol)
+            if confluence["valid"]:
+                candles = await self.fetch_ohlcv(symbol, "1m", 10)
+                atr_targets = self._calculate_atr_pips(candles)
+                
+                await self.execute_trade(
+                    symbol, 
+                    action=confluence["suggested_action"], 
+                    stop_loss_pips=atr_targets["sl_pips"], 
+                    take_profit_pips=atr_targets["tp_pips"],
+                    is_manual=False
+                )
 
     async def auto_close_engine(self):
         meta_token, meta_account = os.environ.get("META_API_TOKEN", ""), os.environ.get("META_API_ACCOUNT_ID", "")
@@ -222,11 +289,15 @@ class Kim:
                             age_mins = (datetime.utcnow() - open_dt).total_seconds() / 60
                         except: age_mins = 0
                         
+                        # Micro Take Profit ($0.04) or Stagnation Time Exit (15 minutes)
                         if profit >= 0.04 or age_mins > 15:
                             await client.delete(
                                 f"https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/{meta_account}/positions/{pos.get('id')}",
                                 headers={"auth-token": meta_token}
                             )
+                            # Record realized profit to DB journal
+                            self.db_conn.execute("UPDATE trade_journal SET profit = ? WHERE id = ?", (profit, pos.get('id')))
+                            self.db_conn.commit()
         except Exception: pass
 
     async def _heartbeat_loop(self):
@@ -237,8 +308,6 @@ class Kim:
                     await self.get_live_metrics()
                     await self.auto_entry_engine()
                     await self.auto_close_engine()
-                    if datetime.now().weekday() >= 5:
-                        self.run_weekend_reflection()
                 except Exception: pass
 
     async def apply_trailing_stops(self):
@@ -263,10 +332,17 @@ class Kim:
         if not self.heartbeat_active:
             self.heartbeat_active = True
             asyncio.create_task(self._heartbeat_loop())
-        return {"status": "success", "message": f"Kim: Connected [{account_id}]. Real-world Oracle active.", "account_id": account_id, "balance": f"${self.balance:,.2f}"}
+        return {"status": "success", "message": f"Kim: Connected [{account_id}]. Institutional Quant Engine Active.", "account_id": account_id, "balance": f"${self.balance:,.2f}"}
 
     async def get_live_metrics(self):
+        # Auto-defibrillator to restart heartbeat if server slept
+        if self.is_live and not getattr(self, 'heartbeat_active', False):
+            self.heartbeat_active = True
+            asyncio.create_task(self._heartbeat_loop())
+
         meta_token, meta_account = os.environ.get("META_API_TOKEN", ""), os.environ.get("META_API_ACCOUNT_ID", "")
+        gold_price = await self.get_real_world_price("XAUUSD")
+
         if meta_token and meta_account:
             headers, base_url = {"auth-token": meta_token}, f"https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/{meta_account}"
             try:
@@ -279,6 +355,14 @@ class Kim:
                     if isinstance(pos, httpx.Response) and pos.status_code == 200: self.open_positions = pos.json()
             except Exception: pass
             asyncio.create_task(self.apply_trailing_stops())
+            
         self._save_experience()
-        gold_price = await self.get_real_world_price("XAUUSD")
-        return {"live_gold_price": f"${gold_price:,.2f}", "account_id": self.active_account or "Not Linked", "balance": f"${self.balance:,.2f}", "equity": f"${self.equity:,.2f}", "floating_profit": f"${self.floating_profit:+,.2f}", "open_positions": f"{len(self.open_positions)} Trades", "is_live": self.is_live}
+        return {
+            "live_gold_price": f"${gold_price:,.2f}", 
+            "account_id": self.active_account or "Not Linked", 
+            "balance": f"${self.balance:,.2f}", 
+            "equity": f"${self.equity:,.2f}", 
+            "floating_profit": f"${self.floating_profit:+,.2f}", 
+            "open_positions": f"{len(self.open_positions)} Trades", 
+            "is_live": self.is_live
+        }
