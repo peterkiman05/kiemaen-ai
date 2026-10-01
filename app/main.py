@@ -204,62 +204,46 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.responses import JSONResponse
 import json
 
-def _extract_all_text(data):
-    if isinstance(data, str):
-        return data
-    elif isinstance(data, dict):
-        return " ".join(_extract_all_text(v) for v in data.values())
-    elif isinstance(data, list):
-        return " ".join(_extract_all_text(x) for x in data)
-    return ""
-
 class KimExecutionInterceptor(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
-        if request.method == "POST":
+        path = request.url.path.lower()
+        # STRICTLY target chat routes only, leaving login/connect endpoints completely untouched
+        if request.method == "POST" and any(k in path for k in ["chat", "message", "prompt"]):
             try:
                 body_bytes = await request.body()
                 if body_bytes:
                     body = json.loads(body_bytes)
-                    full_text = _extract_all_text(body).lower()
+                    msg_str = str(body).lower()
                     
-                    if "kim" in full_text and any(w in full_text for w in ["execute", "scalp", "trade", "buy", "sell", "analyze"]):
+                    if "kim" in msg_str and any(w in msg_str for w in ["execute", "scalp", "trade", "buy", "sell", "analyze"]):
                         from app.agents.kim import Kim
                         kim = Kim()
                         
-                        # Normalize symbol for Vault Micro account (.mic -> .m)
-                        symbol = "XAUUSD.m" if "xau" in full_text or "gold" in full_text else "EURUSD.m"
-                        action = "SELL" if "sell" in full_text else "BUY"
+                        symbol = "XAUUSD.mic" if ("xau" in msg_str or "gold" in msg_str) else "EURUSD.mic"
+                        action = "SELL" if "sell" in msg_str else "BUY"
                         
-                        # Fetch true live market price
-                        live_price = await kim.get_real_world_price(symbol)
-                        
-                        # Execute MetaApi order
+                        live_price = await kim.get_real_world_price("XAUUSD")
                         res = await kim.execute_trade(symbol, action, is_manual=True)
                         status_msg = res.get('message', res.get('reason', 'Executed.'))
                         
                         real_reply = (
                             f"⚙️ **REAL-TIME EXECUTION ENGINE OVERRIDE** ⚙️\n\n"
                             f"✅ **Asset:** {symbol}\n"
-                            f"✅ **Live Global Price:** ${live_price:,.2f}\n"
+                            f"✅ **Live Price:** ${live_price:,.2f}\n"
                             f"✅ **Action:** {action}\n"
-                            f"✅ **Broker Status:** {status_msg}\n\n"
-                            f"*(LLM narrative generator bypassed to prevent simulated trades.)*"
+                            f"✅ **Broker Status:** {status_msg}"
                         )
                         
                         return JSONResponse(status_code=200, content={
                             "response": real_reply,
                             "reply": real_reply,
                             "message": real_reply,
-                            "content": real_reply,
                             "choices": [{"message": {"content": real_reply}}]
                         })
             except Exception:
                 pass
-            
-            # Re-stream body for standard routes
-            async def receive():
-                return {"type": "http.request", "body": body_bytes}
-            request._receive = receive
+        
+        return await call_next(request)
 
 try:
     app.add_middleware(KimExecutionInterceptor)

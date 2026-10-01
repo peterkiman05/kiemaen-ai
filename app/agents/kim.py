@@ -91,7 +91,9 @@ class Kim:
         return 0.0
 
     async def _smart_symbol_correction(self, symbol: str) -> str:
-        if self.account_type == "micro" and not symbol.endswith(".m"):
+        if self.account_type == "micro":
+            if not symbol.endswith(".mic"):
+                symbol = f"{symbol.split(".")[0]}.mic"
             return f"{symbol}.m"
         return symbol
 
@@ -258,7 +260,7 @@ class Kim:
     # 6. AUTONOMOUS HIGH-FREQUENCY SCALPING ENGINE WITH ATR & MULTI-TIMEFRAME ALIGNMENT
     async def auto_entry_engine(self):
         if not self.is_live or len(self.open_positions) >= 1: return
-        symbol = "EURUSD.m" if self.account_type == "micro" else "EURUSD"
+        symbol = "EURUSD.mic" if self.account_type == "micro" else "EURUSD"
         
         if self._session_volatility_lock() and self._check_daily_drawdown_limit():
             confluence = await self._multi_timeframe_confluence(symbol)
