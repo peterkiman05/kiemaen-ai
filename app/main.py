@@ -47,6 +47,51 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Kiemaen AGI", lifespan=lifespan)
 
+from starlette.middleware.base import BaseHTTPMiddleware
+from fastapi.responses import JSONResponse
+import json
+
+class ChatOracleInterceptor(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        # Only intercept chat endpoints
+        if "chat" in request.url.path and request.method == "POST":
+            try:
+                body_bytes = await request.body()
+                body = json.loads(body_bytes.decode('utf-8'))
+                
+                # Capture the message regardless of the JSON key your frontend uses
+                msg = body.get("message", body.get("text", body.get("prompt", ""))).lower()
+                
+                if "price" in msg or "quote" in msg or "how much" in msg:
+                    symbol = "XAUUSD" if "xau" in msg or "gold" in msg else ("EURUSD" if "eur" in msg else None)
+                    if symbol:
+                        from app.agents.kim import Kim
+                        kim = Kim()
+                        price = await kim.get_real_world_price(symbol)
+                        
+                        if price > 0:
+                            reply_text = f"The current real-time market price of {symbol} is **${price:,.2f}**. (Live Oracle Sync)"
+                            
+                            # Return multiple keys to ensure the frontend parser catches it seamlessly
+                            return JSONResponse({
+                                "response": reply_text,
+                                "reply": reply_text,
+                                "message": reply_text,
+                                "text": reply_text
+                            })
+            except Exception:
+                pass
+                
+            # Restore the request body for the LLM to process normally if it's NOT a price quote
+            async def receive():
+                return {"type": "http.request", "body": body_bytes}
+            request._receive = receive
+            
+        return await call_next(request)
+
+app.add_middleware(ChatOracleInterceptor)
+
+
 @app.get("/", response_class=HTMLResponse)
 async def serve_home():
     if os.path.exists("web/index.html"):
