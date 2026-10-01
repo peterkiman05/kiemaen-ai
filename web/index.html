@@ -548,26 +548,22 @@ Do you approve sending this live? (OK to Send, Cancel to Abort)`);
         setInterval(refreshKimLiveMetrics, 5000);
 
 </script>
-
-    <script id="session-persistence">
+    
+    <script id="advanced-session-persistence">
         const SESSION_EXPIRY_MS = 60 * 60 * 1000; // 60 minutes
 
         function saveKimState() {
             const chatBox = document.querySelector('.chat-box, #chat-box, .messages-panel, .chat-container');
             if (!chatBox) return;
-            
-            const state = {
-                chatHtml: chatBox.innerHTML,
-                timestamp: Date.now()
-            };
-            localStorage.setItem('kim_live_session', JSON.stringify(state));
+            const state = { chatHtml: chatBox.innerHTML, timestamp: Date.now() };
+            localStorage.setItem('kim_chat_history', JSON.stringify(state));
         }
         
-        function loadKimState() {
-            const dataStr = localStorage.getItem('kim_live_session');
+        function restoreSession() {
+            // 1. Restore Chat DOM
+            const dataStr = localStorage.getItem('kim_chat_history');
             if (dataStr) {
                 const state = JSON.parse(dataStr);
-                // Check if session is under 60 minutes old
                 if (Date.now() - state.timestamp < SESSION_EXPIRY_MS) {
                     const chatBox = document.querySelector('.chat-box, #chat-box, .messages-panel, .chat-container');
                     if (chatBox && state.chatHtml) {
@@ -575,18 +571,81 @@ Do you approve sending this live? (OK to Send, Cancel to Abort)`);
                         setTimeout(() => { chatBox.scrollTop = chatBox.scrollHeight; }, 100);
                     }
                 } else {
-                    // Session expired, clear memory
-                    localStorage.removeItem('kim_live_session');
+                    localStorage.removeItem('kim_chat_history');
+                }
+            }
+
+            // 2. Auto-Login Vault Markets Credentials across refreshes
+            const savedVaultCreds = localStorage.getItem('kim_vault_creds');
+            if (savedVaultCreds) {
+                const creds = JSON.parse(savedVaultCreds);
+                // Locate the account and password input fields on the screen
+                const accInputs = document.querySelectorAll('input');
+                let accField = null, passField = null;
+                
+                accInputs.forEach(inp => {
+                    if (inp.type === 'password') passField = inp;
+                    else if (inp.placeholder.toLowerCase().includes('account') || inp.id.includes('account')) accField = inp;
+                });
+
+                // Find the Link/Submit button
+                const btns = Array.from(document.querySelectorAll('button'));
+                const linkBtn = btns.find(b => b.innerText.toLowerCase().includes('link'));
+
+                if (accField && passField && linkBtn) {
+                    accField.value = creds.accountId;
+                    passField.value = creds.password;
+                    
+                    // Silently click the button to reconnect the backend
+                    setTimeout(() => { linkBtn.click(); }, 300);
                 }
             }
         }
 
-        function attachSidebarHistory() {
-            // Target the hamburger menu / sidebar container
+        function interceptLogin() {
+            document.body.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON' && e.target.innerText.toLowerCase().includes('link')) {
+                    const accInputs = document.querySelectorAll('input');
+                    let accField = null, passField = null;
+                    accInputs.forEach(inp => {
+                        if (inp.type === 'password') passField = inp;
+                        else if (inp.placeholder.toLowerCase().includes('account') || inp.id.includes('account')) accField = inp;
+                    });
+                    
+                    if (accField && accField.value && passField && passField.value) {
+                        localStorage.setItem('kim_vault_creds', JSON.stringify({
+                            accountId: accField.value,
+                            password: passField.value
+                        }));
+                        updateHistoryUI();
+                    }
+                }
+            });
+        }
+
+        function updateHistoryUI() {
+            const historyTab = document.querySelector('#kim-history-tab');
+            if (!historyTab) return;
+            
+            const hasHistory = !!localStorage.getItem('kim_chat_history');
+            const hasCreds = !!localStorage.getItem('kim_vault_creds');
+            
+            let htmlStr = '🕒 <b>Session Status</b><br>';
+            htmlStr += hasHistory ? '<small style="color:#4ade80;">Memory: Active (60m)</small><br>' : '<small>Memory: Empty</small><br>';
+            htmlStr += hasCreds ? '<small style="color:#4ade80;">Auto-Login: Enabled</small><br>' : '<small>Auto-Login: Disabled</small><br>';
+            
+            if (hasHistory || hasCreds) {
+                htmlStr += '<a href="#" id="clear-hist" style="color:#ef4444;text-decoration:underline;display:block;margin-top:5px;">Clear Session Memory</a>';
+            }
+            historyTab.innerHTML = htmlStr;
+        }
+
+        function makeHistoryFunctional() {
             const sidebars = document.querySelectorAll('.sidebar, #sidebar, .drawer, nav, .menu-panel, aside');
             sidebars.forEach(sb => {
-                if (!sb.querySelector('#kim-history-tab')) {
-                    const historyTab = document.createElement('div');
+                let historyTab = sb.querySelector('#kim-history-tab');
+                if (!historyTab) {
+                    historyTab = document.createElement('div');
                     historyTab.id = 'kim-history-tab';
                     historyTab.style.padding = '15px';
                     historyTab.style.borderTop = '1px solid rgba(255,255,255,0.1)';
@@ -594,27 +653,43 @@ Do you approve sending this live? (OK to Send, Cancel to Abort)`);
                     historyTab.style.color = '#888';
                     historyTab.style.fontSize = '0.9em';
                     historyTab.style.fontFamily = 'monospace';
-                    historyTab.innerHTML = '🕒 <b>Active History</b><br><small>Memory cached for 1 hour</small>';
                     sb.appendChild(historyTab);
                 }
+                
+                updateHistoryUI();
+
+                historyTab.addEventListener('click', (e) => {
+                    if(e.target.id === 'clear-hist') {
+                        e.preventDefault();
+                        localStorage.removeItem('kim_chat_history');
+                        localStorage.removeItem('kim_vault_creds');
+                        const chatBox = document.querySelector('.chat-box, #chat-box, .messages-panel, .chat-container');
+                        if (chatBox) chatBox.innerHTML = '';
+                        updateHistoryUI();
+                        
+                        // Give visual feedback
+                        e.target.innerText = "Memory Wiped!";
+                        e.target.style.color = "#888";
+                        setTimeout(() => location.reload(), 800);
+                    }
+                });
             });
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            loadKimState();
-            attachSidebarHistory();
+            interceptLogin();
+            restoreSession();
+            setTimeout(makeHistoryFunctional, 500); // Slight delay to ensure sidebar is rendered
             
-            // Auto-save instantly whenever a new message is added to the chat
             const chatBox = document.querySelector('.chat-box, #chat-box, .messages-panel, .chat-container');
             if (chatBox) {
                 const observer = new MutationObserver(saveKimState);
                 observer.observe(chatBox, { childList: true, subtree: true, characterData: true });
             }
-            
-            // Background fallback save loop (every 5 seconds)
-            setInterval(saveKimState, 5000);
+            setInterval(saveKimState, 3000);
         });
     </script>
     </body>
+    
     
 </html>
