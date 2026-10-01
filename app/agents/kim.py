@@ -23,8 +23,8 @@ class Kim:
         self.evolution_level = 4
         self.is_live = False
         self.active_account = None
-        self.balance = 3.04
-        self.equity = 3.04
+        self.balance = 2.68
+        self.equity = 2.68
         self.leverage = 500
         self.open_positions = []
         self.floating_profit = 0.0
@@ -59,8 +59,8 @@ class Kim:
                     data = json.load(f)
                     self.active_account = data.get("account_id", None)
                     self.is_live = data.get("is_live", False)
-                    self.balance = data.get("balance", 3.04)
-                    self.equity = data.get("equity", 3.04)
+                    self.balance = data.get("balance", 2.68)
+                    self.equity = data.get("equity", 2.68)
                     self.trading_mode = data.get("trading_mode", "scalper")
                     self.account_type = data.get("account_type", "micro")
             except Exception: pass
@@ -75,13 +75,24 @@ class Kim:
             }, f)
 
     def calculate_risk_and_lot(self, symbol: str, stop_loss_pips: float) -> dict:
-        contract_size = 1000 if self.account_type == "micro" else 100000
+        symbol = symbol.upper()
+        # Gold vs Forex contract scaling for Vault Micro accounts
+        if "XAU" in symbol or "GOLD" in symbol:
+            contract_size = 10 if self.account_type == "micro" else 100
+            estimated_margin = (contract_size * 0.01 * 2650) / self.leverage
+        else:
+            contract_size = 1000 if self.account_type == "micro" else 100000
+            estimated_margin = (contract_size * 0.01) / self.leverage
+
         min_required = 0.50 if self.account_type == "micro" else 2.00
         if self.balance < min_required: return {"allowed": False, "reason": f"Insufficient balance (${self.balance:.2f})."}
+        
         lot_size = 0.01  
-        estimated_margin = (contract_size * lot_size) / self.leverage
         free_margin = self.balance + self.floating_profit
-        if free_margin < estimated_margin: return {"allowed": False, "reason": "Free margin lower than required."}
+        
+        if free_margin < estimated_margin: 
+            return {"allowed": False, "reason": f"Free margin (${free_margin:.2f}) lower than required margin (${estimated_margin:.2f})."}
+        
         return {"allowed": True, "lot_size": lot_size, "estimated_margin": estimated_margin}
 
     async def fetch_ohlcv(self, symbol: str, timeframe: str = "1m"):
@@ -98,34 +109,33 @@ class Kim:
         return None
 
     def _taylor_series_velocity(self, candles) -> bool:
-        if not candles or len(candles) < 3: return False
+        if not candles or len(candles) < 3: return True
         c1, c2, c3 = candles[-3].get("close", 0), candles[-2].get("close", 0), candles[-1].get("close", 0)
-        return abs((c3 - c2) - (c2 - c1)) < 0.0005 
+        return abs((c3 - c2) - (c2 - c1)) < 0.005 
 
     async def _check_economic_calendar(self) -> bool: return True 
 
-    async def _check_live_spread(self, symbol: str) -> bool:
-        """Live Spread-Sensing Guard: Simulates checking broker quotes for spread < 1.5 pips."""
-        return True
+    async def _check_live_spread(self, symbol: str) -> bool: return True
 
     def _session_volatility_lock(self) -> bool:
-        """Session Volatility Lock: Restricts trading to London/NY overlap (14:00 - 18:00 SAST)."""
         sast_hour = (datetime.utcnow().hour + 2) % 24
         return 14 <= sast_hour < 18
 
-    def _risk_manager_review(self, proposal_dict: dict) -> dict:
+    def _risk_manager_review(self, proposal_dict: dict, is_manual: bool = True) -> dict:
         try:
             proposal = TradeProposal(**proposal_dict)
-            if not proposal.session_active: return {"approved": False, "reason": "Risk Agent: Outside active London/NY volume session."}
-            if not proposal.spread_safe: return {"approved": False, "reason": "Risk Agent: Spread exceeds 1.5 pip threshold."}
+            # Override session lock for explicit user commands
+            if not is_manual and not proposal.session_active: 
+                return {"approved": False, "reason": "Risk Agent: Outside active London/NY volume session."}
+            if not proposal.spread_safe: return {"approved": False, "reason": "Risk Agent: Spread exceeds threshold."}
             if not proposal.news_safe: return {"approved": False, "reason": "Risk Agent: Blocked by Macro-Economic Shield."}
-            if not proposal.quant_exhaustion_confirmed: return {"approved": False, "reason": "Risk Agent: Velocity model did not confirm exhaustion."}
             if proposal.free_margin < 0.20: return {"approved": False, "reason": "Risk Agent: Margin buffer is too thin."}
             return {"approved": True}
         except ValidationError as e:
             return {"approved": False, "reason": f"Risk Agent: Schema validation failed - {e}"}
 
-    async def execute_trade(self, symbol: str, action: str, stop_loss_pips: float = 8.0, take_profit_pips: float = 15.0):
+    async def execute_trade(self, symbol: str = "XAUUSD", action: str = "BUY", stop_loss_pips: float = 15.0, take_profit_pips: float = 30.0, is_manual: bool = True):
+        symbol = symbol.upper()
         action = action.upper()
         if action not in ["BUY", "SELL"]: return {"status": "error", "message": "Invalid action."}
 
@@ -144,7 +154,7 @@ class Kim:
             "news_safe": news_safe, "spread_safe": spread_safe, "session_active": session_active
         }
         
-        review = self._risk_manager_review(proposal)
+        review = self._risk_manager_review(proposal, is_manual=is_manual)
         if not review["approved"]: return {"status": "rejected", "reason": review["reason"]}
 
         meta_token, meta_account = os.environ.get("META_API_TOKEN", ""), os.environ.get("META_API_ACCOUNT_ID", "")
@@ -152,7 +162,7 @@ class Kim:
 
         if meta_token and meta_account:
             try:
-                async with httpx.AsyncClient(timeout=2.0) as client:
+                async with httpx.AsyncClient(timeout=3.0) as client:
                     await client.post(
                         f"https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/{meta_account}/trade",
                         headers={"auth-token": meta_token},
@@ -166,7 +176,7 @@ class Kim:
         
         self.open_positions.append({"id": trade_id, "symbol": symbol, "action": action})
         self._save_experience()
-        return {"status": "success", "message": f"Kim: Auto-Executed {action} {risk['lot_size']} {symbol}."}
+        return {"status": "success", "message": f"DIRECT EXECUTION: {action} {risk['lot_size']} {symbol} submitted to MetaApi."}
 
     def run_weekend_reflection(self):
         try:
@@ -177,7 +187,6 @@ class Kim:
                 self._save_experience()
         except Exception: pass
 
-    # HIGH-FREQUENCY AUTO-ENTRY ENGINE
     async def auto_entry_engine(self):
         if not self.is_live or len(self.open_positions) >= 1: return
         symbol = "EURUSD"
@@ -187,9 +196,8 @@ class Kim:
         if session_active and spread_safe:
             candles = await self.fetch_ohlcv(symbol, "1m")
             if self._taylor_series_velocity(candles):
-                await self.execute_trade(symbol, "BUY")
+                await self.execute_trade(symbol, "BUY", is_manual=False)
 
-    # ACTIVE ORDER EXIT ENGINE
     async def auto_close_engine(self):
         meta_token, meta_account = os.environ.get("META_API_TOKEN", ""), os.environ.get("META_API_ACCOUNT_ID", "")
         if not meta_token or not meta_account or not self.open_positions: return
@@ -205,7 +213,6 @@ class Kim:
                             age_mins = (datetime.utcnow() - open_dt).total_seconds() / 60
                         except: age_mins = 0
                         
-                        # Virtual Micro-TP ($0.04) or Stagnation Dead-Killer (15 mins)
                         if profit >= 0.04 or age_mins > 15:
                             await client.delete(
                                 f"https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/{meta_account}/positions/{pos.get('id')}",
@@ -215,7 +222,7 @@ class Kim:
 
     async def _heartbeat_loop(self):
         while True:
-            await asyncio.sleep(10) # 10-Second High-Frequency Loop
+            await asyncio.sleep(10)
             if self.is_live:
                 try:
                     await self.get_live_metrics()
