@@ -549,12 +549,63 @@ Do you approve sending this live? (OK to Send, Cancel to Abort)`);
 
 </script>
     
-    <script id="robust-session-persistence">
-        const SESSION_EXPIRY_MS = 60 * 60 * 1000;
-        
-        function interceptAndSave() {
-            document.body.addEventListener('click', (e) => {
-                if (e.target.tagName === 'BUTTON' && e.target.innerText.toLowerCase().includes('link')) {
+    <script id="persistent-login-engine">
+        const SESSION_TTL = 60 * 60 * 1000; // 1 hour
+
+        function persistSessionData() {
+            const chatBox = document.querySelector('.chat-box, #chat-box, .messages-panel');
+            if (chatBox) {
+                localStorage.setItem('kim_chat_cache', JSON.stringify({
+                    html: chatBox.innerHTML,
+                    time: Date.now()
+                }));
+            }
+        }
+
+        function watchAndAutoLogin() {
+            // Check if we have saved credentials
+            const rawCreds = localStorage.getItem('kim_vault_creds');
+            if (!rawCreds) return;
+            
+            const creds = JSON.parse(rawCreds);
+            if (Date.now() - creds.time > SESSION_TTL) {
+                localStorage.removeItem('kim_vault_creds');
+                return;
+            }
+
+            // Continuously scan the DOM until the login inputs and button appear
+            const loginChecker = setInterval(() => {
+                const inputs = document.querySelectorAll('input');
+                const buttons = Array.from(document.querySelectorAll('button'));
+                const linkBtn = buttons.find(b => b.innerText.toLowerCase().includes('link'));
+
+                if (inputs.length >= 2 && linkBtn) {
+                    clearInterval(loginChecker);
+                    let accField = null, passField = null;
+                    inputs.forEach(i => {
+                        if (i.type === 'password') passField = i;
+                        else accField = i;
+                    });
+
+                    if (accField && passField) {
+                        accField.value = creds.acc;
+                        passField.value = creds.pwd;
+                        accField.dispatchEvent(new Event('input', { bubbles: true }));
+                        passField.dispatchEvent(new Event('input', { bubbles: true }));
+                        
+                        setTimeout(() => { linkBtn.click(); }, 400);
+                    }
+                }
+            }, 300);
+
+            // Timeout check after 10 seconds
+            setTimeout(() => clearInterval(loginChecker), 10000);
+        }
+
+        // Capture credentials when user manually clicks link
+        document.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON' && e.target.innerText.toLowerCase().includes('link')) {
+                setTimeout(() => {
                     const inputs = document.querySelectorAll('input');
                     let accField = null, passField = null;
                     inputs.forEach(i => {
@@ -562,64 +613,38 @@ Do you approve sending this live? (OK to Send, Cancel to Abort)`);
                         else accField = i;
                     });
                     if (accField && accField.value && passField && passField.value) {
-                        localStorage.setItem('kim_vault_creds', JSON.stringify({acc: accField.value, pwd: passField.value}));
-                    }
-                }
-            });
-            
-            const chatBox = document.querySelector('.chat-box, #chat-box, .messages-panel');
-            if (chatBox) {
-                new MutationObserver(() => {
-                    localStorage.setItem('kim_chat_history', JSON.stringify({ html: chatBox.innerHTML, ts: Date.now() }));
-                }).observe(chatBox, { childList: true, subtree: true, characterData: true });
-            }
-        }
-
-        function restoreSessionRobust() {
-            const chatData = localStorage.getItem('kim_chat_history');
-            if (chatData) {
-                const state = JSON.parse(chatData);
-                if (Date.now() - state.ts < SESSION_EXPIRY_MS) {
-                    const chatBox = document.querySelector('.chat-box, #chat-box, .messages-panel');
-                    if (chatBox) {
-                        chatBox.innerHTML = state.html;
-                        setTimeout(() => { chatBox.scrollTop = chatBox.scrollHeight; }, 100);
-                    }
-                } else { localStorage.removeItem('kim_chat_history'); }
-            }
-
-            // Framework-Bypassing Auto-Login Injection
-            const credData = localStorage.getItem('kim_vault_creds');
-            if (credData) {
-                const creds = JSON.parse(credData);
-                const attemptLogin = setInterval(() => {
-                    const inputs = document.querySelectorAll('input');
-                    const btns = Array.from(document.querySelectorAll('button'));
-                    const linkBtn = btns.find(b => b.innerText.toLowerCase().includes('link'));
-                    
-                    if (inputs.length >= 2 && linkBtn) {
-                        clearInterval(attemptLogin);
-                        let accField = null, passField = null;
-                        inputs.forEach(i => { if (i.type === 'password') passField = i; else accField = i; });
-                        
-                        // Force native input rendering for React/Vue listeners
-                        const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                        if(accField) { setter.call(accField, creds.acc); accField.dispatchEvent(new Event('input', {bubbles: true})); }
-                        if(passField) { setter.call(passField, creds.pwd); passField.dispatchEvent(new Event('input', {bubbles: true})); }
-                        
-                        setTimeout(() => linkBtn.click(), 600); // Execute login
+                        localStorage.setItem('kim_vault_creds', JSON.stringify({
+                            acc: accField.value,
+                            pwd: passField.value,
+                            time: Date.now()
+                        }));
                     }
                 }, 500);
-                setTimeout(() => clearInterval(attemptLogin), 8000); 
             }
-        }
-        
+        });
+
         document.addEventListener('DOMContentLoaded', () => {
-            interceptAndSave();
-            restoreSessionRobust();
+            // Restore chat history cache
+            const cache = localStorage.getItem('kim_chat_cache');
+            if (cache) {
+                const data = JSON.parse(cache);
+                if (Date.now() - data.time < SESSION_TTL) {
+                    const chatBox = document.querySelector('.chat-box, #chat-box, .messages-panel');
+                    if (chatBox) chatBox.innerHTML = data.html;
+                }
+            }
+
+            watchAndAutoLogin();
+
+            const chatBox = document.querySelector('.chat-box, #chat-box, .messages-panel');
+            if (chatBox) {
+                new MutationObserver(persistSessionData).observe(chatBox, { childList: true, subtree: true, characterData: true });
+            }
+            setInterval(persistSessionData, 5000);
         });
     </script>
     </body>
+    
     
     
     
