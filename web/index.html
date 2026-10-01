@@ -549,147 +549,78 @@ Do you approve sending this live? (OK to Send, Cancel to Abort)`);
 
 </script>
     
-    <script id="advanced-session-persistence">
-        const SESSION_EXPIRY_MS = 60 * 60 * 1000; // 60 minutes
-
-        function saveKimState() {
-            const chatBox = document.querySelector('.chat-box, #chat-box, .messages-panel, .chat-container');
-            if (!chatBox) return;
-            const state = { chatHtml: chatBox.innerHTML, timestamp: Date.now() };
-            localStorage.setItem('kim_chat_history', JSON.stringify(state));
-        }
+    <script id="robust-session-persistence">
+        const SESSION_EXPIRY_MS = 60 * 60 * 1000;
         
-        function restoreSession() {
-            // 1. Restore Chat DOM
-            const dataStr = localStorage.getItem('kim_chat_history');
-            if (dataStr) {
-                const state = JSON.parse(dataStr);
-                if (Date.now() - state.timestamp < SESSION_EXPIRY_MS) {
-                    const chatBox = document.querySelector('.chat-box, #chat-box, .messages-panel, .chat-container');
-                    if (chatBox && state.chatHtml) {
-                        chatBox.innerHTML = state.chatHtml;
-                        setTimeout(() => { chatBox.scrollTop = chatBox.scrollHeight; }, 100);
-                    }
-                } else {
-                    localStorage.removeItem('kim_chat_history');
-                }
-            }
-
-            // 2. Auto-Login Vault Markets Credentials across refreshes
-            const savedVaultCreds = localStorage.getItem('kim_vault_creds');
-            if (savedVaultCreds) {
-                const creds = JSON.parse(savedVaultCreds);
-                // Locate the account and password input fields on the screen
-                const accInputs = document.querySelectorAll('input');
-                let accField = null, passField = null;
-                
-                accInputs.forEach(inp => {
-                    if (inp.type === 'password') passField = inp;
-                    else if (inp.placeholder.toLowerCase().includes('account') || inp.id.includes('account')) accField = inp;
-                });
-
-                // Find the Link/Submit button
-                const btns = Array.from(document.querySelectorAll('button'));
-                const linkBtn = btns.find(b => b.innerText.toLowerCase().includes('link'));
-
-                if (accField && passField && linkBtn) {
-                    accField.value = creds.accountId;
-                    passField.value = creds.password;
-                    
-                    // Silently click the button to reconnect the backend
-                    setTimeout(() => { linkBtn.click(); }, 300);
-                }
-            }
-        }
-
-        function interceptLogin() {
+        function interceptAndSave() {
             document.body.addEventListener('click', (e) => {
                 if (e.target.tagName === 'BUTTON' && e.target.innerText.toLowerCase().includes('link')) {
-                    const accInputs = document.querySelectorAll('input');
+                    const inputs = document.querySelectorAll('input');
                     let accField = null, passField = null;
-                    accInputs.forEach(inp => {
-                        if (inp.type === 'password') passField = inp;
-                        else if (inp.placeholder.toLowerCase().includes('account') || inp.id.includes('account')) accField = inp;
+                    inputs.forEach(i => {
+                        if (i.type === 'password') passField = i;
+                        else accField = i;
                     });
-                    
                     if (accField && accField.value && passField && passField.value) {
-                        localStorage.setItem('kim_vault_creds', JSON.stringify({
-                            accountId: accField.value,
-                            password: passField.value
-                        }));
-                        updateHistoryUI();
+                        localStorage.setItem('kim_vault_creds', JSON.stringify({acc: accField.value, pwd: passField.value}));
                     }
                 }
             });
-        }
-
-        function updateHistoryUI() {
-            const historyTab = document.querySelector('#kim-history-tab');
-            if (!historyTab) return;
             
-            const hasHistory = !!localStorage.getItem('kim_chat_history');
-            const hasCreds = !!localStorage.getItem('kim_vault_creds');
-            
-            let htmlStr = '🕒 <b>Session Status</b><br>';
-            htmlStr += hasHistory ? '<small style="color:#4ade80;">Memory: Active (60m)</small><br>' : '<small>Memory: Empty</small><br>';
-            htmlStr += hasCreds ? '<small style="color:#4ade80;">Auto-Login: Enabled</small><br>' : '<small>Auto-Login: Disabled</small><br>';
-            
-            if (hasHistory || hasCreds) {
-                htmlStr += '<a href="#" id="clear-hist" style="color:#ef4444;text-decoration:underline;display:block;margin-top:5px;">Clear Session Memory</a>';
-            }
-            historyTab.innerHTML = htmlStr;
-        }
-
-        function makeHistoryFunctional() {
-            const sidebars = document.querySelectorAll('.sidebar, #sidebar, .drawer, nav, .menu-panel, aside');
-            sidebars.forEach(sb => {
-                let historyTab = sb.querySelector('#kim-history-tab');
-                if (!historyTab) {
-                    historyTab = document.createElement('div');
-                    historyTab.id = 'kim-history-tab';
-                    historyTab.style.padding = '15px';
-                    historyTab.style.borderTop = '1px solid rgba(255,255,255,0.1)';
-                    historyTab.style.marginTop = '25px';
-                    historyTab.style.color = '#888';
-                    historyTab.style.fontSize = '0.9em';
-                    historyTab.style.fontFamily = 'monospace';
-                    sb.appendChild(historyTab);
-                }
-                
-                updateHistoryUI();
-
-                historyTab.addEventListener('click', (e) => {
-                    if(e.target.id === 'clear-hist') {
-                        e.preventDefault();
-                        localStorage.removeItem('kim_chat_history');
-                        localStorage.removeItem('kim_vault_creds');
-                        const chatBox = document.querySelector('.chat-box, #chat-box, .messages-panel, .chat-container');
-                        if (chatBox) chatBox.innerHTML = '';
-                        updateHistoryUI();
-                        
-                        // Give visual feedback
-                        e.target.innerText = "Memory Wiped!";
-                        e.target.style.color = "#888";
-                        setTimeout(() => location.reload(), 800);
-                    }
-                });
-            });
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            interceptLogin();
-            restoreSession();
-            setTimeout(makeHistoryFunctional, 500); // Slight delay to ensure sidebar is rendered
-            
-            const chatBox = document.querySelector('.chat-box, #chat-box, .messages-panel, .chat-container');
+            const chatBox = document.querySelector('.chat-box, #chat-box, .messages-panel');
             if (chatBox) {
-                const observer = new MutationObserver(saveKimState);
-                observer.observe(chatBox, { childList: true, subtree: true, characterData: true });
+                new MutationObserver(() => {
+                    localStorage.setItem('kim_chat_history', JSON.stringify({ html: chatBox.innerHTML, ts: Date.now() }));
+                }).observe(chatBox, { childList: true, subtree: true, characterData: true });
             }
-            setInterval(saveKimState, 3000);
+        }
+
+        function restoreSessionRobust() {
+            const chatData = localStorage.getItem('kim_chat_history');
+            if (chatData) {
+                const state = JSON.parse(chatData);
+                if (Date.now() - state.ts < SESSION_EXPIRY_MS) {
+                    const chatBox = document.querySelector('.chat-box, #chat-box, .messages-panel');
+                    if (chatBox) {
+                        chatBox.innerHTML = state.html;
+                        setTimeout(() => { chatBox.scrollTop = chatBox.scrollHeight; }, 100);
+                    }
+                } else { localStorage.removeItem('kim_chat_history'); }
+            }
+
+            // Framework-Bypassing Auto-Login Injection
+            const credData = localStorage.getItem('kim_vault_creds');
+            if (credData) {
+                const creds = JSON.parse(credData);
+                const attemptLogin = setInterval(() => {
+                    const inputs = document.querySelectorAll('input');
+                    const btns = Array.from(document.querySelectorAll('button'));
+                    const linkBtn = btns.find(b => b.innerText.toLowerCase().includes('link'));
+                    
+                    if (inputs.length >= 2 && linkBtn) {
+                        clearInterval(attemptLogin);
+                        let accField = null, passField = null;
+                        inputs.forEach(i => { if (i.type === 'password') passField = i; else accField = i; });
+                        
+                        // Force native input rendering for React/Vue listeners
+                        const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                        if(accField) { setter.call(accField, creds.acc); accField.dispatchEvent(new Event('input', {bubbles: true})); }
+                        if(passField) { setter.call(passField, creds.pwd); passField.dispatchEvent(new Event('input', {bubbles: true})); }
+                        
+                        setTimeout(() => linkBtn.click(), 600); // Execute login
+                    }
+                }, 500);
+                setTimeout(() => clearInterval(attemptLogin), 8000); 
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            interceptAndSave();
+            restoreSessionRobust();
         });
     </script>
     </body>
+    
     
     
 </html>

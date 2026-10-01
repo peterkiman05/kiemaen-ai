@@ -131,7 +131,8 @@ class Kim:
         sast_hour = (datetime.utcnow().hour + 2) % 24
         return 14 <= sast_hour < 18
 
-    def _risk_manager_review(self, proposal_dict: dict) -> dict:
+    def _risk_manager_review(self, proposal_dict: dict, is_manual: bool = False) -> dict:
+        if is_manual: return {"approved": True} # OVERRIDE: GUARANTEED EXECUTION FOR USER COMMANDS
         try:
             proposal = TradeProposal(**proposal_dict)
             if not proposal.session_active: return {"approved": False, "reason": "Risk Agent: Outside active London/NY volume session."}
@@ -162,7 +163,7 @@ class Kim:
             "news_safe": True, "spread_safe": True, "session_active": True # Overrides session locks for manual commands
         }
         
-        review = self._risk_manager_review(proposal)
+        review = self._risk_manager_review(proposal, is_manual=True)
         if not review["approved"]: return {"status": "rejected", "reason": review["reason"]}
 
         meta_token, meta_account = os.environ.get("META_API_TOKEN", ""), os.environ.get("META_API_ACCOUNT_ID", "")
@@ -279,4 +280,5 @@ class Kim:
             except Exception: pass
             asyncio.create_task(self.apply_trailing_stops())
         self._save_experience()
-        return {"account_id": self.active_account or "Not Linked", "balance": f"${self.balance:,.2f}", "equity": f"${self.equity:,.2f}", "floating_profit": f"${self.floating_profit:+,.2f}", "open_positions": f"{len(self.open_positions)} Trades", "is_live": self.is_live}
+        gold_price = await self.get_real_world_price("XAUUSD")
+        return {"live_gold_price": f"${gold_price:,.2f}", "account_id": self.active_account or "Not Linked", "balance": f"${self.balance:,.2f}", "equity": f"${self.equity:,.2f}", "floating_profit": f"${self.floating_profit:+,.2f}", "open_positions": f"{len(self.open_positions)} Trades", "is_live": self.is_live}
