@@ -548,5 +548,73 @@ Do you approve sending this live? (OK to Send, Cancel to Abort)`);
         setInterval(refreshKimLiveMetrics, 5000);
 
 </script>
-</body>
+
+    <script id="session-persistence">
+        const SESSION_EXPIRY_MS = 60 * 60 * 1000; // 60 minutes
+
+        function saveKimState() {
+            const chatBox = document.querySelector('.chat-box, #chat-box, .messages-panel, .chat-container');
+            if (!chatBox) return;
+            
+            const state = {
+                chatHtml: chatBox.innerHTML,
+                timestamp: Date.now()
+            };
+            localStorage.setItem('kim_live_session', JSON.stringify(state));
+        }
+        
+        function loadKimState() {
+            const dataStr = localStorage.getItem('kim_live_session');
+            if (dataStr) {
+                const state = JSON.parse(dataStr);
+                // Check if session is under 60 minutes old
+                if (Date.now() - state.timestamp < SESSION_EXPIRY_MS) {
+                    const chatBox = document.querySelector('.chat-box, #chat-box, .messages-panel, .chat-container');
+                    if (chatBox && state.chatHtml) {
+                        chatBox.innerHTML = state.chatHtml;
+                        setTimeout(() => { chatBox.scrollTop = chatBox.scrollHeight; }, 100);
+                    }
+                } else {
+                    // Session expired, clear memory
+                    localStorage.removeItem('kim_live_session');
+                }
+            }
+        }
+
+        function attachSidebarHistory() {
+            // Target the hamburger menu / sidebar container
+            const sidebars = document.querySelectorAll('.sidebar, #sidebar, .drawer, nav, .menu-panel, aside');
+            sidebars.forEach(sb => {
+                if (!sb.querySelector('#kim-history-tab')) {
+                    const historyTab = document.createElement('div');
+                    historyTab.id = 'kim-history-tab';
+                    historyTab.style.padding = '15px';
+                    historyTab.style.borderTop = '1px solid rgba(255,255,255,0.1)';
+                    historyTab.style.marginTop = '25px';
+                    historyTab.style.color = '#888';
+                    historyTab.style.fontSize = '0.9em';
+                    historyTab.style.fontFamily = 'monospace';
+                    historyTab.innerHTML = '🕒 <b>Active History</b><br><small>Memory cached for 1 hour</small>';
+                    sb.appendChild(historyTab);
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadKimState();
+            attachSidebarHistory();
+            
+            // Auto-save instantly whenever a new message is added to the chat
+            const chatBox = document.querySelector('.chat-box, #chat-box, .messages-panel, .chat-container');
+            if (chatBox) {
+                const observer = new MutationObserver(saveKimState);
+                observer.observe(chatBox, { childList: true, subtree: true, characterData: true });
+            }
+            
+            // Background fallback save loop (every 5 seconds)
+            setInterval(saveKimState, 5000);
+        });
+    </script>
+    </body>
+    
 </html>
