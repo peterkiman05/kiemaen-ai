@@ -93,6 +93,37 @@
         .legal-content h4 { color: #fff; margin-top: 15px; margin-bottom: 5px; }
     </style>
 
+
+    <style id="safe-adaptive-css">
+        /* 1. Prevent the chat history from stretching the page out of bounds */
+        #chat-box, .chat-box {
+            overflow-y: auto !important;
+            max-height: 65vh !important; /* Mobile height constraint */
+            scroll-behavior: smooth;
+        }
+
+        /* 2. Lock the input bar to the bottom of its parent container securely */
+        /* Sticky keeps it inside the correct column (avoids sidebar overlap) while pinning it to the bottom */
+        form, #chat-form, .chat-input-area {
+            position: sticky !important;
+            bottom: 0 !important;
+            z-index: 999 !important;
+            background: rgba(10, 15, 26, 0.95) !important; /* Seamless dark match */
+            backdrop-filter: blur(8px) !important;
+            padding-top: 10px !important;
+            padding-bottom: 15px !important;
+            margin-bottom: 0 !important;
+        }
+
+        /* 3. Automatic Tablet and PC Desktop Adaptability */
+        @media screen and (min-width: 768px) {
+            #chat-box, .chat-box {
+                /* Allow more chat history height on larger screens */
+                max-height: calc(100vh - 180px) !important; 
+            }
+        }
+    </style>
+
 </head>
 <body>
     <svg width="0" height="0" style="position:absolute" aria-hidden="true">
