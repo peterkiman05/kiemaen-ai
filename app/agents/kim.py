@@ -237,7 +237,7 @@ class Kim:
         if not review["approved"]: return {"status": "rejected", "reason": review["reason"]}
 
         meta_token, meta_account = os.environ.get("META_API_TOKEN", ""), os.environ.get("META_API_ACCOUNT_ID", "")
-        trade_id = f"TRD-{len(self.open_positions) + 1001}"
+        trade_id = f"TRD-{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')[:14]}"
 
         if meta_token and meta_account:
             try:
