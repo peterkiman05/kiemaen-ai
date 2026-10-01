@@ -229,4 +229,4 @@ class Kim:
             
             asyncio.create_task(self.apply_trailing_stops())
         self._save_experience()
-        return {"account_id": self.active_account or "Not Linked", "balance": f"${self.balance:,.2f}", "open_positions": f"{len(self.open_positions)} Trades", "is_live": self.is_live}
+        return {"account_id": self.active_account or "Not Linked", "balance": f"${self.balance:,.2f}", "equity": f"${self.equity:,.2f}", "floating_profit": f"${self.floating_profit:+,.2f}", "open_positions": f"{len(self.open_positions)} Trades", "is_live": self.is_live}
