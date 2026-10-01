@@ -206,15 +206,16 @@ import json
 
 class KimExecutionInterceptor(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
-        path = request.url.path.lower()
-        # STRICTLY target chat routes only, leaving login/connect endpoints completely untouched
-        if request.method == "POST" and any(k in path for k in ["chat", "message", "prompt"]):
+        # Scan all POST requests except login/auth to prevent bridge errors
+        if request.method == "POST" and "login" not in request.url.path.lower() and "auth" not in request.url.path.lower():
+            body_bytes = b""
             try:
                 body_bytes = await request.body()
                 if body_bytes:
                     body = json.loads(body_bytes)
                     msg_str = str(body).lower()
                     
+                    # Look for Kim trigger words anywhere in the payload
                     if "kim" in msg_str and any(w in msg_str for w in ["execute", "scalp", "trade", "buy", "sell", "analyze"]):
                         from app.agents.kim import Kim
                         kim = Kim()
@@ -234,6 +235,7 @@ class KimExecutionInterceptor(BaseHTTPMiddleware):
                             f"✅ **Broker Status:** {status_msg}"
                         )
                         
+                        # Return direct JSON blocking the LLM
                         return JSONResponse(status_code=200, content={
                             "response": real_reply,
                             "reply": real_reply,
@@ -242,7 +244,13 @@ class KimExecutionInterceptor(BaseHTTPMiddleware):
                         })
             except Exception:
                 pass
-        
+            
+            # ALWAYS reconstruct the stream so normal endpoints do not crash
+            if body_bytes:
+                async def receive():
+                    return {"type": "http.request", "body": body_bytes}
+                request._receive = receive
+                
         return await call_next(request)
 
 try:
