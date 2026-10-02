@@ -1,6 +1,4 @@
 
-@app.api_route("/", methods=["GET", "HEAD", "POST"])
-async def root_ping_handler():
     return JSONResponse(status_code=200, content={"status": "online", "system": "Kiemaen Enterprise"})
 
 from fastapi import FastAPI, Form, Request, UploadFile, File
@@ -383,3 +381,9 @@ async def trigger_emergency_close():
         return {"status": "success", "result": res}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+
+
+@app.api_route("/", methods=["GET", "HEAD", "POST"])
+async def root_ping_handler():
+    return JSONResponse(status_code=200, content={"status": "online", "system": "Kiemaen Enterprise"})
