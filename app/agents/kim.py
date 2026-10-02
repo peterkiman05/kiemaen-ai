@@ -244,7 +244,18 @@ class Kim:
             "is_live": True
         }
 
-    async def start_background_engine(self):
+    def _is_trading_paused(self) -> bool:
+        try:
+            conn = sqlite3.connect(self.db_path, check_same_thread=False)
+            cursor = conn.cursor()
+            cursor.execute("SELECT metric_value FROM executive_metrics WHERE metric_key = 'TRADING_PAUSED'")
+            row = cursor.fetchone()
+            conn.close()
+            return row[0].upper() == "TRUE" if row else False
+        except Exception:
+            return False
+
+
         while True:
             try:
                 await asyncio.sleep(5)
