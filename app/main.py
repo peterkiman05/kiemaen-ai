@@ -213,6 +213,19 @@ class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
                 body_bytes = await request.body()
                 if body_bytes:
                     raw_payload = body_bytes.decode('utf-8', errors='ignore').lower()
+                    
+                    # SMART ROUTER: Only intercept actual trading/analysis commands
+                    action_words = ["execute", "scalp", "trade", "buy", "sell", "analyze", "analyse", "report", "status", "market"]
+                    assets = ["eurusd", "xauusd", "gbpusd", "usdjpy", "gold", "kim", "kiemaen", "kit", "kat"]
+                    
+                    is_trading_intent = any(w in raw_payload for w in action_words) and any(a in raw_payload for a in assets)
+                    
+                    if not is_trading_intent:
+                        # Restore stream and route to the General AI for casual chat ("hi")
+                        async def receive(): return {"type": "http.request", "body": body_bytes}
+                        request._receive = receive
+                        return await call_next(request)
+
                     try:
                         from app.agents.kim import Kim
                         kim_worker = Kim()
@@ -230,8 +243,8 @@ class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
                         action = "SELL" if "sell" in raw_payload else "BUY"
                         is_execution = any(w in raw_payload for w in ["execute", "scalp", "trade", "buy", "sell"])
                         
-                        # Ping MetaApi directly for exact Broker Tick
-                        live_price = await kim_worker.get_real_world_price(symbol)
+                        # Fetch precise Bid/Ask spread
+                        tick = await kim_worker.get_precise_bid_ask(symbol)
                         await kim_worker.get_live_metrics()
                         
                         kit_risk = kim_worker.calculate_risk_and_lot(symbol, stop_loss_pips=8.0)
@@ -247,14 +260,21 @@ class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
                         else:
                             kim_status = "Standby. Analysis complete, awaiting final execution command."
                             
-                        price_fmt = f"${live_price:,.2f}" if live_price > 10 else f"${live_price:,.5f}"
-                        if live_price == 0.0: price_fmt = "Awaiting MT5 Tick..."
+                        # Format exact MT5 Chart Prices
+                        bid_price = tick.get("bid", 0.0)
+                        ask_price = tick.get("ask", 0.0)
+                        
+                        if bid_price == 0.0:
+                            price_display = "Awaiting MT5 Tick Stream..."
+                        else:
+                            decimals = 2 if "XAU" in symbol else 5
+                            price_display = f"Bid (Chart Line): {bid_price:.{decimals}f} | Ask (Spread): {ask_price:.{decimals}f}"
                         
                         reply = (
                             f"👔 **KIEMAEN ENTERPRISE: CEO ORCHESTRATION REPORT** 👔<br><br>"
                             f"**📊 1. Market Oracle (Live State)**<br>"
                             f"• Asset: {symbol.upper()}<br>"
-                            f"• Exact Broker Tick: {price_fmt}<br>"
+                            f"• {price_display}<br>"
                             f"• Account Balance: ${kim_worker.balance:,.2f}<br><br>"
                             f"**🛡️ 2. Kit (Risk Management)**<br>"
                             f"• Proposed Action: {action.upper()}<br>"
@@ -274,7 +294,6 @@ class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
                                     await client.post(f"https://api.telegram.org/bot{tele_token}/sendMessage", json={"chat_id": tele_chat, "text": clean_tele})
                             except Exception: pass
 
-                        # UNIVERSAL BLOCK: We return this for 100% of messages. The hallucinating LLM is permanently silenced.
                         return JSONResponse(status_code=200, content={
                             "response": reply, "reply": reply, "message": reply,
                             "content": reply, "text": reply,
@@ -284,6 +303,11 @@ class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
                         err = f"⚠️ **ENTERPRISE SYSTEM CRASH** ⚠️<br><br>`{str(e)}`<br>{traceback.format_exc()}"
                         return JSONResponse(status_code=200, content={"response": err, "reply": err, "message": err})
             except Exception: pass
+            
+            # Failsafe: route to General AI if crash occurs
+            if body_bytes:
+                async def receive(): return {"type": "http.request", "body": body_bytes}
+                request._receive = receive
         return await call_next(request)
 
 try:

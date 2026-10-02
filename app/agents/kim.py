@@ -77,6 +77,22 @@ class Kim:
         meta_token = os.environ.get("META_API_TOKEN", "").strip()
         meta_account = os.environ.get("META_API_ACCOUNT_ID", "").strip()
         if not meta_token or not meta_account: return 0.0
+    async def get_precise_bid_ask(self, symbol: str) -> dict:
+        meta_token = os.environ.get("META_API_TOKEN", "").strip()
+        meta_account = os.environ.get("META_API_ACCOUNT_ID", "").strip()
+        if not meta_token or not meta_account: return {"bid": 0.0, "ask": 0.0}
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                res = await client.get(
+                    f"https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/{meta_account}/symbols/{symbol}/current-price",
+                    headers={"auth-token": meta_token}
+                )
+                if res.status_code == 200:
+                    data = res.json()
+                    return {"bid": float(data.get("bid", 0.0)), "ask": float(data.get("ask", 0.0))}
+        except Exception: pass
+        return {"bid": 0.0, "ask": 0.0}
+
         try:
             async with httpx.AsyncClient(timeout=3.0) as client:
                 res = await client.get(
