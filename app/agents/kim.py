@@ -196,19 +196,35 @@ class Kim:
         meta_token, meta_account = os.environ.get("META_API_TOKEN", ""), os.environ.get("META_API_ACCOUNT_ID", "")
         trade_id = f"TRD-{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')[:14]}"
 
-        if meta_token and meta_account:
-            try:
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    api_res = await client.post(
-                        f"https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/{meta_account}/trade",
-                        headers={"auth-token": meta_token},
-                        json={"actionType": f"ORDER_TYPE_{action}", "symbol": symbol, "volume": risk["lot_size"], "stopLoss": stop_loss_pips, "takeProfit": take_profit_pips}
-                    )
-                    if api_res.status_code not in [200, 204]:
-                        return {"status": "error", "message": f"Broker Rejected: {api_res.text}"}
-            except Exception as e:
-                return {"status": "error", "message": f"MetaApi Error: {str(e)}"}
-            
+        meta_token = os.environ.get("META_API_TOKEN", "").strip()
+        meta_account = os.environ.get("META_API_ACCOUNT_ID", "").strip()
+
+        if not meta_token or not meta_account:
+            return {"status": "error", "message": "MetaApi Error: META_API_TOKEN or META_API_ACCOUNT_ID environment variable is missing on Render."}
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                api_res = await client.post(
+                    f"https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/{meta_account}/trade",
+                    headers={"auth-token": meta_token},
+                    json={"actionType": f"ORDER_TYPE_{action}", "symbol": symbol, "volume": risk["lot_size"], "stopLoss": stop_loss_pips, "takeProfit": take_profit_pips}
+                )
+                
+                if api_res.status_code not in [200, 204]:
+                    return {"status": "error", "message": f"Broker Rejected ({api_res.status_code}): {api_res.text}"}
+                
+                res_json = api_res.json()
+                string_code = res_json.get("stringCode", "")
+                numeric_code = res_json.get("numericResponseCode", 0)
+                
+                # Validate MetaApi trade execution status
+                if string_code and string_code != "TRADE_RETCODE_DONE" and numeric_code != 10009:
+                    err_msg = res_json.get("message") or string_code
+                    return {"status": "error", "message": f"Broker Rejected Order: {err_msg}"}
+
+        except Exception as e:
+            return {"status": "error", "message": f"MetaApi Error: {type(e).__name__} - {str(e)}"}
+
         self.db_conn.execute("INSERT INTO trade_journal (id, symbol, action, volume, sl_pips, tp_pips, mode) VALUES (?, ?, ?, ?, ?, ?, ?)",
                              (trade_id, symbol, action, risk["lot_size"], stop_loss_pips, take_profit_pips, self.trading_mode))
         self.db_conn.commit()
