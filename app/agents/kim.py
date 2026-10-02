@@ -232,8 +232,6 @@ class Kim:
                     tp_price = round(live_price + tp_dist if action == "BUY" else live_price - tp_dist, 5)
 
             trade_data = {"actionType": f"ORDER_TYPE_{action}", "symbol": symbol, "volume": risk["lot_size"]}
-            if sl_price > 0: trade_data["stopLoss"] = sl_price
-            if tp_price > 0: trade_data["takeProfit"] = tp_price
 
             async with httpx.AsyncClient(timeout=10.0) as client:
                 api_res = await client.post(
