@@ -217,6 +217,17 @@ class Kim:
                         self.equity = float(data.get("equity") or self.equity)
             except Exception: pass
         await self.reconcile_positions()
+        
+        floating = self.equity - self.balance
+        return {
+            "status": "active",
+            "account_id": getattr(self, "active_account", "Linked"),
+            "balance": f"${self.balance:,.2f}",
+            "equity": f"${self.equity:,.2f}",
+            "floating_profit": f"${floating:+,.2f}",
+            "open_positions": f"{len(getattr(self, 'open_positions', []))} Trades",
+            "is_live": True
+        }
 
     async def start_background_engine(self):
         while True:
