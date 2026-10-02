@@ -76,7 +76,7 @@ class Kim:
     async def get_real_world_price(self, symbol: str) -> float:
         ticker = "GC=F" if "XAU" in symbol.upper() else f"{symbol[:6]}=X"
         try:
-            async with httpx.AsyncClient(timeout=3.0) as client:
+            async with httpx.AsyncClient(timeout=10.0) as client:
                 res = await client.get(
                     f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1m",
                     headers={"User-Agent": "Mozilla/5.0"}
@@ -198,7 +198,7 @@ class Kim:
 
         if meta_token and meta_account:
             try:
-                async with httpx.AsyncClient(timeout=3.0) as client:
+                async with httpx.AsyncClient(timeout=10.0) as client:
                     api_res = await client.post(
                         f"https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/{meta_account}/trade",
                         headers={"auth-token": meta_token},
