@@ -3,41 +3,27 @@ import os
 import httpx
 import asyncio
 import sqlite3
+import time
 from datetime import datetime
-from pydantic import BaseModel
 
 class Kim:
     def __init__(self):
         self.role = "Institutional Autonomous Quant"
         self.broker_name = "Vault Markets"
-        self.evolution_level = 5
-        self.is_live = False
-        self.active_account = None
+        self.account_type = "micro" 
         self.balance = 6.03
         self.equity = 6.03
-        self.leverage = 500
         self.open_positions = []
         self.floating_profit = 0.0
-        self.trading_mode = "scalper" 
-        self.account_type = "micro" 
-        self.max_daily_loss = 0.45
+        
+        # Evolution State Memory
+        self.consecutive_wins = 0
+        self.consecutive_losses = 0
+        self.cooldown_until = 0.0
+        
         self.db_path = "data/enterprise_management.db"
-        self._init_prop_infrastructure()
         self._init_enterprise_management_db()
         self._load_experience()
-
-    def _init_prop_infrastructure(self):
-        os.makedirs("data", exist_ok=True)
-        self.db_conn = sqlite3.connect("data/kim_performance.db", check_same_thread=False)
-        self.db_conn.execute('''
-            CREATE TABLE IF NOT EXISTS trade_journal (
-                id TEXT PRIMARY KEY, symbol TEXT, action TEXT, 
-                volume REAL, sl_pips REAL, tp_pips REAL, 
-                mode TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                profit REAL DEFAULT 0.0
-            )
-        ''')
-        self.db_conn.commit()
 
     def _init_enterprise_management_db(self):
         os.makedirs("data", exist_ok=True)
@@ -60,15 +46,21 @@ class Kim:
             try:
                 with open("data/kim_exp.json", "r") as f:
                     data = json.load(f)
-                    self.active_account = data.get("account_id", None)
-                    self.balance = float(data.get("balance") or 6.03)
-                    self.equity = float(data.get("equity") or 6.03)
+                    self.balance = float(data.get("balance") or self.balance)
+                    self.consecutive_wins = int(data.get("wins") or 0)
+                    self.consecutive_losses = int(data.get("losses") or 0)
+                    self.cooldown_until = float(data.get("cooldown") or 0.0)
             except Exception: pass
 
     def _save_experience(self):
         os.makedirs("data", exist_ok=True)
         with open("data/kim_exp.json", "w") as f:
-            json.dump({"account_id": self.active_account, "balance": self.balance, "equity": self.equity}, f)
+            json.dump({
+                "balance": self.balance,
+                "wins": self.consecutive_wins,
+                "losses": self.consecutive_losses,
+                "cooldown": self.cooldown_until
+            }, f)
 
     def _is_trading_paused(self) -> bool:
         try:
@@ -97,19 +89,42 @@ class Kim:
         except Exception: pass
         return {"bid": 0.0, "ask": 0.0}
 
-    async def get_real_world_price(self, symbol: str) -> float:
-        tick = await self.get_precise_bid_ask(symbol)
-        return tick.get("ask") or tick.get("bid") or 0.0
+    async def _fetch_tf(self, client, ticker, interval):
+        try:
+            res = await client.get(f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval={interval}&range=5d", headers={"User-Agent": "Mozilla/5.0"})
+            if res.status_code == 200:
+                closes = [c for c in res.json()["chart"]["result"][0]["indicators"]["quote"][0]["close"] if c is not None]
+                if len(closes) >= 2: return "BUY" if closes[-1] > closes[-2] else "SELL"
+        except Exception: pass
+        return None
 
-    def calculate_risk_and_lot(self, symbol: str, stop_loss_pips: float = 8.0) -> dict:
-        base_lot = 0.10 if ("XAU" in symbol.upper() and self.account_type == "micro") else 0.01
-        return {"allowed": True, "lot_size": base_lot}
+    async def analyze_multi_timeframe(self, symbol: str, strictness: str = "normal") -> str:
+        clean_sym = symbol.split('.')[0].upper()
+        ticker = "GC=F" if "XAU" in clean_sym else f"{clean_sym}=X"
+        intervals = ["1m", "5m", "15m", "60m", "1d"]
+        scores = {"BUY": 0, "SELL": 0}
+
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            tasks = [self._fetch_tf(client, ticker, iv) for iv in intervals]
+            results = await asyncio.gather(*tasks)
+
+        for r in results:
+            if r: scores[r] += 1
+
+        # Evolutionary Logic Gate
+        if strictness == "defensive":
+            # Requires absolute macro-micro confluence
+            if scores["BUY"] >= 4: return "BUY"
+            if scores["SELL"] >= 4: return "SELL"
+            return "HOLD"
+        else:
+            # Standard aggressive entry
+            return "BUY" if scores["BUY"] > scores["SELL"] else "SELL"
 
     async def reconcile_positions(self):
         token = os.environ.get("META_API_TOKEN", "").strip()
         account_id = os.environ.get("META_API_ACCOUNT_ID", "").strip()
-        if not token or not account_id: return
-
+        if not token: return
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
                 res = await client.get(
@@ -125,55 +140,52 @@ class Kim:
         account_id = os.environ.get("META_API_ACCOUNT_ID", "").strip()
         if not token or not account_id or not self.open_positions: return
 
-        # Dynamic 30% Risk Room (Account Protection)
+        # Evolution State Targets
+        target_tp = 0.15
+        if self.consecutive_wins >= 2: target_tp = 0.25
+        if self.consecutive_losses >= 1: target_tp = 0.08
+        
         max_loss_allowed = -(self.balance * 0.30)
 
         for pos in self.open_positions:
             pos_id = pos.get("id")
             unrealized = float(pos.get("unrealizedProfit") or pos.get("profit") or 0.0)
             
-            # Close if profit hits +$0.15 OR if drawdown hits max loss allowed (30% of balance)
-            if (unrealized >= 0.15 or unrealized <= max_loss_allowed) and pos_id:
+            is_win = unrealized >= target_tp
+            is_loss = unrealized <= max_loss_allowed
+
+            if (is_win or is_loss) and pos_id:
                 try:
                     async with httpx.AsyncClient(timeout=4.0) as client:
-                        await client.post(
+                        res = await client.post(
                             f"https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/{account_id}/positions/{pos_id}/close",
                             headers={"auth-token": token}
                         )
+                        if res.status_code in [200, 204]:
+                            if is_win:
+                                self.consecutive_wins += 1
+                                self.consecutive_losses = 0
+                            elif is_loss:
+                                self.consecutive_losses += 1
+                                self.consecutive_wins = 0
+                                self.cooldown_until = time.time() + 600  # 10 min penalty box
+                            self._save_experience()
                 except Exception: pass
 
-    async def analyze_trend_direction(self, symbol: str) -> str:
-        # Pre-entry M5 Momentum Filter
-        clean_sym = symbol.split('.')[0].upper()
-        ticker = "GC=F" if "XAU" in clean_sym else f"{clean_sym}=X"
-        try:
-            async with httpx.AsyncClient(timeout=3.0) as client:
-                res = await client.get(
-                    f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=5m&range=1d",
-                    headers={"User-Agent": "Mozilla/5.0"}
-                )
-                if res.status_code == 200:
-                    quotes = res.json()["chart"]["result"][0]["indicators"]["quote"][0]
-                    closes = [c for c in quotes["close"] if c is not None]
-                    if len(closes) >= 2:
-                        # Follow the immediate M5 institutional momentum
-                        return "BUY" if closes[-1] > closes[-2] else "SELL"
-        except Exception: pass
-        return "BUY" # Default fallback
+    async def execute_trade(self, raw_symbol: str, action: str, is_manual: bool = False):
+        if time.time() < self.cooldown_until:
+            wait_mins = int((self.cooldown_until - time.time()) / 60)
+            return {"status": "error", "message": f"Defensive Cooldown Active: {wait_mins} mins remaining after previous loss."}
 
-    async def execute_trade(self, raw_symbol: str, action: str, stop_loss_pips: float = 8.0, is_manual: bool = False):
         action = action.upper()
-        symbol = f"{raw_symbol.split('.')[0].upper()}.mic" if self.account_type == "micro" else raw_symbol.upper()
-        risk = self.calculate_risk_and_lot(symbol)
+        symbol = f"{raw_symbol.split('.')[0].upper()}.mic"
+        lot_size = 0.10 if "XAU" in symbol else 0.01
         
         token = os.environ.get("META_API_TOKEN", "").strip()
         account_id = os.environ.get("META_API_ACCOUNT_ID", "").strip()
-        if not token or not account_id:
-            return {"status": "error", "message": "MetaApi credentials missing on Render."}
+        if not token: return {"status": "error", "message": "API config missing."}
 
-        clean_volume = round(float(risk["lot_size"]), 2)
-        payload = {"actionType": f"ORDER_TYPE_{action}", "symbol": symbol, "volume": clean_volume}
-
+        payload = {"actionType": f"ORDER_TYPE_{action}", "symbol": symbol, "volume": lot_size}
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 res = await client.post(
@@ -182,17 +194,12 @@ class Kim:
                     json=payload
                 )
                 res_data = res.json() if res.status_code in [200, 204] else {}
-                string_code = res_data.get("stringCode", "")
-                numeric_code = res_data.get("numericResponseCode", 0)
-
-                if string_code == "TRADE_RETCODE_DONE" or numeric_code == 10009:
-                    ticket_id = str(res_data.get("orderId") or "EXEC")
-                    return {"status": "success", "message": f"Kim: Executed {action} {clean_volume} {symbol} [Ticket #{ticket_id}]."}
+                if res_data.get("stringCode") == "TRADE_RETCODE_DONE" or res_data.get("numericResponseCode") == 10009:
+                    return {"status": "success", "message": f"Kim Executed {action} {lot_size} {symbol}"}
                 else:
-                    reason = res_data.get("message") or string_code or f"HTTP {res.status_code}"
-                    return {"status": "error", "message": f"Broker Rejected Order: {reason}"}
+                    return {"status": "error", "message": f"Broker Rejected: {res_data.get('message')}"}
         except Exception as e:
-            return {"status": "error", "message": f"MetaApi Error: {type(e).__name__} - {str(e)}"}
+            return {"status": "error", "message": str(e)}
 
     async def get_live_metrics(self):
         token = os.environ.get("META_API_TOKEN", "").strip()
@@ -208,18 +215,8 @@ class Kim:
                         data = acc.json()
                         self.balance = float(data.get("balance") or self.balance)
                         self.equity = float(data.get("equity") or self.equity)
-                        self.floating_profit = self.equity - self.balance
             except Exception: pass
-        
         await self.reconcile_positions()
-        return {
-            "account_id": self.active_account or "Linked",
-            "balance": f"${self.balance:,.2f}",
-            "equity": f"${self.equity:,.2f}",
-            "floating_profit": f"${self.floating_profit:+,.2f}",
-            "open_positions": f"{len(self.open_positions)} Trades",
-            "is_live": True
-        }
 
     async def start_background_engine(self):
         while True:

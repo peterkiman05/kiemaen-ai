@@ -334,14 +334,22 @@ async def trigger_kim_scalp_loop():
     try:
         from app.agents.kim import Kim
         kim = Kim()
-        # Evaluate primary scalp candidate and liquidity
+        
         tick_gold = await kim.get_precise_bid_ask("XAUUSD.mic")
         target_symbol = "XAUUSD.mic" if tick_gold.get("bid", 0) > 0 else "EURUSD.mic"
         
-        # Pre-Entry Analysis: Determine optimal direction based on M5 momentum
-        action_direction = await kim.analyze_trend_direction(target_symbol)
+        # Check evolution state
+        strictness = "defensive" if kim.consecutive_losses > 0 else "normal"
+        action_direction = await kim.analyze_multi_timeframe(target_symbol, strictness)
         
+        if action_direction == "HOLD":
+            return {"status": "error", "message": "Market Choppy: Multi-timeframe confluence failed. Kim is holding to protect capital."}
+            
         exec_res = await kim.execute_trade(target_symbol, action_direction, is_manual=True)
-        return {"status": "success", "symbol": target_symbol, "action": action_direction, "result": exec_res}
+        
+        if exec_res.get("status") == "error":
+            return {"status": "error", "message": exec_res.get("message")}
+            
+        return {"status": "success", "symbol": target_symbol, "action": action_direction}
     except Exception as e:
         return {"status": "error", "message": str(e)}
