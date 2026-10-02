@@ -1,3 +1,8 @@
+
+@app.api_route("/", methods=["GET", "HEAD", "POST"])
+async def root_ping_handler():
+    return JSONResponse(status_code=200, content={"status": "online", "system": "Kiemaen Enterprise"})
+
 from fastapi import FastAPI, Form, Request, UploadFile, File
 from fastapi.responses import HTMLResponse, JSONResponse
 from contextlib import asynccontextmanager
@@ -351,5 +356,30 @@ async def trigger_kim_scalp_loop():
             return {"status": "error", "message": exec_res.get("message")}
             
         return {"status": "success", "symbol": target_symbol, "action": action_direction}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+
+@app.post("/api/kim/scalp-loop")
+async def trigger_kim_scalp_loop():
+    try:
+        from app.agents.kim import Kim
+        kim = Kim()
+        tick_gold = await kim.get_precise_bid_ask("XAUUSD.mic")
+        target_symbol = "XAUUSD.mic" if tick_gold.get("bid", 0) > 0 else "EURUSD.mic"
+        exec_res = await kim.execute_scalp_cluster(target_symbol, "BUY", max_entries=3)
+        return {"status": "success", "symbol": target_symbol, "result": exec_res}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/kim/emergency-close")
+async def trigger_emergency_close():
+    try:
+        from app.agents.kim import Kim
+        kim = Kim()
+        await kim.reconcile_positions()
+        res = await kim.emergency_close_all()
+        return {"status": "success", "result": res}
     except Exception as e:
         return {"status": "error", "message": str(e)}

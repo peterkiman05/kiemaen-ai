@@ -780,6 +780,27 @@ async function triggerKimScalp() {
 }
 </script>
     
+
+<script>
+async function triggerEmergencyClose() {
+    const btn = document.getElementById('kimEmergencyBtn');
+    if (btn) btn.innerText = "🚨 CLOSING ALL POSITIONS...";
+    try {
+        const res = await fetch('/api/kim/emergency-close', { method: 'POST' });
+        const data = await res.json();
+        if (data.status === "success") {
+            if (window.showToast) showToast("🚨 Emergency Close Dispatched!");
+        } else {
+            if (window.showToast) showToast("⚠️ Notice: " + (data.message || 'Error closing'));
+        }
+    } catch(e) {
+        if (window.showToast) showToast("❌ Network Error connecting to Kim");
+    } finally {
+        if (btn) btn.innerText = "🚨 EMERGENCY CLOSE ALL TRADES";
+    }
+}
+</script>
+    
 </body>
     
     
