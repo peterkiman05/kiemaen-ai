@@ -547,6 +547,31 @@ Do you approve sending this live? (OK to Send, Cancel to Abort)`);
         }
         setInterval(refreshKimLiveMetrics, 5000);
 
+
+    function copyMessageText(element) {
+        let rawHtml = element.innerHTML || element.innerText || "";
+        let plainText = rawHtml.replace(/<br\s*[\/]?>/gi, "\n").replace(/<[^>]+>/g, "").trim();
+        
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(plainText).then(() => showToast("Copied to clipboard!"));
+        } else {
+            let textArea = document.createElement("textarea");
+            textArea.value = plainText;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast("Copied to clipboard!");
+            } catch (err) {
+                console.error("Copy failed", err);
+            }
+            document.body.removeChild(textArea);
+        }
+    }
+    
 </script>
     
     <script id="persistent-login-engine">
@@ -643,7 +668,32 @@ Do you approve sending this live? (OK to Send, Cancel to Abort)`);
             }
             setInterval(persistSessionData, 5000);
         });
-    </script>
+    
+    function copyMessageText(element) {
+        let rawHtml = element.innerHTML || element.innerText || "";
+        let plainText = rawHtml.replace(/<br\s*[\/]?>/gi, "\n").replace(/<[^>]+>/g, "").trim();
+        
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(plainText).then(() => showToast("Copied to clipboard!"));
+        } else {
+            let textArea = document.createElement("textarea");
+            textArea.value = plainText;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast("Copied to clipboard!");
+            } catch (err) {
+                console.error("Copy failed", err);
+            }
+            document.body.removeChild(textArea);
+        }
+    }
+    
+</script>
     </body>
     
     

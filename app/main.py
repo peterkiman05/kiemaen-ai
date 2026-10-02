@@ -214,7 +214,7 @@ class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
                     raw_payload = body_bytes.decode('utf-8', errors='ignore').lower()
                     
                     # Trigger: If the user gives a command related to trading, analyzing, or the enterprise agents
-                    if any(w in raw_payload for w in ["execute", "scalp", "trade", "buy", "sell", "analyze", "analyse", "check", "run"]) and any(a in raw_payload for a in ["kim", "kiemaen", "kit", "kat"]):
+                    if any(w in raw_payload for w in ["execute", "scalp", "trade", "buy", "sell", "analyze", "analyse", "check", "run", "status", "incapabilities", "limitations", "capabilities", "report", "upgrade"]) and any(a in raw_payload for a in ["kim", "kiemaen", "kit", "kat"]):
                         try:
                             from app.agents.kim import Kim
                             kim_worker = Kim()
