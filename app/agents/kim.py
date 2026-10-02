@@ -74,9 +74,12 @@ class Kim:
             }, f)
 
     async def get_real_world_price(self, symbol: str) -> float:
-        ticker = "GC=F" if "XAU" in symbol.upper() else f"{symbol[:6]}=X"
+        clean = symbol.split('.')[0].upper()
+        if "XAU" in clean: ticker = "GC=F"
+        elif "BTC" in clean: ticker = "BTC-USD"
+        else: ticker = f"{clean}=X"
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(timeout=3.0) as client:
                 res = await client.get(
                     f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1m",
                     headers={"User-Agent": "Mozilla/5.0"}
@@ -85,7 +88,6 @@ class Kim:
                     return float(res.json()["chart"]["result"][0]["meta"]["regularMarketPrice"])
         except Exception: pass
         return 0.0
-
     async def _smart_symbol_correction(self, symbol: str) -> str:
         base = symbol.split('.')[0].upper()
         if self.account_type == "micro" and not base.endswith("MIC"):
@@ -204,14 +206,40 @@ class Kim:
         meta_account = os.environ.get("META_API_ACCOUNT_ID", "").strip()
 
         if not meta_token or not meta_account:
-            return {"status": "error", "message": "MetaApi Error: META_API_TOKEN or META_API_ACCOUNT_ID environment variable is missing on Render."}
+            return {"status": "error", "message": "MetaApi Error: META_API_TOKEN or META_API_ACCOUNT_ID missing on Render."}
 
         try:
+            live_price = await self.get_real_world_price(symbol)
+            sl_price, tp_price = 0.0, 0.0
+            clean_sym = symbol.split('.')[0].upper()
+
+            if live_price > 0:
+                if "XAU" in clean_sym:
+                    sl_dist, tp_dist = 5.0, 10.0
+                    sl_price = round(live_price - sl_dist if action == "BUY" else live_price + sl_dist, 2)
+                    tp_price = round(live_price + tp_dist if action == "BUY" else live_price - tp_dist, 2)
+                elif "JPY" in clean_sym:
+                    sl_dist, tp_dist = 0.15, 0.30
+                    sl_price = round(live_price - sl_dist if action == "BUY" else live_price + sl_dist, 3)
+                    tp_price = round(live_price + tp_dist if action == "BUY" else live_price - tp_dist, 3)
+                elif "BTC" in clean_sym:
+                    sl_dist, tp_dist = 300.0, 600.0
+                    sl_price = round(live_price - sl_dist if action == "BUY" else live_price + sl_dist, 2)
+                    tp_price = round(live_price + tp_dist if action == "BUY" else live_price - tp_dist, 2)
+                else:
+                    sl_dist, tp_dist = 0.0015, 0.0030
+                    sl_price = round(live_price - sl_dist if action == "BUY" else live_price + sl_dist, 5)
+                    tp_price = round(live_price + tp_dist if action == "BUY" else live_price - tp_dist, 5)
+
+            trade_data = {"actionType": f"ORDER_TYPE_{action}", "symbol": symbol, "volume": risk["lot_size"]}
+            if sl_price > 0: trade_data["stopLoss"] = sl_price
+            if tp_price > 0: trade_data["takeProfit"] = tp_price
+
             async with httpx.AsyncClient(timeout=10.0) as client:
                 api_res = await client.post(
                     f"https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/{meta_account}/trade",
                     headers={"auth-token": meta_token},
-                    json={"actionType": f"ORDER_TYPE_{action}", "symbol": symbol, "volume": risk["lot_size"], "stopLoss": stop_loss_pips, "takeProfit": take_profit_pips}
+                    json=trade_data
                 )
                 
                 if api_res.status_code not in [200, 204]:
@@ -221,7 +249,6 @@ class Kim:
                 string_code = res_json.get("stringCode", "")
                 numeric_code = res_json.get("numericResponseCode", 0)
                 
-                # Validate MetaApi trade execution status
                 if string_code and string_code != "TRADE_RETCODE_DONE" and numeric_code != 10009:
                     err_msg = res_json.get("message") or string_code
                     return {"status": "error", "message": f"Broker Rejected Order: {err_msg}"}
