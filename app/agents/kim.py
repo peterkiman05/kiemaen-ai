@@ -125,10 +125,15 @@ class Kim:
         account_id = os.environ.get("META_API_ACCOUNT_ID", "").strip()
         if not token or not account_id or not self.open_positions: return
 
+        # Dynamic 30% Risk Room (Account Protection)
+        max_loss_allowed = -(self.balance * 0.30)
+
         for pos in self.open_positions:
             pos_id = pos.get("id")
             unrealized = float(pos.get("unrealizedProfit") or pos.get("profit") or 0.0)
-            if unrealized >= 0.15 and pos_id:
+            
+            # Close if profit hits +$0.15 OR if drawdown hits max loss allowed (30% of balance)
+            if (unrealized >= 0.15 or unrealized <= max_loss_allowed) and pos_id:
                 try:
                     async with httpx.AsyncClient(timeout=4.0) as client:
                         await client.post(
@@ -136,6 +141,25 @@ class Kim:
                             headers={"auth-token": token}
                         )
                 except Exception: pass
+
+    async def analyze_trend_direction(self, symbol: str) -> str:
+        # Pre-entry M5 Momentum Filter
+        clean_sym = symbol.split('.')[0].upper()
+        ticker = "GC=F" if "XAU" in clean_sym else f"{clean_sym}=X"
+        try:
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                res = await client.get(
+                    f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=5m&range=1d",
+                    headers={"User-Agent": "Mozilla/5.0"}
+                )
+                if res.status_code == 200:
+                    quotes = res.json()["chart"]["result"][0]["indicators"]["quote"][0]
+                    closes = [c for c in quotes["close"] if c is not None]
+                    if len(closes) >= 2:
+                        # Follow the immediate M5 institutional momentum
+                        return "BUY" if closes[-1] > closes[-2] else "SELL"
+        except Exception: pass
+        return "BUY" # Default fallback
 
     async def execute_trade(self, raw_symbol: str, action: str, stop_loss_pips: float = 8.0, is_manual: bool = False):
         action = action.upper()
