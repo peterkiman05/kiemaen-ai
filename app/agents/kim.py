@@ -97,9 +97,13 @@ class Kim:
         min_required = 0.50 if self.account_type == "micro" else 2.00
         if self.balance < min_required: 
             return {"allowed": False, "reason": f"Insufficient balance (${self.balance:.2f})."}
-        base_lot = 0.01
+        
+        # Vault Markets enforces 0.10 minimum lot size for XAUUSD.mic
+        base_lot = 0.10 if ("XAU" in symbol.upper() and self.account_type == "micro") else 0.01
+        
         if self.balance > 10.0:
-            base_lot = round(0.01 * (self.balance / 5.0), 2)
+            base_lot = round(base_lot * (self.balance / 5.0), 2)
+            
         estimated_margin = (contract_size * base_lot) / self.leverage
         free_margin = self.balance + self.floating_profit
         if free_margin < estimated_margin: 

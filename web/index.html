@@ -694,7 +694,60 @@ Do you approve sending this live? (OK to Send, Cancel to Abort)`);
     }
     
 </script>
-    </body>
+    
+<!-- KIEMAEN MOBILE COPY INTERCEPTOR -->
+<script>
+document.addEventListener('click', function(e) {
+    // Intercept any click on an element functioning as a copy button
+    let target = e.target.closest('.copy-btn, button[title*="Copy"], .copy-button');
+    if (!target && e.target.innerText && e.target.innerText.toLowerCase().includes('copy')) {
+        target = e.target;
+    }
+    
+    if (target) {
+        e.preventDefault();
+        e.stopPropagation(); // Block the broken original copy function
+        
+        let msgContainer = target.closest('.message, .chat-message, .message-content') || target.parentElement;
+        if (msgContainer) {
+            let htmlContent = msgContainer.innerHTML;
+            
+            // Strip out button text/icons so they aren't copied
+            htmlContent = htmlContent.replace(/<button[^>]*>.*?<\/button>/gi, '');
+            htmlContent = htmlContent.replace(/<svg[^>]*>.*?<\/svg>/gi, '');
+            
+            // Preserve line breaks and strip remaining HTML code
+            let plainText = htmlContent.replace(/<br\s*[\/]?>/gi, '\n').replace(/<[^>]+>/g, '').trim();
+            
+            // Mobile-Safe Clipboard execution hack
+            let textArea = document.createElement('textarea');
+            textArea.value = plainText;
+            textArea.style.position = 'absolute';
+            textArea.style.opacity = '0';
+            textArea.style.left = '-9999px';
+            document.body.appendChild(textArea);
+            
+            textArea.focus();
+            textArea.setSelectionRange(0, 999999); // Mobile selection constraint
+            
+            try {
+                document.execCommand('copy');
+                // Display Custom Toast
+                let toast = document.createElement('div');
+                toast.innerText = '✅ Report Copied!';
+                toast.style.cssText = 'position:fixed;bottom:10%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:#fff;padding:10px 20px;border-radius:20px;z-index:9999;font-family:sans-serif;font-size:14px;';
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 2500);
+            } catch (err) {
+                console.error('Copy failed', err);
+            }
+            document.body.removeChild(textArea);
+        }
+    }
+}, true);
+</script>
+
+</body>
     
     
     
