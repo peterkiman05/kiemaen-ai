@@ -206,7 +206,16 @@
         <div id="kim-panel" class="panel"><div class="enterprise-card"><h3>📈 Kim: Quantitative & Trading Manager</h3><p style="color:var(--text-secondary); font-size:14px;">Automanaging positions and computing telemetry.</p><div class="metric-row"><span>Broker:</span><span class="metric-val">Vault Markets Live</span></div><div class="metric-row"><span>Account Status:</span><span class="metric-val" id="kim-status">Active & Monitoring</span></div>
                 <div class="metric-row"><span>Account Balance:</span><span class="metric-val" id="kim-balance" style="color:#60a5fa;">--</span></div>
                 <div class="metric-row"><span>Open Positions:</span><span class="metric-val" id="kim-positions">--</span></div>
-                <div class="metric-row"><span>Floating Profit/Loss:</span><span class="metric-val" id="kim-profit">--</span></div><div class="metric-row"><span>Simulated Win Rate:</span><span class="metric-val">Data Synchronizing...</span></div><div style="margin-top: 20px;"><label for="vm-login" style="font-size: 13px; color: var(--text-secondary);">Vault Markets Account ID</label><input type="text" class="broker-input" id="vm-login" placeholder="Enter VM Account Number"><label for="vm-pass" style="font-size: 13px; color: var(--text-secondary);">API Key / Password</label><input type="password" class="broker-input" id="vm-pass" placeholder="Enter API Token"><button class="action-btn" onclick="connectBroker()">Link Vault Markets Account</button></div><p class="disclaimer">*DISCLAIMER: Kiemaen Enterprise and its AI agents are software tools, not licensed financial advisors.</p></div></div>
+                <div class="metric-row"><span>Floating Profit/Loss:</span><span class="metric-val" id="kim-profit">--</span></div><div class="metric-row"><span>Simulated Win Rate:</span><span class="metric-val">Data Synchronizing...</span></div><div style="margin-top: 20px;"><label for="vm-login" style="font-size: 13px; color: var(--text-secondary);">Vault Markets Account ID</label><input type="text" class="broker-input" id="vm-login" placeholder="Enter VM Account Number"><label for="vm-pass" style="font-size: 13px; color: var(--text-secondary);">API Key / Password</label><input type="password" class="broker-input" id="vm-pass" placeholder="Enter API Token"><button class="action-btn" onclick="connectBroker()">
+    <!-- KIM BRANCH EXCLUSIVE SCALP CONTROL -->
+    <div id="kimScalpContainer" style="margin: 20px 0; padding: 16px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; text-align: center;">
+        <p style="color: #10b981; font-weight: 700; margin-bottom: 10px; font-size: 13px; letter-spacing: 0.5px;">⚡ KIM QUANTITATIVE SCALP CONTROL</p>
+        <button id="kimScalpBtn" onclick="triggerKimScalp()" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 12px 20px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; width: 100%; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+            ⚡ EXECUTE KIM QUICK SCALP
+        </button>
+    </div>
+    
+Link Vault Markets Account</button></div><p class="disclaimer">*DISCLAIMER: Kiemaen Enterprise and its AI agents are software tools, not licensed financial advisors.</p></div></div>
         <div id="kit-panel" class="panel"><div class="enterprise-card"><h3>🤝 Kit: B2B Growth & Sales</h3><p style="color:var(--text-secondary); font-size:14px;">Automating product usage metrics with outreach.</p><div class="metric-row"><span>Active Campaigns:</span><span class="metric-val">3 Pipelines</span></div><button class="action-btn" style="margin-top:15px;" onclick="triggerKitLive()">Trigger B2B Campaign</button></div></div>
         <div id="kat-panel" class="panel"><div class="enterprise-card"><h3>⭐ Kat: VIP Client Relations & Monetization</h3><p style="color:var(--text-secondary); font-size:14px;">Managing high-net-worth relationships.</p><div class="metric-row"><span>VIP Network:</span><span class="metric-val">42 Active Members</span></div><button class="action-btn" style="margin-top:15px;" onclick="alert('Kat: Broadcasting strategic monetization signal.')">Broadcast Signal</button></div></div>
         <div id="tasks-panel" class="panel"><div class="enterprise-card"><h3>📊 Enterprise Task Manager</h3><p style="color:var(--text-secondary); font-size:14px;">Daily automated reports and items awaiting Chairman approval.</p><div class="metric-row"><span>Pending Approvals:</span><span class="metric-val" style="color:#f59e0b;">2 Items</span></div><button class="action-btn" style="margin-top:15px;" onclick="alert('Chairman Approval Granted.')">Approve & Dispatch</button></div></div>
@@ -748,25 +757,28 @@ document.addEventListener('click', function(e) {
 </script>
 
 
-    <div style="margin: 15px 0; text-align: center;">
-        <button id="kimScalpBtn" onclick="triggerKimScalp()" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 12px 24px; font-size: 15px; font-weight: bold; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
-            ⚡ EXECUTE KIM QUICK SCALP
-        </button>
-    </div>
-    <script>
-    async function triggerKimScalp() {
-        const btn = document.getElementById('kimScalpBtn');
-        if(btn) btn.innerText = "⚡ SCANNING & EXECUTING...";
-        try {
-            const res = await fetch('/api/kim/scalp-loop', { method: 'POST' });
-            const data = await res.json();
-            if (window.showToast) showToast("Scalp Loop Triggered!");
-            if(btn) btn.innerText = "⚡ EXECUTE KIM QUICK SCALP";
-        } catch(e) {
-            if(btn) btn.innerText = "⚡ EXECUTE KIM QUICK SCALP";
+    
+    
+
+<script>
+async function triggerKimScalp() {
+    const btn = document.getElementById('kimScalpBtn');
+    if (btn) btn.innerText = "⚡ SCANNING MARKET & EXECUTING...";
+    try {
+        const res = await fetch('/api/kim/scalp-loop', { method: 'POST' });
+        const data = await res.json();
+        if (data.status === "success") {
+            if (window.showToast) showToast("✅ Kim Scalp Executed on " + (data.symbol || 'Market'));
+        } else {
+            if (window.showToast) showToast("⚠️ Kim Scalp Notice: " + (data.message || 'Check logs'));
         }
+    } catch(e) {
+        if (window.showToast) showToast("❌ Network Error connecting to Kim");
+    } finally {
+        if (btn) btn.innerText = "⚡ EXECUTE KIM QUICK SCALP";
     }
-    </script>
+}
+</script>
     
 </body>
     
