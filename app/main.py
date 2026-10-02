@@ -314,3 +314,15 @@ try:
     app.add_middleware(KiemaenOrchestratorMiddleware)
 except Exception:
     pass
+
+
+
+@app.on_event("startup")
+async def start_kim_background_loop():
+    try:
+        from app.agents.kim import Kim
+        kim_worker = Kim()
+        asyncio.create_task(kim_worker.start_background_engine())
+        print("Kim Background Engine initialized successfully.")
+    except Exception as e:
+        print(f"Startup Engine Notice: {e}")
