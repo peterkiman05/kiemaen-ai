@@ -107,7 +107,7 @@ class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
                             f"**📊 1. Market Oracle & Treasury**<br>"
                             f"• Asset Tracked: {symbol.upper()}<br>"
                             f"• {price_display}<br>"
-                            f"• Account Balance: ${kim_worker.balance:,.2f} ert{} Equity:${kim_worker.equity:,.2f}<br><br>"
+                            f"• Account Balance: ${kim_worker.balance:,.2f} | Equity: ${kim_worker.equity:,.2f}<br><br>"
                             f"**🛡️ 2. Kit (Risk & Capital Allocation)**<br>"
                             f"• Action Directive: {action.upper()}<br>"
                             f"• Risk Clearance: APPROVED<br><br>"
