@@ -3,19 +3,8 @@ import os
 import httpx
 import asyncio
 import sqlite3
-from datetime import datetime, date
-from pydantic import BaseModel, ValidationError
-
-class TradeProposal(BaseModel):
-    symbol: str
-    action: str
-    volume: float
-    quant_exhaustion_confirmed: bool
-    free_margin: float
-    news_safe: bool
-    spread_safe: bool
-    session_active: bool
-    daily_drawdown_safe: bool
+from datetime import datetime
+from pydantic import BaseModel
 
 class Kim:
     def __init__(self):
@@ -24,16 +13,13 @@ class Kim:
         self.evolution_level = 5
         self.is_live = False
         self.active_account = None
-        self.balance = 3.04
-        self.equity = 3.04
+        self.balance = 6.03
+        self.equity = 6.03
         self.leverage = 500
         self.open_positions = []
         self.floating_profit = 0.0
         self.trading_mode = "scalper" 
         self.account_type = "micro" 
-        self.analysis_speed_ms = 200
-        self.heartbeat_active = False
-        self.news_block_active = False
         self.max_daily_loss = 0.45
         self.db_path = "data/enterprise_management.db"
         self._init_prop_infrastructure()
@@ -58,21 +44,12 @@ class Kim:
         conn = sqlite3.connect(self.db_path, check_same_thread=False)
         conn.execute('''
             CREATE TABLE IF NOT EXISTS active_trades (
-                ticket_id TEXT PRIMARY KEY,
-                symbol TEXT,
-                action TEXT,
-                volume REAL,
-                status TEXT,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                ticket_id TEXT PRIMARY KEY, symbol TEXT, action TEXT, volume REAL, status TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         conn.execute('''
-            CREATE TABLE IF NOT EXISTS corporate_tasks (
-                task_id TEXT PRIMARY KEY,
-                assigned_agent TEXT,
-                directive TEXT,
-                status TEXT,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            CREATE TABLE IF NOT EXISTS executive_metrics (
+                metric_key TEXT PRIMARY KEY, metric_value TEXT, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         conn.commit()
@@ -84,21 +61,25 @@ class Kim:
                 with open("data/kim_exp.json", "r") as f:
                     data = json.load(f)
                     self.active_account = data.get("account_id", None)
-                    self.is_live = data.get("is_live", False)
-                    self.balance = float(data.get("balance") or 3.04)
-                    self.equity = float(data.get("equity") or 3.04)
-                    self.trading_mode = data.get("trading_mode", "scalper")
-                    self.account_type = data.get("account_type", "micro")
+                    self.balance = float(data.get("balance") or 6.03)
+                    self.equity = float(data.get("equity") or 6.03)
             except Exception: pass
 
     def _save_experience(self):
         os.makedirs("data", exist_ok=True)
         with open("data/kim_exp.json", "w") as f:
-            json.dump({
-                "account_id": self.active_account, "is_live": self.is_live, 
-                "balance": self.balance, "equity": self.equity, 
-                "trading_mode": self.trading_mode, "account_type": self.account_type
-            }, f)
+            json.dump({"account_id": self.active_account, "balance": self.balance, "equity": self.equity}, f)
+
+    def _is_trading_paused(self) -> bool:
+        try:
+            conn = sqlite3.connect(self.db_path, check_same_thread=False)
+            cursor = conn.cursor()
+            cursor.execute("SELECT metric_value FROM executive_metrics WHERE metric_key = 'TRADING_PAUSED'")
+            row = cursor.fetchone()
+            conn.close()
+            return row[0].upper() == "TRUE" if row else False
+        except Exception:
+            return False
 
     async def get_precise_bid_ask(self, symbol: str) -> dict:
         token = os.environ.get("META_API_TOKEN", "").strip()
@@ -120,25 +101,9 @@ class Kim:
         tick = await self.get_precise_bid_ask(symbol)
         return tick.get("ask") or tick.get("bid") or 0.0
 
-    async def _smart_symbol_correction(self, symbol: str) -> str:
-        base = symbol.split('.')[0].upper()
-        return f"{base}.mic" if self.account_type == "micro" else base
-
-    def calculate_risk_and_lot(self, symbol: str, stop_loss_pips: float) -> dict:
-        contract_size = 1000 if self.account_type == "micro" else 100000
-        min_required = 0.50 if self.account_type == "micro" else 2.00
-        if self.balance < min_required: 
-            return {"allowed": False, "reason": f"Insufficient balance (${self.balance:.2f})."}
-        
+    def calculate_risk_and_lot(self, symbol: str, stop_loss_pips: float = 8.0) -> dict:
         base_lot = 0.10 if ("XAU" in symbol.upper() and self.account_type == "micro") else 0.01
-        if self.balance > 10.0:
-            base_lot = round(base_lot * (self.balance / 5.0), 2)
-            
-        estimated_margin = (contract_size * base_lot) / self.leverage
-        free_margin = self.balance + self.floating_profit
-        if free_margin < estimated_margin: 
-            return {"allowed": False, "reason": "Free margin lower than required."}
-        return {"allowed": True, "lot_size": base_lot, "estimated_margin": estimated_margin}
+        return {"allowed": True, "lot_size": base_lot}
 
     async def reconcile_positions(self):
         token = os.environ.get("META_API_TOKEN", "").strip()
@@ -152,41 +117,38 @@ class Kim:
                     headers={"auth-token": token}
                 )
                 if res.status_code == 200:
-                    live_positions = res.json()
-                    self.open_positions = live_positions
-                    live_ids = {str(p.get("id")) for p in live_positions if p.get("id")}
-
-                    conn = sqlite3.connect(self.db_path, check_same_thread=False)
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT ticket_id FROM active_trades WHERE status = 'OPEN'")
-                    db_tickets = [row[0] for row in cursor.fetchall()]
-
-                    for ticket in db_tickets:
-                        if ticket not in live_ids:
-                            cursor.execute("UPDATE active_trades SET status = 'CLOSED' WHERE ticket_id = ?", (ticket,))
-                    conn.commit()
-                    conn.close()
+                    self.open_positions = res.json()
         except Exception: pass
 
-    async def execute_trade(self, raw_symbol: str, action: str, stop_loss_pips: float = 8.0, take_profit_pips: float = 12.0, is_manual: bool = False):
+    async def auto_manage_and_close_profits(self):
+        token = os.environ.get("META_API_TOKEN", "").strip()
+        account_id = os.environ.get("META_API_ACCOUNT_ID", "").strip()
+        if not token or not account_id or not self.open_positions: return
+
+        for pos in self.open_positions:
+            pos_id = pos.get("id")
+            unrealized = float(pos.get("unrealizedProfit") or pos.get("profit") or 0.0)
+            if unrealized >= 0.15 and pos_id:
+                try:
+                    async with httpx.AsyncClient(timeout=4.0) as client:
+                        await client.post(
+                            f"https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/{account_id}/positions/{pos_id}/close",
+                            headers={"auth-token": token}
+                        )
+                except Exception: pass
+
+    async def execute_trade(self, raw_symbol: str, action: str, stop_loss_pips: float = 8.0, is_manual: bool = False):
         action = action.upper()
-        if action not in ["BUY", "SELL"]: return {"status": "error", "message": "Invalid action."}
-
-        symbol = await self._smart_symbol_correction(raw_symbol)
-        risk = self.calculate_risk_and_lot(symbol, stop_loss_pips)
-        if not risk["allowed"]: return {"status": "rejected", "reason": risk["reason"]}
-
+        symbol = f"{raw_symbol.split('.')[0].upper()}.mic" if self.account_type == "micro" else raw_symbol.upper()
+        risk = self.calculate_risk_and_lot(symbol)
+        
         token = os.environ.get("META_API_TOKEN", "").strip()
         account_id = os.environ.get("META_API_ACCOUNT_ID", "").strip()
         if not token or not account_id:
             return {"status": "error", "message": "MetaApi credentials missing on Render."}
 
         clean_volume = round(float(risk["lot_size"]), 2)
-        payload = {
-            "actionType": f"ORDER_TYPE_{action}",
-            "symbol": symbol,
-            "volume": clean_volume
-        }
+        payload = {"actionType": f"ORDER_TYPE_{action}", "symbol": symbol, "volume": clean_volume}
 
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -200,15 +162,7 @@ class Kim:
                 numeric_code = res_data.get("numericResponseCode", 0)
 
                 if string_code == "TRADE_RETCODE_DONE" or numeric_code == 10009:
-                    ticket_id = str(res_data.get("orderId") or res_data.get("numericResponseCode") or "EXEC")
-                    conn = sqlite3.connect(self.db_path, check_same_thread=False)
-                    conn.execute(
-                        "INSERT OR REPLACE INTO active_trades (ticket_id, symbol, action, volume, status) VALUES (?, ?, ?, ?, 'OPEN')",
-                        (ticket_id, symbol, action, clean_volume)
-                    )
-                    conn.commit()
-                    conn.close()
-                    self._save_experience()
+                    ticket_id = str(res_data.get("orderId") or "EXEC")
                     return {"status": "success", "message": f"Kim: Executed {action} {clean_volume} {symbol} [Ticket #{ticket_id}]."}
                 else:
                     reason = res_data.get("message") or string_code or f"HTTP {res.status_code}"
@@ -234,7 +188,6 @@ class Kim:
             except Exception: pass
         
         await self.reconcile_positions()
-        self._save_experience()
         return {
             "account_id": self.active_account or "Linked",
             "balance": f"${self.balance:,.2f}",
@@ -244,22 +197,13 @@ class Kim:
             "is_live": True
         }
 
-    def _is_trading_paused(self) -> bool:
-        try:
-            conn = sqlite3.connect(self.db_path, check_same_thread=False)
-            cursor = conn.cursor()
-            cursor.execute("SELECT metric_value FROM executive_metrics WHERE metric_key = 'TRADING_PAUSED'")
-            row = cursor.fetchone()
-            conn.close()
-            return row[0].upper() == "TRUE" if row else False
-        except Exception:
-            return False
-
-
+    async def start_background_engine(self):
         while True:
             try:
                 await asyncio.sleep(5)
-                await self.reconcile_positions()
-                await self.get_live_metrics()
+                if not self._is_trading_paused():
+                    await self.reconcile_positions()
+                    await self.get_live_metrics()
+                    await self.auto_manage_and_close_profits()
             except Exception:
                 await asyncio.sleep(5)

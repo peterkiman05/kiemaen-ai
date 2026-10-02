@@ -326,3 +326,19 @@ async def start_kim_background_loop():
         print("Kim Background Engine initialized successfully.")
     except Exception as e:
         print(f"Startup Engine Notice: {e}")
+
+
+
+@app.post("/api/kim/scalp-loop")
+async def trigger_kim_scalp_loop():
+    try:
+        from app.agents.kim import Kim
+        kim = Kim()
+        # Evaluate primary scalp candidate
+        tick_gold = await kim.get_precise_bid_ask("XAUUSD.mic")
+        target_symbol = "XAUUSD.mic" if tick_gold.get("bid", 0) > 0 else "EURUSD.mic"
+        
+        exec_res = await kim.execute_trade(target_symbol, "BUY", is_manual=True)
+        return {"status": "success", "symbol": target_symbol, "result": exec_res}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}

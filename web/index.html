@@ -747,6 +747,27 @@ document.addEventListener('click', function(e) {
 }, true);
 </script>
 
+
+    <div style="margin: 15px 0; text-align: center;">
+        <button id="kimScalpBtn" onclick="triggerKimScalp()" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 12px 24px; font-size: 15px; font-weight: bold; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+            ⚡ EXECUTE KIM QUICK SCALP
+        </button>
+    </div>
+    <script>
+    async function triggerKimScalp() {
+        const btn = document.getElementById('kimScalpBtn');
+        if(btn) btn.innerText = "⚡ SCANNING & EXECUTING...";
+        try {
+            const res = await fetch('/api/kim/scalp-loop', { method: 'POST' });
+            const data = await res.json();
+            if (window.showToast) showToast("Scalp Loop Triggered!");
+            if(btn) btn.innerText = "⚡ EXECUTE KIM QUICK SCALP";
+        } catch(e) {
+            if(btn) btn.innerText = "⚡ EXECUTE KIM QUICK SCALP";
+        }
+    }
+    </script>
+    
 </body>
     
     
