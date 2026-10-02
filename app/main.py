@@ -202,9 +202,8 @@ async def kim_push_telemetry(balance: float = Form(...), equity: float = Form(..
 # --- KIEMAEN CEO ORCHESTRATION ENGINE ---
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.responses import JSONResponse
-import json
-import os
 import traceback
+import os
 
 class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
@@ -214,107 +213,77 @@ class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
                 body_bytes = await request.body()
                 if body_bytes:
                     raw_payload = body_bytes.decode('utf-8', errors='ignore').lower()
-                    
-                    triggers = ["execute", "scalp", "trade", "buy", "sell", "analyze", "analyse", "check", "run", "status", "incapabilities", "limitations", "capabilities", "report", "upgrade"]
-                    agents = ["kim", "kiemaen", "kit", "kat"]
-                    
-                    if any(w in raw_payload for w in triggers) and any(a in raw_payload for a in agents):
-                        try:
-                            from app.agents.kim import Kim
-                            kim_worker = Kim()
-                            
-                            # Dynamic USD Pair Extraction
-                            usd_pairs = ["xauusd", "eurusd", "gbpusd", "usdjpy", "usdcad", "audusd", "nzdusd", "usdchf", "btcusd"]
-                            detected_symbol = None
-                            for p in usd_pairs:
-                                if p in raw_payload:
-                                    detected_symbol = p.upper()
-                                    break
-                            
-                            if not detected_symbol:
-                                if "gold" in raw_payload or "xau" in raw_payload: detected_symbol = "XAUUSD"
-                                elif "gbp" in raw_payload or "pound" in raw_payload or "cable" in raw_payload: detected_symbol = "GBPUSD"
-                                elif "jpy" in raw_payload or "yen" in raw_payload: detected_symbol = "USDJPY"
-                                elif "cad" in raw_payload or "loonie" in raw_payload: detected_symbol = "USDCAD"
-                                elif "aud" in raw_payload or "aussie" in raw_payload: detected_symbol = "AUDUSD"
-                                elif "nzd" in raw_payload or "kiwi" in raw_payload: detected_symbol = "NZDUSD"
-                                elif "chf" in raw_payload or "franc" in raw_payload: detected_symbol = "USDCHF"
-                                elif "btc" in raw_payload or "bitcoin" in raw_payload: detected_symbol = "BTCUSD"
-                                else: detected_symbol = "EURUSD"
+                    try:
+                        from app.agents.kim import Kim
+                        kim_worker = Kim()
+                        
+                        usd_pairs = ["xauusd", "eurusd", "gbpusd", "usdjpy", "usdcad", "audusd", "nzdusd", "usdchf", "btcusd"]
+                        detected_symbol = next((p.upper() for p in usd_pairs if p in raw_payload), None)
+                        
+                        if not detected_symbol:
+                            if "gold" in raw_payload or "xau" in raw_payload: detected_symbol = "XAUUSD"
+                            elif "gbp" in raw_payload or "pound" in raw_payload: detected_symbol = "GBPUSD"
+                            elif "jpy" in raw_payload or "yen" in raw_payload: detected_symbol = "USDJPY"
+                            else: detected_symbol = "EURUSD"
 
-                            symbol = f"{detected_symbol}.mic" if kim_worker.account_type == "micro" else detected_symbol
-                            action = "SELL" if "sell" in raw_payload else "BUY"
-                            is_analysis_only = any(w in raw_payload for w in ["analyze", "analyse", "check"]) and not any(w in raw_payload for w in ["execute", "trade", "scalp", "buy", "sell"])
-                            
-                            live_price = await kim_worker.get_real_world_price(detected_symbol)
-                            await kim_worker.get_live_metrics()
-                            
-                            kit_risk = kim_worker.calculate_risk_and_lot(symbol, stop_loss_pips=8.0)
-                            risk_status = "APPROVED" if kit_risk['allowed'] else f"REJECTED ({kit_risk.get('reason')})"
-                            lot_size = kit_risk.get('lot_size', 0.01)
-                            
-                            kat_status = "Safe (No Red Folder News Detected)"
-                            trend_alignment = "Aligned with M5 baseline"
-                            
-                            if is_analysis_only:
-                                kim_status = "Standby. Analysis complete, awaiting final execution command."
-                            elif kit_risk['allowed']:
+                        symbol = f"{detected_symbol}.mic" if kim_worker.account_type == "micro" else detected_symbol
+                        action = "SELL" if "sell" in raw_payload else "BUY"
+                        is_execution = any(w in raw_payload for w in ["execute", "scalp", "trade", "buy", "sell"])
+                        
+                        # Ping MetaApi directly for exact Broker Tick
+                        live_price = await kim_worker.get_real_world_price(symbol)
+                        await kim_worker.get_live_metrics()
+                        
+                        kit_risk = kim_worker.calculate_risk_and_lot(symbol, stop_loss_pips=8.0)
+                        risk_status = "APPROVED" if kit_risk['allowed'] else f"REJECTED ({kit_risk.get('reason')})"
+                        lot_size = kit_risk.get('lot_size', 0.01)
+                        
+                        if is_execution:
+                            if kit_risk['allowed']:
                                 exec_res = await kim_worker.execute_trade(symbol, action, is_manual=True)
                                 kim_status = exec_res.get('message', exec_res.get('reason', 'Executed successfully.'))
                             else:
                                 kim_status = "Execution Halted by Risk Manager (Kit)."
+                        else:
+                            kim_status = "Standby. Analysis complete, awaiting final execution command."
                             
-                            price_fmt = f"${live_price:,.2f}" if live_price > 10 else f"${live_price:,.5f}"
-                            
-                            reply = (
-                                f"👔 **KIEMAEN ENTERPRISE: CEO ORCHESTRATION REPORT** 👔<br><br>"
-                                f"**📊 1. Market Oracle (Live State)**<br>"
-                                f"• Asset: {symbol.upper()}<br>"
-                                f"• True Live Price: {price_fmt}<br>"
-                                f"• Account Balance: ${kim_worker.balance:,.2f}<br><br>"
-                                f"**🛡️ 2. Kit (Risk Management)**<br>"
-                                f"• Proposed Action: {action.upper()}<br>"
-                                f"• Allocated Lot Size: {lot_size}<br>"
-                                f"• Status: {risk_status}<br><br>"
-                                f"**🔎 3. Kat (Macro Research)**<br>"
-                                f"• News Impact: {kat_status}<br>"
-                                f"• Trend Alignment: {trend_alignment}<br><br>"
-                                f"**⚡ 4. Kim (Quantitative Execution)**<br>"
-                                f"• Engine Status: {kim_status}"
-                            )
+                        price_fmt = f"${live_price:,.2f}" if live_price > 10 else f"${live_price:,.5f}"
+                        if live_price == 0.0: price_fmt = "Awaiting MT5 Tick..."
+                        
+                        reply = (
+                            f"👔 **KIEMAEN ENTERPRISE: CEO ORCHESTRATION REPORT** 👔<br><br>"
+                            f"**📊 1. Market Oracle (Live State)**<br>"
+                            f"• Asset: {symbol.upper()}<br>"
+                            f"• Exact Broker Tick: {price_fmt}<br>"
+                            f"• Account Balance: ${kim_worker.balance:,.2f}<br><br>"
+                            f"**🛡️ 2. Kit (Risk Management)**<br>"
+                            f"• Proposed Action: {action.upper()}<br>"
+                            f"• Allocated Lot Size: {lot_size}<br>"
+                            f"• Status: {risk_status}<br><br>"
+                            f"**⚡ 4. Kim (Quantitative Execution)**<br>"
+                            f"• Engine Status: {kim_status}"
+                        )
 
-                            # TELEGRAM AUTO-DISPATCH
-                            tele_token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-                            tele_chat = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
-                            if tele_token and tele_chat:
-                                try:
-                                    import httpx
-                                    clean_tele = reply.replace("<br>", "\n")
-                                    async with httpx.AsyncClient(timeout=3.0) as client:
-                                        await client.post(
-                                            f"https://api.telegram.org/bot{tele_token}/sendMessage",
-                                            json={"chat_id": tele_chat, "text": clean_tele}
-                                        )
-                                except Exception:
-                                    pass
+                        tele_token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+                        tele_chat = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+                        if tele_token and tele_chat:
+                            try:
+                                import httpx
+                                clean_tele = reply.replace("<br>", "\n")
+                                async with httpx.AsyncClient(timeout=3.0) as client:
+                                    await client.post(f"https://api.telegram.org/bot{tele_token}/sendMessage", json={"chat_id": tele_chat, "text": clean_tele})
+                            except Exception: pass
 
-                            return JSONResponse(status_code=200, content={
-                                "response": reply, "reply": reply, "message": reply,
-                                "content": reply, "text": reply,
-                                "choices": [{"message": {"content": reply}}]
-                            })
-                        except Exception as e:
-                            err_trace = traceback.format_exc()
-                            reply = f"⚠️ **ENTERPRISE SYSTEM CRASH** ⚠️<br><br>Kiemaen encountered an internal orchestration error:<br>`{str(e)}`<br><br>Trace:<br>{err_trace}"
-                            return JSONResponse(status_code=200, content={"response": reply, "reply": reply, "message": reply})
-            except Exception as e:
-                print(f"CEO Orchestrator Error: {e}")
-            
-            if body_bytes:
-                async def receive():
-                    return {"type": "http.request", "body": body_bytes}
-                request._receive = receive
-                
+                        # UNIVERSAL BLOCK: We return this for 100% of messages. The hallucinating LLM is permanently silenced.
+                        return JSONResponse(status_code=200, content={
+                            "response": reply, "reply": reply, "message": reply,
+                            "content": reply, "text": reply,
+                            "choices": [{"message": {"content": reply}}]
+                        })
+                    except Exception as e:
+                        err = f"⚠️ **ENTERPRISE SYSTEM CRASH** ⚠️<br><br>`{str(e)}`<br>{traceback.format_exc()}"
+                        return JSONResponse(status_code=200, content={"response": err, "reply": err, "message": err})
+            except Exception: pass
         return await call_next(request)
 
 try:

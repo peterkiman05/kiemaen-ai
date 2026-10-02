@@ -74,18 +74,18 @@ class Kim:
             }, f)
 
     async def get_real_world_price(self, symbol: str) -> float:
-        clean = symbol.split('.')[0].upper()
-        if "XAU" in clean: ticker = "GC=F"
-        elif "BTC" in clean: ticker = "BTC-USD"
-        else: ticker = f"{clean}=X"
+        meta_token = os.environ.get("META_API_TOKEN", "").strip()
+        meta_account = os.environ.get("META_API_ACCOUNT_ID", "").strip()
+        if not meta_token or not meta_account: return 0.0
         try:
             async with httpx.AsyncClient(timeout=3.0) as client:
                 res = await client.get(
-                    f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1m",
-                    headers={"User-Agent": "Mozilla/5.0"}
+                    f"https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/{meta_account}/symbols/{symbol}/current-price",
+                    headers={"auth-token": meta_token}
                 )
                 if res.status_code == 200:
-                    return float(res.json()["chart"]["result"][0]["meta"]["regularMarketPrice"])
+                    data = res.json()
+                    return float(data.get("ask", data.get("bid", data.get("price", 0.0))))
         except Exception: pass
         return 0.0
     async def _smart_symbol_correction(self, symbol: str) -> str:
@@ -188,7 +188,7 @@ class Kim:
         confluence = await self._multi_timeframe_confluence(symbol)
         
         proposal = {
-            "symbol": symbol, "action": action, "volume": risk["lot_size"],
+            "symbol": symbol, "action": action, "volume": round(float(risk["lot_size"]), 2),
             "quant_exhaustion_confirmed": confluence["valid"],
             "free_margin": self.balance + self.floating_profit, 
             "news_safe": True, "spread_safe": True, 
@@ -231,7 +231,7 @@ class Kim:
                     sl_price = round(live_price - sl_dist if action == "BUY" else live_price + sl_dist, 5)
                     tp_price = round(live_price + tp_dist if action == "BUY" else live_price - tp_dist, 5)
 
-            trade_data = {"actionType": f"ORDER_TYPE_{action}", "symbol": symbol, "volume": risk["lot_size"]}
+            trade_data = {"actionType": f"ORDER_TYPE_{action}", "symbol": symbol, "volume": round(float(risk["lot_size"]), 2)}
 
             async with httpx.AsyncClient(timeout=10.0) as client:
                 api_res = await client.post(
