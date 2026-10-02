@@ -358,7 +358,7 @@ class Kim:
             asyncio.create_task(self.apply_trailing_stops())
         self._save_experience()
         return {
-            "live_gold_price": f"${gold_price:,.2f}", 
+            "live_gold_price": f"${float(gold_price or 0.0):,.2f}", 
             "account_id": self.active_account or "Not Linked", 
             "balance": f"${self.balance:,.2f}", 
             "equity": f"${self.equity:,.2f}", 

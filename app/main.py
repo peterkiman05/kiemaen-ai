@@ -207,7 +207,7 @@ import os
 
 class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
-        if request.method == "POST" and "login" not in request.url.path.lower() and "auth" not in request.url.path.lower():
+        if request.method == "POST" and not any(x in request.url.path.lower() for x in ["login", "auth", "connect", "broker", "account"]):
             body_bytes = b""
             try:
                 body_bytes = await request.body()
