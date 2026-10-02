@@ -22,10 +22,10 @@ async def send_telegram_message(text: str):
 
 async def daily_telegram_report():
     report = (
-        "📊 *Kiemaen Enterprise - Chairman Briefing*\n\n"
-        "📈 *Kim:* Vault Markets telemetry synchronized. Awaiting market open.\n"
-        "🤝 *Kit:* B2B outbound sequences active.\n"
-        "⭐ *Kat:* VIP monetization signals standing by.\n\n"
+        "📊 *Kiemaen Enterprise - Chairman Briefing*<br><br>"
+        "📈 *Kim:* Vault Markets telemetry synchronized. Awaiting market open.<br>"
+        "🤝 *Kit:* B2B outbound sequences active.<br>"
+        "⭐ *Kat:* VIP monetization signals standing by.<br><br>"
         "All systems operational. Awaiting your commands."
     )
     await send_telegram_message(report)
@@ -108,9 +108,9 @@ async def chat(prompt: str = Form(...), ceo_mode: str = Form("false"), file: Opt
             file_content = await file.read()
             try:
                 decoded = file_content.decode("utf-8")
-                file_context = f"\n[Attached File Content ({file.filename}):\n{decoded}\n]"
+                file_context = f"<br>[Attached File Content ({file.filename}):<br>{decoded}<br>]"
             except Exception:
-                file_context = f"\n[Attached Binary File: {file.filename}]\n"
+                file_context = f"<br>[Attached Binary File: {file.filename}]<br>"
         
         full_prompt = prompt + file_context
         reply = await ask_kiemaen(full_prompt, is_ceo=is_ceo)
@@ -247,24 +247,24 @@ class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
                             
                             # 5. KIEMAEN (CEO) - Final Report Generation (Zero Hallucination)
                             reply = (
-                                f"👔 **KIEMAEN ENTERPRISE: CEO ORCHESTRATION REPORT** 👔\n\n"
-                                f"**📊 1. Market Oracle (Live State)**\n"
-                                f"• Asset: {symbol.upper()}\n"
-                                f"• True Live Price: ${live_price:,.2f}\n"
-                                f"• Account Balance: ${kim_worker.balance:,.2f}\n\n"
-                                f"**🛡️ 2. Kit (Risk Management)**\n"
-                                f"• Proposed Action: {action.upper()}\n"
-                                f"• Allocated Lot Size: {lot_size}\n"
-                                f"• Status: {risk_status}\n\n"
-                                f"**🔎 3. Kat (Macro Research)**\n"
-                                f"• News Impact: {kat_status}\n"
-                                f"• Trend Alignment: {trend_alignment}\n\n"
-                                f"**⚡ 4. Kim (Quantitative Execution)**\n"
+                                f"👔 **KIEMAEN ENTERPRISE: CEO ORCHESTRATION REPORT** 👔<br><br>"
+                                f"**📊 1. Market Oracle (Live State)**<br>"
+                                f"• Asset: {symbol.upper()}<br>"
+                                f"• True Live Price: ${live_price:,.2f}<br>"
+                                f"• Account Balance: ${kim_worker.balance:,.2f}<br><br>"
+                                f"**🛡️ 2. Kit (Risk Management)**<br>"
+                                f"• Proposed Action: {action.upper()}<br>"
+                                f"• Allocated Lot Size: {lot_size}<br>"
+                                f"• Status: {risk_status}<br><br>"
+                                f"**🔎 3. Kat (Macro Research)**<br>"
+                                f"• News Impact: {kat_status}<br>"
+                                f"• Trend Alignment: {trend_alignment}<br><br>"
+                                f"**⚡ 4. Kim (Quantitative Execution)**<br>"
                                 f"• Engine Status: {kim_status}"
                             )
                         except Exception as e:
                             err_trace = traceback.format_exc()
-                            reply = f"⚠️ **ENTERPRISE SYSTEM CRASH** ⚠️\n\nKiemaen encountered an internal orchestration error:\n`{str(e)}`\n\nTrace:\n{err_trace}"
+                            reply = f"⚠️ **ENTERPRISE SYSTEM CRASH** ⚠️<br><br>Kiemaen encountered an internal orchestration error:<br>`{str(e)}`<br><br>Trace:<br>{err_trace}"
 
                         # Output CEO Report, completely blocking LLM Chat AI
                         return JSONResponse(status_code=200, content={
