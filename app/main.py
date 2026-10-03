@@ -45,7 +45,7 @@ async def start_kim_background_loop():
         asyncio.create_task(kim_worker.start_background_engine())
         print("Kim Background Engine initialized successfully.")
     except Exception as e:
-        print(f"Startup Engine Notice: {e}")
+        print("Startup Engine Notice: " + str(e))
 
 # -- SMTP HELPER --
 def send_smtp_email(to_email: str, subject: str, body: str):
@@ -55,7 +55,7 @@ def send_smtp_email(to_email: str, subject: str, body: str):
     smtp_pass = os.environ.get("SMTP_PASS", "")
     
     if not smtp_user or not smtp_pass:
-        print(f"SMTP SIMULATED [{to_email}]: {body}")
+        print("SMTP SIMULATED [" + to_email + "]: " + body)
         return False
         
     try:
@@ -79,7 +79,7 @@ async def request_email_verification(data: dict):
     if not email:
         return {"status": "error", "message": "Email required"}
     
-    code = f"{random.randint(100000, 999999)}"
+    code = str(random.randint(100000, 999999))
     expires = (datetime.utcnow() + timedelta(minutes=15)).isoformat()
     
     conn = sqlite3.connect("data/enterprise_management.db")
@@ -87,7 +87,7 @@ async def request_email_verification(data: dict):
     conn.commit()
     conn.close()
     
-    body = f"Welcome to Kiemaen Enterprise! Your email verification code is: {code}. It expires in 15 minutes."
+    body = "Welcome to Kiemaen Enterprise! Your email verification code is: " + code + ". It expires in 15 minutes."
     send_smtp_email(email, "Verify Your Email - Kiemaen Enterprise", body)
     return {"status": "success", "message": "Verification code sent to email."}
 
@@ -114,7 +114,7 @@ async def forgot_password_request(data: dict):
     if not email:
         return {"status": "error", "message": "Email required"}
     
-    otp = f"{random.randint(100000, 999999)}"
+    otp = str(random.randint(100000, 999999))
     expires = (datetime.utcnow() + timedelta(minutes=10)).isoformat()
     
     conn = sqlite3.connect("data/enterprise_management.db")
@@ -122,7 +122,7 @@ async def forgot_password_request(data: dict):
     conn.commit()
     conn.close()
     
-    body = f"Password Reset Request. Your secure 6-digit reset code is: {otp}. Valid for 10 minutes."
+    body = "Password Reset Request. Your secure 6-digit reset code is: " + otp + ". Valid for 10 minutes."
     send_smtp_email(email, "Password Reset Code - Kiemaen Enterprise", body)
     return {"status": "success", "message": "Password reset code dispatched to email."}
 
@@ -224,22 +224,21 @@ class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
                         
                         bid_val = tick.get("bid", 0.0)
                         ask_val = tick.get("ask", 0.0)
-                        if bid_val == 0.0:
-                            price_display = "Awaiting MT5 Tick..."
-                        else:
-                            price_display = f"Bid: {bid_val:.2f} | Ask: {ask_val:.2f}"
+                        price_display = "Awaiting MT5 Tick..."
+                        if bid_val != 0.0:
+                            price_display = "Bid: " + str(round(bid_val, 2)) + " / Ask: " + str(round(ask_val, 2))
 
-                        bal_val = f"{kim_worker.balance:,.2f}"
-                        eq_val = f"{kim_worker.equity:,.2f}"
+                        bal_val = "{:,.2f}".format(kim_worker.balance)
+                        eq_val = "{:,.2f}".format(kim_worker.equity)
 
                         reply = (
                             "👔 **KIEMAEN ENTERPRISE: EXECUTIVE BRIEFING** 👔<br><br>"
                             "**📊 1. Market Oracle & Treasury**<br>"
-                            f"• Asset Tracked: {symbol.upper()}<br>"
-                            f"• {price_display}<br>"
-                            f"• Account Balance: ${bal_val} ert{} Equity:${eq_val}<br><br>"
+                            "• Asset Tracked: " + symbol.upper() + "<br>"
+                            "• " + price_display + "<br>"
+                            "• Account Balance: $" + bal_val + " / Equity: $" + eq_val + "<br><br>"
                             "**🛡️ 2. Kit (Risk & Capital Allocation)**<br>"
-                            f"• Action Directive: {action.upper()}<br>"
+                            "• Action Directive: " + action.upper() + "<br>"
                             "• Risk Clearance: APPROVED<br><br>"
                             "**⭐ 3. Enterprise Operations**<br>"
                             "• Accounts Sync: 8760042 & 8760048 Active<br>"
@@ -247,7 +246,7 @@ class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
                         )
                         return JSONResponse(status_code=200, content={"response": reply, "reply": reply})
                     except Exception as e:
-                        err = f"⚠️ **EXECUTIVE OVERRIDE EXCEPTION** ⚠️<br><br>`{str(e)}`<br>{traceback.format_exc()}"
+                        err = "⚠️ **EXECUTIVE OVERRIDE EXCEPTION** ⚠️<br><br>`" + str(e) + "`"
                         return JSONResponse(status_code=200, content={"response": err, "reply": err})
             except Exception:
                 pass
