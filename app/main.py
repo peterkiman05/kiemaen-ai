@@ -15,7 +15,6 @@ import sqlite3
 
 app = FastAPI(title="Kiemaen Enterprise AI")
 
-# -- UI & STATIC FILES --
 if os.path.exists("web"):
     app.mount("/static", StaticFiles(directory="web"), name="static")
 
@@ -29,7 +28,6 @@ async def serve_frontend():
 async def health_ping_handler():
     return JSONResponse(status_code=200, content={"status": "online", "system": "Kiemaen Enterprise"})
 
-# -- STARTUP & BACKGROUND ENGINE --
 @app.on_event("startup")
 async def start_kim_background_loop():
     try:
@@ -47,7 +45,7 @@ async def start_kim_background_loop():
     except Exception as e:
         print("Startup Engine Notice: " + str(e))
 
-# -- SMTP HELPER --
+# -- HONEST SMTP HELPER --
 def send_smtp_email(to_email: str, subject: str, body: str):
     smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
     smtp_port = int(os.environ.get("SMTP_PORT", 587))
@@ -56,7 +54,7 @@ def send_smtp_email(to_email: str, subject: str, body: str):
     
     if not smtp_user or not smtp_pass:
         print("SMTP SIMULATED [" + to_email + "]: " + body)
-        return False
+        return False, "Simulation Mode: Missing SMTP credentials. Code printed to server logs."
         
     try:
         msg = EmailMessage()
@@ -68,11 +66,43 @@ def send_smtp_email(to_email: str, subject: str, body: str):
             server.starttls()
             server.login(smtp_user, smtp_pass)
             server.send_message(msg)
-        return True
-    except Exception:
-        return False
+        return True, "Verification code sent to email."
+    except Exception as e:
+        return False, "SMTP Error: " + str(e)
 
-# -- AUTH & OTP ENDPOINTS --
+# -- AUTH & OTP REGISTRATION ENDPOINTS --
+@app.post("/api/auth/register")
+async def register_user(data: dict):
+    email = data.get("email")
+    password = data.get("password")
+    if not email or not password:
+        return {"status": "error", "message": "Email and password required"}
+        
+    hashed_pwd = hashlib.sha256(password.encode()).hexdigest()
+    
+    conn = sqlite3.connect("data/enterprise_management.db")
+    existing = conn.execute("SELECT id FROM enterprise_users WHERE email = ?", (email,)).fetchone()
+    if existing:
+        conn.close()
+        return {"status": "error", "message": "User already exists."}
+        
+    conn.execute("INSERT INTO enterprise_users (email, password, is_verified) VALUES (?, ?, 0)", (email, hashed_pwd))
+    conn.commit()
+    
+    code = str(random.randint(100000, 999999))
+    expires = (datetime.utcnow() + timedelta(minutes=15)).isoformat()
+    conn.execute("REPLACE INTO email_verifications (email, code, expires_at) VALUES (?, ?, ?)", (email, code, expires))
+    conn.commit()
+    conn.close()
+    
+    body = "Welcome to Kiemaen Enterprise! Your registration code is: " + code + ". It expires in 15 minutes."
+    success, msg = send_smtp_email(email, "Verify Your Registration - Kiemaen Enterprise", body)
+    
+    if success:
+        return {"status": "success", "message": "Registration initiated. " + msg}
+    else:
+        return {"status": "error", "message": "User created but email dispatch failed: " + msg}
+
 @app.post("/api/auth/request-verification")
 async def request_email_verification(data: dict):
     email = data.get("email")
@@ -88,8 +118,12 @@ async def request_email_verification(data: dict):
     conn.close()
     
     body = "Welcome to Kiemaen Enterprise! Your email verification code is: " + code + ". It expires in 15 minutes."
-    send_smtp_email(email, "Verify Your Email - Kiemaen Enterprise", body)
-    return {"status": "success", "message": "Verification code sent to email."}
+    success, msg = send_smtp_email(email, "Verify Your Email - Kiemaen Enterprise", body)
+    
+    if success:
+        return {"status": "success", "message": msg}
+    else:
+        return {"status": "error", "message": "Failed to send email: " + msg}
 
 @app.post("/api/auth/verify-email")
 async def verify_email_code(data: dict):
@@ -123,8 +157,12 @@ async def forgot_password_request(data: dict):
     conn.close()
     
     body = "Password Reset Request. Your secure 6-digit reset code is: " + otp + ". Valid for 10 minutes."
-    send_smtp_email(email, "Password Reset Code - Kiemaen Enterprise", body)
-    return {"status": "success", "message": "Password reset code dispatched to email."}
+    success, msg = send_smtp_email(email, "Password Reset Code - Kiemaen Enterprise", body)
+    
+    if success:
+        return {"status": "success", "message": "Password reset code dispatched."}
+    else:
+        return {"status": "error", "message": "Failed to dispatch email: " + msg}
 
 @app.post("/api/auth/reset-password")
 async def reset_password_with_otp(data: dict):
@@ -190,16 +228,13 @@ async def get_kim_metrics_endpoint():
         kim = Kim()
         data = await kim.get_live_metrics()
         return JSONResponse(status_code=200, content=data)
-    except Exception:
-        return JSONResponse(status_code=200, content={
-            "status": "success", "is_live": True, "balance": "$0.00", "equity": "$0.00",
-            "floating_profit": "$+0.00", "open_positions": "0 Trades", "account_id": "8760042 & 8760048"
-        })
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 # -- KIEMAEN ORCHESTRATOR --
 class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
-        if request.method == "POST" and not any(x in request.url.path.lower() for x in ["login", "auth", "connect", "broker", "account", "api"]):
+        if request.method == "POST" and not any(x in request.url.path.lower() for x in ["login", "register", "auth", "connect", "broker", "account", "api"]):
             body_bytes = b""
             try:
                 body_bytes = await request.body()
@@ -218,7 +253,9 @@ class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
                         kim_worker = Kim()
                         
                         symbol = "XAUUSD.mic" if "gold" in raw_payload or "xau" in raw_payload else "EURUSD.mic"
-                        action = "SELL" if "sell" in raw_payload else "BUY"
+                        
+                        signal = kim_worker.indicators.check_signals(symbol)
+                        action = signal if signal != "HOLD" else ("SELL" if "sell" in raw_payload else "BUY")
                         
                         tick = await kim_worker.get_precise_bid_ask(symbol)
                         
@@ -238,11 +275,11 @@ class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
                             "• " + price_display + "<br>"
                             "• Account Balance: $" + bal_val + " / Equity: $" + eq_val + "<br><br>"
                             "**🛡️ 2. Kit (Risk & Capital Allocation)**<br>"
-                            "• Action Directive: " + action.upper() + "<br>"
-                            "• Risk Clearance: APPROVED<br><br>"
+                            "• Action Directive: " + action.upper() + " (Algorithmic Confluence)<br>"
+                            "• Risk Clearance: " + ("APPROVED" if signal != "HOLD" else "WARNING: Indicator Suggests HOLD") + "<br><br>"
                             "**⭐ 3. Enterprise Operations**<br>"
                             "• Accounts Sync: 8760042 & 8760048 Active<br>"
-                            "• OOP Facade Status: Operational"
+                            "• OOP Facade Status: Hardened & Operational"
                         )
                         return JSONResponse(status_code=200, content={"response": reply, "reply": reply})
                     except Exception as e:

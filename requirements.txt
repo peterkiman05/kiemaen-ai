@@ -15,3 +15,4 @@ Pillow
 PyJWT
 pyotp
 groq
+pandas

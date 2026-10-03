@@ -5,8 +5,7 @@ import asyncio
 import sqlite3
 import time
 from datetime import datetime
-
-# --- MODULAR OOP COMPONENTS ---
+import pandas as pd
 
 class Robot:
     def __init__(self):
@@ -14,64 +13,110 @@ class Robot:
         self.accounts = ["8760042", "8760048"]
     
     async def fetch_tick(self, symbol: str, account_id: str = "8760042") -> dict:
-        if not self.token: return {"bid": 0.0, "ask": 0.0}
-        try:
-            async with httpx.AsyncClient(timeout=3.0) as client:
-                res = await client.get(
-                    f"https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/{account_id}/symbols/{symbol}/current-price",
-                    headers={"auth-token": self.token}
-                )
-                if res.status_code == 200:
-                    data = res.json()
-                    return {"bid": float(data.get("bid") or 0.0), "ask": float(data.get("ask") or 0.0)}
-        except Exception: pass
-        return {"bid": 0.0, "ask": 0.0}
+        if not self.token:
+            raise Exception("META_API_TOKEN is not configured.")
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            res = await client.get(
+                "https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/" + account_id + "/symbols/" + symbol + "/current-price",
+                headers={"auth-token": self.token}
+            )
+            if res.status_code == 200:
+                data = res.json()
+                return {"bid": float(data.get("bid") or 0.0), "ask": float(data.get("ask") or 0.0)}
+            else:
+                raise Exception("Failed to fetch tick: " + res.text)
 
 class StockFrame:
     def __init__(self):
-        self.history = {} 
+        index = pd.MultiIndex.from_tuples([], names=["symbol", "timestamp"])
+        self.history = pd.DataFrame(columns=["open", "high", "low", "close", "volume"], index=index)
+
+    def append_tick(self, symbol: str, price: float):
+        now = pd.Timestamp.utcnow()
+        self.history.loc[(symbol, now), :] = [price, price, price, price, 0]
+        self.history = self.history.sort_index()
+        if len(self.history) > 5000:
+            self.history = self.history.iloc[-5000:]
+
+class IndicatorClient:
+    def __init__(self, stock_frame: StockFrame):
+        self.stock_frame = stock_frame
+
+    def check_signals(self, symbol: str) -> str:
+        try:
+            if symbol not in self.stock_frame.history.index.get_level_values("symbol"):
+                return "HOLD"
+            
+            df = self.stock_frame.history.xs(symbol, level="symbol")
+            if len(df) < 14:
+                return "HOLD"
+            
+            close_prices = pd.to_numeric(df["close"])
+            ema_20 = close_prices.ewm(span=20, adjust=False).mean().iloc[-1]
+            ema_50 = close_prices.ewm(span=50, adjust=False).mean().iloc[-1]
+            current_price = close_prices.iloc[-1]
+
+            if ema_20 > ema_50 and current_price > ema_20:
+                return "BUY"
+            elif ema_20 < ema_50 and current_price < ema_20:
+                return "SELL"
+            return "HOLD"
+        except Exception as e:
+            print("Indicator calculation error: " + str(e))
+            return "HOLD"
 
 class Portfolio:
     def __init__(self, robot: Robot):
         self.robot = robot
-        self.balance = 6.03
+        self.balance = 0.0
         self.open_positions = []
         self.consecutive_wins = 0
         self.consecutive_losses = 0
         self.cooldown_until = 0.0
     
     async def sync_all_accounts(self):
-        if not self.robot.token: return
+        if not self.robot.token:
+            raise Exception("META_API_TOKEN is missing. Portfolio cannot sync.")
+        
         all_positions = []
-        async with httpx.AsyncClient(timeout=4.0) as client:
+        total_balance = 0.0
+        
+        async with httpx.AsyncClient(timeout=8.0) as client:
             for acc_id in self.robot.accounts:
-                try:
-                    res = await client.get(
-                        f"https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/{acc_id}/positions",
-                        headers={"auth-token": self.robot.token}
-                    )
-                    if res.status_code == 200:
-                        pos_data = res.json()
-                        for p in pos_data: p["account_id"] = acc_id
-                        all_positions.extend(pos_data)
-                except Exception: pass
-        self.open_positions = all_positions
+                res_pos = await client.get(
+                    "https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/" + acc_id + "/positions",
+                    headers={"auth-token": self.robot.token}
+                )
+                if res_pos.status_code == 200:
+                    pos_data = res_pos.json()
+                    for p in pos_data: 
+                        p["account_id"] = acc_id
+                    all_positions.extend(pos_data)
+                else:
+                    raise Exception("Failed to sync positions for account " + acc_id + ". " + res_pos.text)
+                
+                res_acc = await client.get(
+                    "https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/" + acc_id + "/account-information",
+                    headers={"auth-token": self.robot.token}
+                )
+                if res_acc.status_code == 200:
+                    acc_info = res_acc.json()
+                    total_balance += float(acc_info.get("balance", 0.0))
+                else:
+                    raise Exception("Failed to sync balance for account " + acc_id + ". " + res_acc.text)
 
-class IndicatorClient:
-    def __init__(self):
-        pass
-    def check_signals(self, symbol: str) -> str:
-        return "BUY" 
+        self.open_positions = all_positions
+        if total_balance > 0:
+            self.balance = total_balance
 
 class Trade:
     def __init__(self, robot: Robot):
         self.robot = robot
 
     async def execute_order(self, account_id: str, symbol: str, action: str, lot_size: float):
-        # UPGRADE 1: Broker-Side MetaApi Trailing Stops
         tsl_dist = 1.5 if "XAU" in symbol else 0.0015
         payload = {
-            "actionType": f"ORDER_TYPE_{action}", 
+            "actionType": "ORDER_TYPE_" + action, 
             "symbol": symbol, 
             "volume": lot_size,
             "trailingStopLoss": {
@@ -81,19 +126,16 @@ class Trade:
                 }
             }
         }
-        try:
-            async with httpx.AsyncClient(timeout=8.0) as client:
-                res = await client.post(
-                    f"https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/{account_id}/trade",
-                    headers={"auth-token": self.robot.token},
-                    json=payload
-                )
-                return res.status_code in [200, 204], res.text
-        except Exception as e:
-            return False, str(e)
-
-
-# --- KIM FACADE & V4 QUEUE MANAGER ---
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            res = await client.post(
+                "https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/" + account_id + "/trade",
+                headers={"auth-token": self.robot.token},
+                json=payload
+            )
+            if res.status_code in [200, 204]:
+                return True, res.text
+            else:
+                return False, "Broker Error: " + res.text
 
 class Kim:
     def __init__(self):
@@ -104,7 +146,7 @@ class Kim:
         self.robot = Robot()
         self.portfolio = Portfolio(self.robot)
         self.stock_frame = StockFrame()
-        self.indicators = IndicatorClient()
+        self.indicators = IndicatorClient(self.stock_frame)
         self.trades = Trade(self.robot)
         
         self._init_db()
@@ -126,37 +168,52 @@ class Kim:
         return self.portfolio.balance + live_pnl
 
     async def get_precise_bid_ask(self, symbol: str) -> dict:
-        return await self.robot.fetch_tick(symbol)
+        try:
+            tick = await self.robot.fetch_tick(symbol)
+            if tick.get("bid", 0.0) > 0:
+                self.stock_frame.append_tick(symbol, tick["bid"])
+            return tick
+        except Exception:
+            return {"bid": 0.0, "ask": 0.0}
 
     async def get_live_metrics(self):
-        await self.portfolio.sync_all_accounts()
-        live_pnl = sum(float(p.get("unrealizedProfit") or p.get("profit") or 0.0) for p in self.portfolio.open_positions)
-        pnl_str = f"-${abs(live_pnl):.2f}" if live_pnl < 0 else f"+${live_pnl:.2f}"
-        return {
-            "status": "success",
-            "is_live": True,
-            "account_id": "8760042 & 8760048",
-            "balance": f"${self.portfolio.balance:,.2f}",
-            "equity": f"${self.equity:,.2f}",
-            "floating_profit": pnl_str,
-            "open_positions": f"{len(self.portfolio.open_positions)} Trades",
-            "win_rate": f"{self.portfolio.consecutive_wins} Wins"
-        }
+        try:
+            await self.portfolio.sync_all_accounts()
+            live_pnl = sum(float(p.get("unrealizedProfit") or p.get("profit") or 0.0) for p in self.portfolio.open_positions)
+            pnl_str = "-$" + "{:.2f}".format(abs(live_pnl)) if live_pnl < 0 else "+$" + "{:.2f}".format(live_pnl)
+            return {
+                "status": "success",
+                "is_live": True,
+                "account_id": "8760042 & 8760048",
+                "balance": "$" + "{:,.2f}".format(self.portfolio.balance),
+                "equity": "$" + "{:,.2f}".format(self.equity),
+                "floating_profit": pnl_str,
+                "open_positions": str(len(self.portfolio.open_positions)) + " Trades",
+                "win_rate": str(self.portfolio.consecutive_wins) + " Wins"
+            }
+        except Exception as e:
+            return {"status": "error", "message": "Metrics unavailable: " + str(e)}
 
     def enqueue_task(self, task_type: str, payload: dict):
         if time.time() < self.portfolio.cooldown_until:
             return {"status": "error", "message": "Defensive cooldown active. Trade rejected."}
             
-        # UPGRADE 3: Illiquid Session Guard (Avoid 22:00 - 01:00 UTC)
         utc_hour = datetime.utcnow().hour
         if 22 <= utc_hour or utc_hour < 1:
             return {"status": "error", "message": "Market in highly illiquid rollover period (22:00-01:00 UTC). Execution guarded."}
+        
+        symbol = payload.get("symbol", "")
+        signal = self.indicators.check_signals(symbol)
+        if signal == "HOLD":
+            return {"status": "error", "message": "Trade rejected. Indicator confluence suggests HOLD."}
+            
+        payload["action"] = signal
             
         conn = sqlite3.connect(self.db_path)
         conn.execute("INSERT INTO job_queue (task_type, payload) VALUES (?, ?)", (task_type, json.dumps(payload)))
         conn.commit()
         conn.close()
-        return {"status": "success", "message": "Trade safely validated and queued in background."}
+        return {"status": "success", "message": "Trade securely validated and queued in background."}
 
     async def process_job_queue(self):
         try:
@@ -177,7 +234,6 @@ class Kim:
                 symbol = payload.get("symbol")
                 action = payload.get("action")
                 
-                # UPGRADE 2: Dynamic Equity Sizing
                 eq = self.equity
                 base_lot = 0.01
                 if eq > 20.0: 
@@ -211,13 +267,16 @@ class Kim:
         except Exception: pass
 
     async def emergency_close_all(self):
-        await self.portfolio.sync_all_accounts()
+        try:
+            await self.portfolio.sync_all_accounts()
+        except Exception:
+            pass
         closed = 0
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=8.0) as client:
             for pos in self.portfolio.open_positions:
                 try:
                     res = await client.post(
-                        f"https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/{pos.get('account_id')}/positions/{pos.get('id')}/close",
+                        "https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/" + pos.get("account_id") + "/positions/" + pos.get("id") + "/close",
                         headers={"auth-token": self.robot.token}
                     )
                     if res.status_code in [200, 204]: closed += 1
@@ -231,5 +290,6 @@ class Kim:
                 await asyncio.sleep(5)
                 await self.portfolio.sync_all_accounts()
                 await self.process_job_queue()
-            except Exception:
+            except Exception as e:
+                print("Engine Exception: " + str(e))
                 await asyncio.sleep(5)
