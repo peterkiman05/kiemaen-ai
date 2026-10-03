@@ -69,13 +69,15 @@ def send_smtp_email(to_email: str, subject: str, body: str):
             server.login(smtp_user, smtp_pass)
             server.send_message(msg)
         return True
-    except Exception: return False
+    except Exception:
+        return False
 
 # -- AUTH & OTP ENDPOINTS --
 @app.post("/api/auth/request-verification")
 async def request_email_verification(data: dict):
     email = data.get("email")
-    if not email: return {"status": "error", "message": "Email required"}
+    if not email:
+        return {"status": "error", "message": "Email required"}
     
     code = f"{random.randint(100000, 999999)}"
     expires = (datetime.utcnow() + timedelta(minutes=15)).isoformat()
@@ -95,8 +97,10 @@ async def verify_email_code(data: dict):
     conn = sqlite3.connect("data/enterprise_management.db")
     row = conn.execute("SELECT code, expires_at FROM email_verifications WHERE email = ?", (email,)).fetchone()
     
-    if not row or row[0] != code: return {"status": "error", "message": "Invalid verification code."}
-    if datetime.utcnow().isoformat() > row[1]: return {"status": "error", "message": "Verification code has expired."}
+    if not row or row[0] != code:
+        return {"status": "error", "message": "Invalid verification code."}
+    if datetime.utcnow().isoformat() > row[1]:
+        return {"status": "error", "message": "Verification code has expired."}
         
     conn.execute("UPDATE enterprise_users SET is_verified = 1 WHERE email = ?", (email,))
     conn.execute("DELETE FROM email_verifications WHERE email = ?", (email,))
@@ -107,7 +111,8 @@ async def verify_email_code(data: dict):
 @app.post("/api/auth/forgot-password")
 async def forgot_password_request(data: dict):
     email = data.get("email")
-    if not email: return {"status": "error", "message": "Email required"}
+    if not email:
+        return {"status": "error", "message": "Email required"}
     
     otp = f"{random.randint(100000, 999999)}"
     expires = (datetime.utcnow() + timedelta(minutes=10)).isoformat()
@@ -124,13 +129,16 @@ async def forgot_password_request(data: dict):
 @app.post("/api/auth/reset-password")
 async def reset_password_with_otp(data: dict):
     email, otp, new_password = data.get("email"), data.get("otp"), data.get("new_password")
-    if not email or not otp or not new_password: return {"status": "error", "message": "Missing required fields."}
+    if not email or not otp or not new_password:
+        return {"status": "error", "message": "Missing required fields."}
         
     conn = sqlite3.connect("data/enterprise_management.db")
     row = conn.execute("SELECT otp, expires_at FROM password_resets WHERE email = ?", (email,)).fetchone()
     
-    if not row or row[0] != otp: return {"status": "error", "message": "Invalid OTP code."}
-    if datetime.utcnow().isoformat() > row[1]: return {"status": "error", "message": "OTP code has expired."}
+    if not row or row[0] != otp:
+        return {"status": "error", "message": "Invalid OTP code."}
+    if datetime.utcnow().isoformat() > row[1]:
+        return {"status": "error", "message": "OTP code has expired."}
         
     hashed_pwd = hashlib.sha256(new_password.encode()).hexdigest()
     conn.execute("UPDATE enterprise_users SET password = ? WHERE email = ?", (hashed_pwd, email))
@@ -148,7 +156,8 @@ async def view_dead_letter_queue():
         rows = [dict(r) for r in conn.execute("SELECT * FROM dead_letter_queue ORDER BY failed_at DESC LIMIT 10").fetchall()]
         conn.close()
         return {"status": "success", "dlq_entries": rows}
-    except Exception as e: return {"status": "error", "message": str(e)}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 @app.post("/api/kim/scalp-loop")
 async def trigger_kim_scalp_loop():
@@ -213,29 +222,35 @@ class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
                         
                         tick = await kim_worker.get_precise_bid_ask(symbol)
                         
-                                                price_display = "Awaiting MT5 Tick..." if tick.get("bid", 0.0) == 0.0 else f"Bid: {tick.get('bid', 0.0):.2f} | Ask: {tick.get('ask', 0.0):.2f}"
+                        bid_val = tick.get("bid", 0.0)
+                        ask_val = tick.get("ask", 0.0)
+                        if bid_val == 0.0:
+                            price_display = "Awaiting MT5 Tick..."
+                        else:
+                            price_display = f"Bid: {bid_val:.2f} | Ask: {ask_val:.2f}"
 
-                        bal_str = "{:,.2f}".format(kim_worker.balance)
-                        eq_str = "{:,.2f}".format(kim_worker.equity)
-                        
+                        bal_val = f"{kim_worker.balance:,.2f}"
+                        eq_val = f"{kim_worker.equity:,.2f}"
+
                         reply = (
-                            f"👔 **KIEMAEN ENTERPRISE: EXECUTIVE BRIEFING** 👔<br><br>"
-                            f"**📊 1. Market Oracle & Treasury**<br>"
+                            "👔 **KIEMAEN ENTERPRISE: EXECUTIVE BRIEFING** 👔<br><br>"
+                            "**📊 1. Market Oracle & Treasury**<br>"
                             f"• Asset Tracked: {symbol.upper()}<br>"
-                            f"• " + price_display + "<br>"
-                            f"• Account Balance: $" + bal_str + " | Equity: $" + eq_str + "<br><br>"
-                            f"**🛡️ 2. Kit (Risk & Capital Allocation)**<br>"
+                            f"• {price_display}<br>"
+                            f"• Account Balance: ${bal_val} ert{} Equity:${eq_val}<br><br>"
+                            "**🛡️ 2. Kit (Risk & Capital Allocation)**<br>"
                             f"• Action Directive: {action.upper()}<br>"
-                            f"• Risk Clearance: APPROVED<br><br>"
-                            f"**⭐ 3. Enterprise Operations**<br>"
-                            f"• Accounts Sync: 8760042 & 8760048 Active<br>"
-                            f"• OOP Facade Status: Operational"
+                            "• Risk Clearance: APPROVED<br><br>"
+                            "**⭐ 3. Enterprise Operations**<br>"
+                            "• Accounts Sync: 8760042 & 8760048 Active<br>"
+                            "• OOP Facade Status: Operational"
                         )
                         return JSONResponse(status_code=200, content={"response": reply, "reply": reply})
                     except Exception as e:
                         err = f"⚠️ **EXECUTIVE OVERRIDE EXCEPTION** ⚠️<br><br>`{str(e)}`<br>{traceback.format_exc()}"
                         return JSONResponse(status_code=200, content={"response": err, "reply": err})
-            except Exception: pass
+            except Exception:
+                pass
             
             if body_bytes:
                 async def receive(): return {"type": "http.request", "body": body_bytes}
