@@ -156,3 +156,144 @@ class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 app.add_middleware(KiemaenOrchestratorMiddleware)
+
+
+
+import random
+import smtplib
+from email.message import EmailMessage
+import hashlib
+from datetime import datetime, timedelta
+
+def send_smtp_email(to_email: str, subject: str, body: str):
+    smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+    smtp_port = int(os.environ.get("SMTP_PORT", 587))
+    smtp_user = os.environ.get("SMTP_USER", "")
+    smtp_pass = os.environ.get("SMTP_PASS", "")
+    
+    if not smtp_user or not smtp_pass:
+        print(f"SMTP Warning: Credentials missing. Simulated email to {to_email}: {body}")
+        return False
+        
+    try:
+        msg = EmailMessage()
+        msg.set_content(body)
+        msg.subject = subject
+        msg.from_ = smtp_user
+        msg.to = to_email
+        
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.send_message(msg)
+        return True
+    except Exception as e:
+        print(f"SMTP Error: {e}")
+        return False
+
+# Initialize Auth tables in database on startup or import
+def init_auth_db():
+    import sqlite3
+    conn = sqlite3.connect("data/enterprise_management.db")
+    conn.execute('''CREATE TABLE IF NOT EXISTS email_verifications (email TEXT PRIMARY KEY, code TEXT, expires_at TEXT)''')
+    conn.execute('''CREATE TABLE IF NOT EXISTS password_resets (email TEXT PRIMARY KEY, otp TEXT, expires_at TEXT)''')
+    # Ensure users table exists for handling auth fields if needed
+    conn.execute('''CREATE TABLE IF NOT EXISTS enterprise_users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE, password TEXT, is_verified INTEGER DEFAULT 0)''')
+    conn.commit()
+    conn.close()
+
+init_auth_db()
+
+@app.post("/api/auth/request-verification")
+async def request_email_verification(data: dict):
+    email = data.get("email")
+    if not email: return {"status": "error", "message": "Email required"}
+    
+    code = f"{random.randint(100000, 999999)}"
+    expires = (datetime.utcnow() + timedelta(minutes=15)).isoformat()
+    
+    import sqlite3
+    conn = sqlite3.connect("data/enterprise_management.db")
+    conn.execute("REPLACE INTO email_verifications (email, code, expires_at) VALUES (?, ?, ?)", (email, code, expires))
+    conn.commit()
+    conn.close()
+    
+    body = f"Welcome to Kiemaen Enterprise! Your email verification code is: {code}. It expires in 15 minutes."
+    send_smtp_email(email, "Verify Your Email - Kiemaen Enterprise", body)
+    return {"status": "success", "message": "Verification code sent to email."}
+
+@app.post("/api/auth/verify-email")
+async def verify_email_code(data: dict):
+    email = data.get("email")
+    code = data.get("code")
+    
+    import sqlite3
+    conn = sqlite3.connect("data/enterprise_management.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT code, expires_at FROM email_verifications WHERE email = ?", (email,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if not row or row[0] != code:
+        return {"status": "error", "message": "Invalid verification code."}
+        
+    if datetime.utcnow().isoformat() > row[1]:
+        return {"status": "error", "message": "Verification code has expired."}
+        
+    conn = sqlite3.connect("data/enterprise_management.db")
+    conn.execute("UPDATE enterprise_users SET is_verified = 1 WHERE email = ?", (email,))
+    conn.execute("DELETE FROM email_verifications WHERE email = ?", (email,))
+    conn.commit()
+    conn.close()
+    
+    return {"status": "success", "message": "Email successfully verified."}
+
+@app.post("/api/auth/forgot-password")
+async def forgot_password_request(data: dict):
+    email = data.get("email")
+    if not email: return {"status": "error", "message": "Email required"}
+    
+    otp = f"{random.randint(100000, 999999)}"
+    expires = (datetime.utcnow() + timedelta(minutes=10)).isoformat()
+    
+    import sqlite3
+    conn = sqlite3.connect("data/enterprise_management.db")
+    conn.execute("REPLACE INTO password_resets (email, otp, expires_at) VALUES (?, ?, ?)", (email, otp, expires))
+    conn.commit()
+    conn.close()
+    
+    body = f"Password Reset Request. Your secure 6-digit reset code is: {otp}. Valid for 10 minutes."
+    send_smtp_email(email, "Password Reset Code - Kiemaen Enterprise", body)
+    return {"status": "success", "message": "Password reset code dispatched to email."}
+
+@app.post("/api/auth/reset-password")
+async def reset_password_with_otp(data: dict):
+    email = data.get("email")
+    otp = data.get("otp")
+    new_password = data.get("new_password")
+    
+    if not email or not otp or not new_password:
+        return {"status": "error", "message": "Missing required fields."}
+        
+    import sqlite3
+    conn = sqlite3.connect("data/enterprise_management.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT otp, expires_at FROM password_resets WHERE email = ?", (email,))
+    row = cursor.fetchone()
+    
+    if not row or row[0] != otp:
+        conn.close()
+        return {"status": "error", "message": "Invalid OTP code."}
+        
+    if datetime.utcnow().isoformat() > row[1]:
+        conn.close()
+        return {"status": "error", "message": "OTP code has expired."}
+        
+    # Update user password securely
+    hashed_pwd = hashlib.sha256(new_password.encode()).hexdigest()
+    cursor.execute("UPDATE enterprise_users SET password = ? WHERE email = ?", (hashed_pwd, email))
+    cursor.execute("DELETE FROM password_resets WHERE email = ?", (email,))
+    conn.commit()
+    conn.close()
+    
+    return {"status": "success", "message": "Password successfully reset. You can now sign in."}
