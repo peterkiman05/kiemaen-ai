@@ -29,7 +29,7 @@ class Robot:
 
 class StockFrame:
     def __init__(self):
-        self.history = {} # Placeholder for Pandas Multi-Index dataframe logic
+        self.history = {} 
 
 class Portfolio:
     def __init__(self, robot: Robot):
@@ -61,7 +61,6 @@ class IndicatorClient:
     def __init__(self):
         pass
     def check_signals(self, symbol: str) -> str:
-        # Pre-execution MTF & RSI validation logic goes here
         return "BUY" 
 
 class Trade:
@@ -69,7 +68,19 @@ class Trade:
         self.robot = robot
 
     async def execute_order(self, account_id: str, symbol: str, action: str, lot_size: float):
-        payload = {"actionType": f"ORDER_TYPE_{action}", "symbol": symbol, "volume": lot_size}
+        # UPGRADE 1: Broker-Side MetaApi Trailing Stops
+        tsl_dist = 1.5 if "XAU" in symbol else 0.0015
+        payload = {
+            "actionType": f"ORDER_TYPE_{action}", 
+            "symbol": symbol, 
+            "volume": lot_size,
+            "trailingStopLoss": {
+                "distance": {
+                    "distance": tsl_dist,
+                    "units": "RELATIVE_PRICE"
+                }
+            }
+        }
         try:
             async with httpx.AsyncClient(timeout=8.0) as client:
                 res = await client.post(
@@ -90,7 +101,6 @@ class Kim:
         self.account_type = "micro" 
         self.db_path = "data/enterprise_management.db"
         
-        # Initialize OOP Modules
         self.robot = Robot()
         self.portfolio = Portfolio(self.robot)
         self.stock_frame = StockFrame()
@@ -133,11 +143,14 @@ class Kim:
             "win_rate": f"{self.portfolio.consecutive_wins} Wins"
         }
 
-    # -- V4 OUTBOX QUEUE ARCHITECTURE --
     def enqueue_task(self, task_type: str, payload: dict):
-        # 1. Pre-Execution Validation Barrier
         if time.time() < self.portfolio.cooldown_until:
             return {"status": "error", "message": "Defensive cooldown active. Trade rejected."}
+            
+        # UPGRADE 3: Illiquid Session Guard (Avoid 22:00 - 01:00 UTC)
+        utc_hour = datetime.utcnow().hour
+        if 22 <= utc_hour or utc_hour < 1:
+            return {"status": "error", "message": "Market in highly illiquid rollover period (22:00-01:00 UTC). Execution guarded."}
             
         conn = sqlite3.connect(self.db_path)
         conn.execute("INSERT INTO job_queue (task_type, payload) VALUES (?, ?)", (task_type, json.dumps(payload)))
@@ -163,12 +176,21 @@ class Kim:
             if task_type == "SCALP_CLUSTER":
                 symbol = payload.get("symbol")
                 action = payload.get("action")
-                lot_size = 0.10 if "XAU" in symbol else 0.01
+                
+                # UPGRADE 2: Dynamic Equity Sizing
+                eq = self.equity
+                base_lot = 0.01
+                if eq > 20.0: 
+                    base_lot = round(eq / 2000, 2)
+                if base_lot < 0.01: 
+                    base_lot = 0.01
+                
+                lot_size = round(base_lot * 2, 2) if "XAU" in symbol else base_lot
                 
                 executed_count = 0
                 for acc_id in self.robot.accounts:
                     existing = [p for p in self.portfolio.open_positions if p.get("account_id") == acc_id]
-                    if len(existing) < 3:  # Max 3 entries
+                    if len(existing) < 3: 
                         ok, err = await self.trades.execute_order(acc_id, symbol, action, lot_size)
                         if ok: executed_count += 1
                         else: error_msg = err
@@ -209,6 +231,5 @@ class Kim:
                 await asyncio.sleep(5)
                 await self.portfolio.sync_all_accounts()
                 await self.process_job_queue()
-                # TP / SL auto-close logic executes here
             except Exception:
                 await asyncio.sleep(5)
