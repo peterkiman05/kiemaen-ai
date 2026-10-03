@@ -39,8 +39,23 @@ async def trigger_kim_scalp_loop():
         kim = Kim()
         tick_gold = await kim.get_precise_bid_ask("XAUUSD.mic")
         target_symbol = "XAUUSD.mic" if tick_gold.get("bid", 0) > 0 else "EURUSD.mic"
-        exec_res = await kim.execute_scalp_cluster(target_symbol, "BUY", max_entries=3)
-        return {"status": "success", "symbol": target_symbol, "result": exec_res}
+        kim.enqueue_task("SCALP_CLUSTER", {"symbol": target_symbol, "action": "BUY", "max_entries": 3})
+        return {"status": "success", "symbol": target_symbol, "result": {"message": "Trade securely queued for background execution."}}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@app.get("/api/kim/dlq")
+async def view_dead_letter_queue():
+    try:
+        import sqlite3
+        conn = sqlite3.connect("data/enterprise_management.db")
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM dead_letter_queue ORDER BY failed_at DESC LIMIT 10")
+        rows = [dict(r) for r in cursor.fetchall()]
+        conn.close()
+        return {"status": "success", "dlq_entries": rows}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 

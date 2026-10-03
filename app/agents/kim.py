@@ -31,6 +31,9 @@ class Kim:
                 ticket_id TEXT PRIMARY KEY, account_id TEXT, symbol TEXT, action TEXT, volume REAL, status TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+        
+        conn.execute('''CREATE TABLE IF NOT EXISTS job_queue (id INTEGER PRIMARY KEY AUTOINCREMENT, task_type TEXT, payload TEXT, retries INTEGER DEFAULT 0, status TEXT DEFAULT 'PENDING', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS dead_letter_queue (id INTEGER PRIMARY KEY AUTOINCREMENT, original_job_id INTEGER, task_type TEXT, payload TEXT, error_reason TEXT, failed_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
         conn.commit()
         conn.close()
 
@@ -180,12 +183,65 @@ class Kim:
             "win_rate": f"{self.consecutive_wins} Wins"
         }
 
+
+    def enqueue_task(self, task_type: str, payload: dict):
+        import json
+        import sqlite3
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO job_queue (task_type, payload) VALUES (?, ?)", (task_type, json.dumps(payload)))
+        conn.commit()
+        conn.close()
+        return {"status": "success", "message": f"Task queued in background"}
+
+    async def process_job_queue(self):
+        import json
+        import sqlite3
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, task_type, payload, retries FROM job_queue WHERE status = 'PENDING' ORDER BY created_at ASC LIMIT 1")
+            job = cursor.fetchone()
+            if not job:
+                conn.close()
+                return
+                
+            job_id, task_type, payload_str, retries = job
+            cursor.execute("UPDATE job_queue SET status = 'PROCESSING' WHERE id = ?", (job_id,))
+            conn.commit()
+            
+            payload = json.loads(payload_str)
+            success = False
+            error_msg = ""
+            
+            try:
+                if task_type == "SCALP_CLUSTER":
+                    res = await self.execute_scalp_cluster(payload.get("symbol"), payload.get("action"), payload.get("max_entries", 3))
+                    if res.get("status") == "success": success = True
+                    else: error_msg = res.get("message", "Unknown execution error")
+            except Exception as e:
+                error_msg = str(e)
+                
+            if success:
+                cursor.execute("DELETE FROM job_queue WHERE id = ?", (job_id,))
+            else:
+                if retries >= 2:
+                    cursor.execute("INSERT INTO dead_letter_queue (original_job_id, task_type, payload, error_reason) VALUES (?, ?, ?, ?)", (job_id, task_type, payload_str, error_msg))
+                    cursor.execute("DELETE FROM job_queue WHERE id = ?", (job_id,))
+                else:
+                    cursor.execute("UPDATE job_queue SET status = 'PENDING', retries = retries + 1 WHERE id = ?", (job_id,))
+            conn.commit()
+            conn.close()
+        except Exception: pass
+
     async def start_background_engine(self):
         while True:
             try:
                 await asyncio.sleep(5)
+                await self.process_job_queue()
                 await self.reconcile_positions()
                 await self.get_live_metrics()
                 await self.auto_manage_and_close_profits()
             except Exception:
                 await asyncio.sleep(5)
+                await self.process_job_queue()
