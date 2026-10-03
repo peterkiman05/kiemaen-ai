@@ -9,18 +9,15 @@ import traceback
 
 app = FastAPI(title="Kiemaen Enterprise AI")
 
-# Serve static assets securely
 if os.path.exists("web"):
     app.mount("/static", StaticFiles(directory="web"), name="static")
 
-# 1. ROOT ROUTE - STRICTLY SERVES YOUR UI
 @app.get("/")
 async def serve_frontend():
     if os.path.exists("web/index.html"):
         return FileResponse("web/index.html")
     return {"status": "error", "message": "UI file missing"}
 
-# 2. UPTIMEROBOT ROUTE - SAFELY MOVED TO /api/health
 @app.api_route("/api/health", methods=["GET", "HEAD", "POST"])
 async def health_ping_handler():
     return JSONResponse(status_code=200, content={"status": "online", "system": "Kiemaen Enterprise"})
@@ -75,7 +72,6 @@ async def get_kim_metrics_endpoint():
 
 class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
-        # Ignore API and static file routes
         if request.method == "POST" and not any(x in request.url.path.lower() for x in ["login", "auth", "connect", "broker", "account", "api"]):
             body_bytes = b""
             try:
@@ -135,7 +131,7 @@ class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
                             "choices": [{"message": {"content": reply}}]
                         })
                     except Exception as e:
-                        err = f"⚠️️ **EXECUTIVE OVERRIDE EXCEPTION** ⚠️<br><br>`{str(e)}`<br>{traceback.format_exc()}"
+                        err = f"⚠️ **EXECUTIVE OVERRIDE EXCEPTION** ⚠️<br><br>`{str(e)}`<br>{traceback.format_exc()}"
                         return JSONResponse(status_code=200, content={"response": err, "reply": err, "message": err})
             except Exception: pass
             
