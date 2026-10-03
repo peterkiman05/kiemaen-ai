@@ -1,16 +1,28 @@
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 import os
 import httpx
 import asyncio
-import sqlite3
 import traceback
 
 app = FastAPI(title="Kiemaen Enterprise AI")
 
-@app.api_route("/", methods=["GET", "HEAD", "POST"])
-async def root_ping_handler():
+# Serve static assets securely
+if os.path.exists("web"):
+    app.mount("/static", StaticFiles(directory="web"), name="static")
+
+# 1. ROOT ROUTE - STRICTLY SERVES YOUR UI
+@app.get("/")
+async def serve_frontend():
+    if os.path.exists("web/index.html"):
+        return FileResponse("web/index.html")
+    return {"status": "error", "message": "UI file missing"}
+
+# 2. UPTIMEROBOT ROUTE - SAFELY MOVED TO /api/health
+@app.api_route("/api/health", methods=["GET", "HEAD", "POST"])
+async def health_ping_handler():
     return JSONResponse(status_code=200, content={"status": "online", "system": "Kiemaen Enterprise"})
 
 @app.on_event("startup")
@@ -63,7 +75,8 @@ async def get_kim_metrics_endpoint():
 
 class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
-        if request.method == "POST" and not any(x in request.url.path.lower() for x in ["login", "auth", "connect", "broker", "account"]):
+        # Ignore API and static file routes
+        if request.method == "POST" and not any(x in request.url.path.lower() for x in ["login", "auth", "connect", "broker", "account", "api"]):
             body_bytes = b""
             try:
                 body_bytes = await request.body()
@@ -107,7 +120,7 @@ class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
                             f"**📊 1. Market Oracle & Treasury**<br>"
                             f"• Asset Tracked: {symbol.upper()}<br>"
                             f"• {price_display}<br>"
-                            f"• Account Balance: ${kim_worker.balance:,.2f} | Equity: ${kim_worker.equity:,.2f}<br><br>"
+                            f"• Account Balance: ${kim_worker.balance:,.2f} ert{} Equity:${kim_worker.equity:,.2f}<br><br>"
                             f"**🛡️ 2. Kit (Risk & Capital Allocation)**<br>"
                             f"• Action Directive: {action.upper()}<br>"
                             f"• Risk Clearance: APPROVED<br><br>"
@@ -122,7 +135,7 @@ class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
                             "choices": [{"message": {"content": reply}}]
                         })
                     except Exception as e:
-                        err = f"⚠️ **EXECUTIVE OVERRIDE EXCEPTION** ⚠️<br><br>`{str(e)}`<br>{traceback.format_exc()}"
+                        err = f"⚠️️ **EXECUTIVE OVERRIDE EXCEPTION** ⚠️<br><br>`{str(e)}`<br>{traceback.format_exc()}"
                         return JSONResponse(status_code=200, content={"response": err, "reply": err, "message": err})
             except Exception: pass
             
