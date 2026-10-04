@@ -2,808 +2,307 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Kiemaen AGI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiemaen Enterprise</title>
     <style>
-        :root {
-            --bg-dark: #070a14;
-            --bg-panel: #111827;
-            --input-bg: #161f33;
-            --text-secondary: #9ca3af;
-            --accent-green: #10b981;
-        }
-
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg-dark); color: #ffffff; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        :root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --accent: #38bdf8; --danger: #ef4444; --success: #10b981; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body { background: var(--bg); color: var(--text); display: flex; flex-direction: column; height: 100vh; }
         
-        .blue-black-text { background: linear-gradient(135deg, #60a5fa 0%, #1e3a8a 40%, #000000 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0px 2px 12px rgba(59, 130, 246, 0.2)); }
-
-        .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background-color: var(--bg-dark); border-bottom: 1px solid rgba(255,255,255,0.05); z-index: 1000; position: relative; }
-        .menu-icon { font-size: 24px; cursor: pointer; color: #fff; user-select: none; padding: 5px; }
-        .menu-icon:focus { outline: 2px solid #3b82f6; border-radius: 4px; }
-        .header-title { font-size: 18px; font-weight: 700; letter-spacing: 0.5px; }
-        .login-btn { background-color: rgba(255,255,255,0.1); color: #fff; border: none; padding: 6px 18px; border-radius: 20px; font-size: 14px; cursor: pointer; transition: 0.2s; border: 1px solid rgba(255,255,255,0.05); }
-        .login-btn:hover, .login-btn:focus { background-color: rgba(59, 130, 246, 0.2); border-color: rgba(59, 130, 246, 0.5); outline: none; }
+        /* Auth Screens */
+        #auth-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        .auth-box { background: var(--card); padding: 2rem; border-radius: 12px; width: 100%; max-width: 400px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5); }
+        .auth-box h2 { margin-bottom: 1.5rem; text-align: center; }
+        .auth-box input { width: 100%; padding: 0.75rem; margin-bottom: 1rem; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: white; }
+        .auth-box button { width: 100%; padding: 0.75rem; border-radius: 6px; border: none; background: var(--accent); color: #0f172a; font-weight: bold; cursor: pointer; margin-bottom: 1rem; }
+        .auth-box button:hover { opacity: 0.9; }
+        .auth-link { color: var(--accent); cursor: pointer; text-align: center; display: block; font-size: 0.9rem; margin-top: 0.5rem; }
         
-        .sidebar { position: fixed; top: 0; left: -300px; width: 280px; height: 100%; background-color: var(--bg-panel); box-shadow: 4px 0 25px rgba(0,0,0,0.8); transition: 0.3s ease; z-index: 2000; display: flex; flex-direction: column; padding-top: 60px; border-right: 1px solid rgba(255,255,255,0.05); }
-        .sidebar.open { left: 0; }
-        .close-sidebar { position: absolute; top: 15px; right: 20px; font-size: 24px; cursor: pointer; color: var(--text-secondary); padding: 5px; }
-        .nav-item { padding: 16px 25px; color: #fff; font-size: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; display: flex; align-items: center; gap: 12px; transition: 0.2s; }
-        .nav-item:hover, .nav-item.active { background-color: rgba(59, 130, 246, 0.1); color: #60a5fa; border-left: 4px solid #3b82f6; }
-
-        .main-container { flex-grow: 1; position: relative; display: flex; flex-direction: column; overflow: hidden; z-index: 10; }
-        .panel { display: none; flex-direction: column; height: 100%; padding: 20px; overflow-y: auto; box-sizing: border-box; }
-        .panel.active { display: flex; }
-
-        #home-panel { padding: 0; position: relative; }
-        .hero-center { position: absolute; top: 38%; left: 50%; transform: translate(-50%, -50%); text-align: center; display: flex; flex-direction: column; align-items: center; transition: 0.3s; width: 100%; box-sizing: border-box; padding: 0 20px; pointer-events: none; }
-        .hero-center h1 { font-size: 34px; font-weight: 800; margin-top: 15px; letter-spacing: -0.5px; }
+        /* App Layout */
+        #app-container { display: none; flex-direction: column; height: 100vh; }
+        nav { display: flex; background: var(--card); padding: 1rem; gap: 1rem; border-bottom: 1px solid #334155; }
+        nav button { background: transparent; border: 1px solid var(--accent); color: var(--accent); padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; }
+        nav button.active { background: var(--accent); color: var(--bg); }
         
-        .chat-scroll { flex-grow: 1; padding: 20px; overflow-y: auto; padding-bottom: 120px; z-index: 20; }
-        .message { margin-bottom: 20px; max-width: 85%; line-height: 1.5; font-size: 15px; }
-        .msg-user { margin-left: auto; background-color: var(--input-bg); padding: 12px 18px; border-radius: 18px 18px 0 18px; color: #fff; border: 1px solid rgba(255,255,255,0.05); }
-        .msg-ai { margin-right: auto; padding: 12px 0; color: #e5e7eb; }
-
-        .msg-actions { margin-top: 10px; display: flex; gap: 15px; font-size: 12px; color: var(--text-secondary); user-select: none; }
-        .msg-actions span { display: flex; align-items: center; gap: 5px; cursor: pointer; transition: 0.2s; }
-        .msg-actions span:hover, .msg-actions span:focus { color: #60a5fa; outline: none; }
-        .action-svg { width: 14px; height: 14px; fill: currentColor; }
-
-        .input-wrapper { position: absolute; bottom: 0; left: 0; width: 100%; padding: 15px 20px; box-sizing: border-box; background: linear-gradient(transparent, var(--bg-dark) 30%); z-index: 100; }
-        .input-bar { display: flex; align-items: center; background-color: var(--input-bg); border-radius: 35px; padding: 10px 18px; gap: 12px; border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 4px 20px rgba(0,0,0,0.6); position: relative; }
-        .icon-btn { background: none; border: none; color: var(--text-secondary); font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px; z-index: 105; }
-        .icon-btn:focus { outline: 2px solid #3b82f6; border-radius: 50%; }
-        .ui-icon { width: 22px; height: 22px; fill: var(--text-secondary); transition: 0.2s; }
-        .ui-icon:hover, .ui-icon.active { fill: #3b82f6; }
-        .input-field { flex-grow: 1; background: transparent; border: none; color: #fff; font-size: 16px; outline: none; padding: 4px 0; z-index: 105; }
-        .input-field::placeholder { color: var(--text-secondary); }
-
-        .flower-logo { width: 90px; height: 90px; filter: drop-shadow(0 0 15px rgba(29, 78, 216, 0.6)); }
-        .flower-btn { width: 26px; height: 26px; filter: drop-shadow(0 0 8px rgba(29, 78, 216, 0.8)); cursor: pointer; }
-
-        .file-badge { font-size: 11px; background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 8px; border-radius: 6px; margin-top: 5px; display: inline-block; }
-
-        .enterprise-card { background: var(--bg-panel); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
-        .enterprise-card h3 { margin-top: 0; color: #60a5fa; display: flex; align-items: center; gap: 8px; font-size: 18px; }
-        .metric-row { display: flex; justify-content: space-between; margin: 10px 0; font-size: 14px; color: var(--text-secondary); }
-        .metric-val { color: #fff; font-weight: 600; }
+        /* Workspaces */
+        .workspace { flex: 1; padding: 1.5rem; overflow-y: auto; display: none; }
+        .workspace.active { display: block; }
         
-        .broker-input { width: 100%; box-sizing: border-box; background: var(--bg-dark); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 10px 14px; border-radius: 8px; margin-bottom: 10px; font-size: 14px; outline: none; }
-        .broker-input:focus { border-color: #3b82f6; }
-        .action-btn { background: #3b82f6; color: #fff; border: none; padding: 10px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; z-index: 105; position: relative; }
+        /* Kiemaen Chat */
+        #chat-log { background: var(--card); border-radius: 8px; padding: 1rem; height: calc(100vh - 200px); overflow-y: auto; margin-bottom: 1rem; }
+        .chat-msg { margin-bottom: 1rem; padding: 0.75rem; border-radius: 8px; max-width: 80%; }
+        .chat-user { background: #334155; margin-left: auto; }
+        .chat-ai { background: #1e293b; border: 1px solid #334155; margin-right: auto; }
+        .chat-input-area { display: flex; gap: 1rem; }
+        .chat-input-area input { flex: 1; padding: 0.75rem; border-radius: 6px; border: 1px solid #334155; background: var(--card); color: white; }
+        .chat-input-area button { padding: 0.75rem 1.5rem; border-radius: 6px; border: none; background: var(--accent); color: var(--bg); font-weight: bold; cursor: pointer; }
         
-        .legal-footer { text-align: center; font-size: 11px; color: #6b7280; padding: 10px; z-index: 50; }
-        .legal-footer span { margin: 0 5px; cursor: pointer; }
-        .legal-footer span:hover { color: #9ca3af; text-decoration: underline; }
+        /* Kim Quant Terminal */
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .metric-card { background: var(--card); padding: 1.5rem; border-radius: 8px; text-align: center; border: 1px solid #334155; }
+        .metric-card h3 { font-size: 0.9rem; color: #94a3b8; margin-bottom: 0.5rem; }
+        .metric-card p { font-size: 1.5rem; font-weight: bold; }
         
-        .cookie-banner { position: fixed; bottom: -100px; left: 0; width: 100%; background: #111827; border-top: 1px solid #374151; padding: 15px 20px; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; z-index: 4000; transition: bottom 0.4s ease; font-size: 12px; }
-        .cookie-banner.show { bottom: 0; }
-        .cookie-banner button { background: #3b82f6; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        .disclaimer { font-size: 11px; color: #6b7280; margin-top: 15px; text-align: justify; }
-
-        .auth-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); display: none; justify-content: center; align-items: center; z-index: 3000; opacity: 0; transition: opacity 0.3s ease; }
-        .auth-overlay.show { display: flex; opacity: 1; }
-        .auth-card { background: var(--bg-panel); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 16px; padding: 35px 25px; width: 90%; max-width: 380px; box-shadow: 0 15px 50px rgba(0,0,0,0.8); position: relative; max-height: 80vh; overflow-y: auto; }
-        .auth-close { position: absolute; top: 15px; right: 20px; color: var(--text-secondary); font-size: 28px; cursor: pointer; padding: 5px; }
-        .auth-title { font-size: 26px; font-weight: 800; margin-bottom: 25px; text-align: center; }
-        .auth-input { width: 100%; box-sizing: border-box; background: var(--bg-dark); border: 1px solid rgba(255,255,255,0.08); color: #fff; padding: 14px 16px; border-radius: 12px; margin-bottom: 15px; font-size: 15px; outline: none; }
-        .auth-btn { width: 100%; background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); color: #fff; border: none; padding: 14px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 15px; }
-        .auth-switch { text-align: center; font-size: 14px; color: var(--text-secondary); cursor: pointer; padding: 10px; }
-        .auth-switch span { color: #60a5fa; font-weight: 600; }
-        .legal-content { font-size: 12px; color: #d1d5db; line-height: 1.6; }
-        .legal-content h4 { color: #fff; margin-top: 15px; margin-bottom: 5px; }
+        .action-bar { display: flex; gap: 1rem; margin-bottom: 2rem; }
+        .btn-scalp { background: var(--success); color: white; padding: 1rem; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; flex: 1; }
+        .btn-kill { background: var(--danger); color: white; padding: 1rem; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; flex: 1; }
+        
+        table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 8px; overflow: hidden; }
+        th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #334155; }
+        th { background: #0f172a; color: #94a3b8; }
+        
+        .alert { color: var(--danger); text-align: center; margin-bottom: 1rem; font-size: 0.9rem; }
+        .success-msg { color: var(--success); text-align: center; margin-bottom: 1rem; font-size: 0.9rem; }
     </style>
-
-
-    <style id="safe-adaptive-css">
-        /* 1. Prevent the chat history from stretching the page out of bounds */
-        #chat-box, .chat-box {
-            overflow-y: auto !important;
-            max-height: 65vh !important; /* Mobile height constraint */
-            scroll-behavior: smooth;
-        }
-
-        /* 2. Lock the input bar to the bottom of its parent container securely */
-        /* Sticky keeps it inside the correct column (avoids sidebar overlap) while pinning it to the bottom */
-        form, #chat-form, .chat-input-area {
-            position: sticky !important;
-            bottom: 0 !important;
-            z-index: 999 !important;
-            background: rgba(10, 15, 26, 0.95) !important; /* Seamless dark match */
-            backdrop-filter: blur(8px) !important;
-            padding-top: 10px !important;
-            padding-bottom: 15px !important;
-            margin-bottom: 0 !important;
-        }
-
-        /* 3. Automatic Tablet and PC Desktop Adaptability */
-        @media screen and (min-width: 768px) {
-            #chat-box, .chat-box {
-                /* Allow more chat history height on larger screens */
-                max-height: calc(100vh - 180px) !important; 
-            }
-        }
-    </style>
-
 </head>
 <body>
-    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-        <defs>
-            <radialGradient id="blueBlackGlow" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stop-color="#000000"/><stop offset="40%" stop-color="#1e3a8a"/><stop offset="100%" stop-color="#3b82f6"/>
-            </radialGradient>
-            <g id="pointy-flower">
-                <path d="M50 50 Q 35 25, 50 0 Q 65 25, 50 50" fill="url(#blueBlackGlow)" transform="rotate(0 50 50)"/>
-                <path d="M50 50 Q 35 25, 50 0 Q 65 25, 50 50" fill="url(#blueBlackGlow)" transform="rotate(72 50 50)"/>
-                <path d="M50 50 Q 35 25, 50 0 Q 65 25, 50 50" fill="url(#blueBlackGlow)" transform="rotate(144 50 50)"/>
-                <path d="M50 50 Q 35 25, 50 0 Q 65 25, 50 50" fill="url(#blueBlackGlow)" transform="rotate(216 50 50)"/>
-                <path d="M50 50 Q 35 25, 50 0 Q 65 25, 50 50" fill="url(#blueBlackGlow)" transform="rotate(288 50 50)"/>
-                <circle cx="50" cy="50" r="4" fill="#000000"/>
-            </g>
-            <g id="icon-clip"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></g>
-            <g id="icon-mic"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15a1 1 0 0 0-.98-.85c-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/></g>
-            <g id="icon-copy"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></g>
-            <g id="icon-volume"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></g>
-        </defs>
-    </svg>
 
-    <div class="top-bar">
-        <div class="menu-icon" onclick="toggleSidebar()" tabindex="0" aria-label="Open Menu">≡</div>
-        <div class="header-title blue-black-text" id="top-bar-title">Kiemaen AGI</div>
-        <button class="login-btn" id="top-login-btn" onclick="openAuth()" aria-label="Login">Login</button>
-    </div>
-
-    <div class="sidebar" id="sidebar" role="navigation" aria-label="Main Navigation">
-        <div class="close-sidebar" onclick="toggleSidebar()" tabindex="0" aria-label="Close Menu">×</div>
-        <div class="nav-item active" onclick="switchPanel('home-panel', 'Kiemaen AGI', this)" tabindex="0">
-            <svg style="width:16px;height:16px;fill:#60a5fa" aria-hidden="true" viewBox="0 0 100 100"><use href="#pointy-flower"/></svg> Kiemaen Home
+    <!-- AUTHENTICATION CONTAINER -->
+    <div id="auth-container">
+        <!-- Login Form -->
+        <div id="login-form" class="auth-box">
+            <h2>Kiemaen Enterprise</h2>
+            <div id="login-msg"></div>
+            <input type="email" id="login-email" placeholder="Email Address">
+            <input type="password" id="login-password" placeholder="Password">
+            <button onclick="login()">Sign In</button>
+            <span class="auth-link" onclick="showScreen('register-form')">New User? Register here</span>
         </div>
-        <div class="nav-item" onclick="switchPanel('kim-panel', 'Kim - Trading Branch', this)" tabindex="0">📈 Kim (Vault Markets)</div>
-        <div class="nav-item" onclick="switchPanel('kit-panel', 'Kit - B2B Branch', this)" tabindex="0">🤝 Kit (B2B Growth)</div>
-        <div class="nav-item" onclick="switchPanel('kat-panel', 'Kat - VIP Branch', this)" tabindex="0">⭐ Kat (VIP Monetization)</div>
-        <div class="nav-item" onclick="switchPanel('tasks-panel', 'Enterprise Task Manager', this)" tabindex="0">📊 Task Manager</div>
+
+        <!-- Register Form -->
+        <div id="register-form" class="auth-box" style="display: none;">
+            <h2>Create Account</h2>
+            <div id="reg-msg"></div>
+            <input type="email" id="reg-email" placeholder="Email Address">
+            <input type="password" id="reg-password" placeholder="Create Password">
+            <button onclick="register()">Register & Send Code</button>
+            <span class="auth-link" onclick="showScreen('login-form')">Back to Login</span>
+        </div>
+
+        <!-- OTP Form -->
+        <div id="otp-form" class="auth-box" style="display: none;">
+            <h2>Verify Email</h2>
+            <p style="text-align:center; font-size:0.9rem; margin-bottom:1rem; color:#94a3b8;">Enter the 6-digit code sent to your email.</p>
+            <div id="otp-msg"></div>
+            <input type="text" id="otp-code" placeholder="6-Digit Code">
+            <button onclick="verifyOTP()">Confirm Identity</button>
+            <span class="auth-link" onclick="showScreen('login-form')">Cancel</span>
+        </div>
     </div>
 
-    <div class="main-container">
-        <!-- HOME PANEL -->
-        <div id="home-panel" class="panel active">
-            <div class="hero-center" id="hero-logo">
-                <svg class="flower-logo" viewBox="0 0 100 100" aria-label="Kiemaen Logo"><use href="#pointy-flower"/></svg>
-                <h1 class="blue-black-text">Kiemaen AI</h1>
+    <!-- MAIN APP CONTAINER -->
+    <div id="app-container">
+        <nav>
+            <button id="tab-kiemaen" class="active" onclick="switchTab('kiemaen')">👔 Kiemaen (CEO)</button>
+            <button id="tab-kim" onclick="switchTab('kim')">📈 Kim (Quant Terminal)</button>
+            <button onclick="logout()" style="margin-left: auto; border-color: var(--danger); color: var(--danger);">Logout</button>
+        </nav>
+
+        <!-- Kiemaen Chat Workspace -->
+        <div id="workspace-kiemaen" class="workspace active">
+            <div id="chat-log">
+                <div class="chat-msg chat-ai">Welcome to Kiemaen Enterprise. Awaiting executive directive.</div>
             </div>
-            <div class="chat-scroll" id="chat-log" aria-live="polite">
-                <div class="legal-footer">
-                    <span>&copy; 2026 Kiemaen Enterprise. All rights reserved.</span><br>
-                    <span onclick="openLegal('privacy')" tabindex="0">Privacy</span> | 
-                    <span onclick="openLegal('terms')" tabindex="0">Terms</span> | 
-                    <span onclick="openLegal('cookie')" tabindex="0">Cookies</span> | 
-                    <span onclick="openLegal('refund')" tabindex="0">Refunds</span>
-                </div>
+            <div class="chat-input-area">
+                <input type="text" id="chat-input" placeholder="Enter command or directive (e.g. 'Execute gold scalp')" onkeypress="if(event.key === 'Enter') sendChat()">
+                <button onclick="sendChat()">Send</button>
+            </div>
+        </div>
+
+        <!-- Kim Quant Terminal Workspace -->
+        <div id="workspace-kim" class="workspace">
+            <div class="metrics-grid">
+                <div class="metric-card"><h3>Total Balance</h3><p id="k-bal">Loading...</p></div>
+                <div class="metric-card"><h3>Live Equity</h3><p id="k-eq">Loading...</p></div>
+                <div class="metric-card"><h3>Floating PnL</h3><p id="k-pnl" style="color:var(--success)">Loading...</p></div>
+                <div class="metric-card"><h3>Open Trades</h3><p id="k-pos">Loading...</p></div>
             </div>
             
-            <div class="input-wrapper">
-                <!-- Hidden File Input for Attachment Upload -->
-                <input type="file" id="file-upload-input" style="display:none;" onchange="handleFileSelected()">
-                
-                <div class="input-bar">
-                    <button class="icon-btn" aria-label="Attach File" onclick="document.getElementById('file-upload-input').click()">
-                        <svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#icon-clip"/></svg>
-                    </button>
-                    
-                    <div style="flex-grow:1; display:flex; flex-direction:column;">
-                        <span id="file-indicator" style="display:none;" class="file-badge"></span>
-                        <input type="text" class="input-field" id="chat-input" placeholder="Message Kiemaen..." aria-label="Message Kiemaen" oninput="toggleInputMode()" onkeypress="if(event.key === 'Enter') handleDynamicSubmit()">
-                    </div>
-                    
-                    <button class="icon-btn" id="dynamic-btn" onclick="handleDynamicSubmit()" aria-label="Voice or Send">
-                        <svg id="btn-mic" class="ui-icon" aria-hidden="true" viewBox="0 0 24 24" style="display:block;"><use href="#icon-mic"/></svg>
-                        <svg id="btn-send" class="flower-btn" aria-hidden="true" viewBox="0 0 100 100" style="display:none;"><use href="#pointy-flower"/></svg>
-                    </button>
-                </div>
+            <div class="action-bar">
+                <button class="btn-scalp" onclick="triggerScalp()">⚡ Trigger Quick Scalp (MTF Engine)</button>
+                <button class="btn-kill" onclick="triggerEmergency()">🚨 Emergency Kill Switch</button>
             </div>
+
+            <h3 style="margin-bottom: 1rem;">Dead Letter Queue (DLQ) Diagnostics</h3>
+            <table>
+                <thead><tr><th>ID</th><th>Type</th><th>Failed At</th><th>Error Reason</th></tr></thead>
+                <tbody id="dlq-table"><tr><td colspan="4">Loading DLQ...</td></tr></tbody>
+            </table>
         </div>
-
-        <!-- OTHER PANELS -->
-        <div id="kim-panel" class="panel"><div class="enterprise-card"><h3>📈 Kim: Quantitative & Trading Manager</h3><p style="color:var(--text-secondary); font-size:14px;">Automanaging positions and computing telemetry.</p><div class="metric-row"><span>Broker:</span><span class="metric-val">Vault Markets Live</span></div><div class="metric-row"><span>Account Status:</span><span class="metric-val" id="kim-status">Active & Monitoring</span></div>
-                <div class="metric-row"><span>Account Balance:</span><span class="metric-val" id="kim-balance" style="color:#60a5fa;">--</span></div>
-                <div class="metric-row"><span>Open Positions:</span><span class="metric-val" id="kim-positions">--</span></div>
-                <div class="metric-row"><span>Floating Profit/Loss:</span><span class="metric-val" id="kim-profit">--</span></div><div class="metric-row"><span>Simulated Win Rate:</span><span class="metric-val">Data Synchronizing...</span></div><div style="margin-top: 20px;"><label for="vm-login" style="font-size: 13px; color: var(--text-secondary);">Vault Markets Account ID</label><input type="text" class="broker-input" id="vm-login" placeholder="Enter VM Account Number"><label for="vm-pass" style="font-size: 13px; color: var(--text-secondary);">API Key / Password</label><input type="password" class="broker-input" id="vm-pass" placeholder="Enter API Token"><button class="action-btn" onclick="connectBroker()">
-    <!-- KIM BRANCH EXCLUSIVE SCALP CONTROL -->
-    <div id="kimScalpContainer" style="margin: 20px 0; padding: 16px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; text-align: center;">
-        <p style="color: #10b981; font-weight: 700; margin-bottom: 10px; font-size: 13px; letter-spacing: 0.5px;">⚡ KIM QUANTITATIVE SCALP CONTROL</p>
-        <button id="kimScalpBtn" onclick="triggerKimScalp()" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 12px 20px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; width: 100%; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
-            ⚡ EXECUTE KIM QUICK SCALP
-        </button>
-    </div>
-    
-Link Vault Markets Account</button></div><p class="disclaimer">*DISCLAIMER: Kiemaen Enterprise and its AI agents are software tools, not licensed financial advisors.</p></div></div>
-        <div id="kit-panel" class="panel"><div class="enterprise-card"><h3>🤝 Kit: B2B Growth & Sales</h3><p style="color:var(--text-secondary); font-size:14px;">Automating product usage metrics with outreach.</p><div class="metric-row"><span>Active Campaigns:</span><span class="metric-val">3 Pipelines</span></div><button class="action-btn" style="margin-top:15px;" onclick="triggerKitLive()">Trigger B2B Campaign</button></div></div>
-        <div id="kat-panel" class="panel"><div class="enterprise-card"><h3>⭐ Kat: VIP Client Relations & Monetization</h3><p style="color:var(--text-secondary); font-size:14px;">Managing high-net-worth relationships.</p><div class="metric-row"><span>VIP Network:</span><span class="metric-val">42 Active Members</span></div><button class="action-btn" style="margin-top:15px;" onclick="alert('Kat: Broadcasting strategic monetization signal.')">Broadcast Signal</button></div></div>
-        <div id="tasks-panel" class="panel"><div class="enterprise-card"><h3>📊 Enterprise Task Manager</h3><p style="color:var(--text-secondary); font-size:14px;">Daily automated reports and items awaiting Chairman approval.</p><div class="metric-row"><span>Pending Approvals:</span><span class="metric-val" style="color:#f59e0b;">2 Items</span></div><button class="action-btn" style="margin-top:15px;" onclick="alert('Chairman Approval Granted.')">Approve & Dispatch</button></div></div>
-    </div>
-
-    <!-- AUTH MODAL -->
-    <div class="auth-overlay" id="auth-modal" role="dialog" aria-modal="true">
-        <div class="auth-card">
-            <div class="auth-close" onclick="closeAuth()" tabindex="0">×</div>
-            <div class="auth-title blue-black-text" id="auth-title">Chairman Login</div>
-            <form id="auth-form" onsubmit="submitAuth(event)">
-                <input type="email" id="auth-email" class="auth-input" placeholder="Chairman Email" required>
-                <input type="password" id="auth-pass" class="auth-input" placeholder="Security Password" required>
-                <input type="password" id="auth-pass-confirm" class="auth-input" placeholder="Confirm Password" style="display:none;">
-                <button type="submit" class="auth-btn" id="auth-submit-btn">Authenticate Chairman</button>
-            </form>
-            <div class="auth-switch" style="margin-bottom: 10px; color: #9ca3af;" onclick="forgotPassword()" tabindex="0">Forgot Password?</div>
-            <div class="auth-switch" id="auth-switch" onclick="toggleAuthMode()" tabindex="0">New Chairman? <span>Register here</span></div>
-        </div>
-    </div>
-
-    <!-- LEGAL MODAL -->
-    <div class="auth-overlay" id="legal-modal" role="dialog" aria-modal="true">
-        <div class="auth-card">
-            <div class="auth-close" onclick="closeLegal()" tabindex="0">×</div>
-            <div class="auth-title blue-black-text" id="legal-title">Policy</div>
-            <div class="legal-content" id="legal-body"></div>
-        </div>
-    </div>
-
-    <div id="cookie-consent" class="cookie-banner">
-        <div>We use strictly necessary cookies to secure your CEO Dashboard per POPIA/GDPR standards. <span style="color:#60a5fa; cursor:pointer;" onclick="openLegal('cookie')">Read Policy</span></div>
-        <button onclick="acceptCookies()">Accept</button>
     </div>
 
     <script>
-        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
-        function switchPanel(panelId, title, element) {
-            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            document.getElementById(panelId).classList.add('active');
-            document.getElementById('top-bar-title').innerText = title;
-            element.classList.add('active');
-            toggleSidebar();
+        let currentEmail = "";
+        let metricsInterval = null;
+
+        // --- AUTHENTICATION LOGIC ---
+        function showScreen(id) {
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('register-form').style.display = 'none';
+            document.getElementById('otp-form').style.display = 'none';
+            document.getElementById(id).style.display = 'block';
         }
 
-        // --- FILE UPLOAD LOGIC ---
-        let selectedFile = null;
-        function handleFileSelected() {
-            const input = document.getElementById('file-upload-input');
-            if (input.files && input.files[0]) {
-                selectedFile = input.files[0];
-                const indicator = document.getElementById('file-indicator');
-                indicator.innerText = "📎 Attached: " + selectedFile.name;
-                indicator.style.display = "block";
-            }
-        }
-
-        // --- DYNAMIC INPUT & VOICE ACTIVATION LOGIC ---
-        function toggleInputMode() {
-            const input = document.getElementById('chat-input').value.trim();
-            if (input.length > 0 || selectedFile !== null) {
-                document.getElementById('btn-mic').style.display = 'none';
-                document.getElementById('btn-send').style.display = 'block';
-            } else {
-                document.getElementById('btn-mic').style.display = 'block';
-                document.getElementById('btn-send').style.display = 'none';
-            }
-        }
-
-        function handleDynamicSubmit() {
-            const input = document.getElementById('chat-input').value.trim();
-            if (input.length > 0 || selectedFile !== null) { 
-                sendChat(); 
-            } else { 
-                startVoice(); 
-            }
-        }
-
-        function startVoice() {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SpeechRecognition) { 
-                alert("Voice recognition is not supported in this browser. Please use Chrome or Safari."); 
-                return; 
-            }
-            const recognition = new SpeechRecognition();
-            recognition.lang = 'en-US';
-            const micIcon = document.getElementById('btn-mic');
-            micIcon.style.fill = '#3b82f6';
+        async function login() {
+            const email = document.getElementById('login-email').value;
+            const pass = document.getElementById('login-password').value;
+            const msg = document.getElementById('login-msg');
+            msg.className = 'alert'; msg.innerText = 'Authenticating...';
             
-            recognition.start();
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email: email, password: pass})
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    document.getElementById('auth-container').style.display = 'none';
+                    document.getElementById('app-container').style.display = 'flex';
+                } else {
+                    msg.innerText = data.message;
+                }
+            } catch (e) { msg.innerText = 'Network error.'; }
+        }
+
+        async function register() {
+            const email = document.getElementById('reg-email').value;
+            const pass = document.getElementById('reg-password').value;
+            const msg = document.getElementById('reg-msg');
+            msg.className = 'alert'; msg.innerText = 'Creating account & dispatching email...';
             
-            recognition.onresult = function(event) {
-                document.getElementById('chat-input').value = event.results[0][0].transcript;
-                toggleInputMode(); 
-                sendChat();
-            };
-            recognition.onspeechend = function() { 
-                recognition.stop(); 
-                micIcon.style.fill = 'var(--text-secondary)';
-            }
-            recognition.onerror = function() { 
-                micIcon.style.fill = 'var(--text-secondary)';
-            }
+            try {
+                const res = await fetch('/api/auth/register', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email: email, password: pass})
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    currentEmail = email;
+                    showScreen('otp-form');
+                    document.getElementById('otp-msg').className = 'success-msg';
+                    document.getElementById('otp-msg').innerText = data.message;
+                } else {
+                    msg.innerText = data.message;
+                }
+            } catch (e) { msg.innerText = 'Network error.'; }
         }
 
-        // --- COPY & CLEANED READ ALOUD LOGIC ---
-        function copyMsg(id) { 
-            const textElement = document.getElementById(id);
-            if(textElement) {
-                navigator.clipboard.writeText(textElement.innerText);
-                alert("Response copied to clipboard.");
-            }
+        async function verifyOTP() {
+            const code = document.getElementById('otp-code').value;
+            const msg = document.getElementById('otp-msg');
+            msg.className = 'alert'; msg.innerText = 'Verifying...';
+            
+            try {
+                const res = await fetch('/api/auth/verify-email', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email: currentEmail, code: code})
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    document.getElementById('auth-container').style.display = 'none';
+                    document.getElementById('app-container').style.display = 'flex';
+                } else {
+                    msg.innerText = data.message;
+                }
+            } catch (e) { msg.innerText = 'Network error.'; }
         }
 
-        function speakMsg(element) {
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
-                const text = decodeURIComponent(element.getAttribute('data-text'));
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'en-US';
-                window.speechSynthesis.speak(utterance);
+        function logout() {
+            document.getElementById('app-container').style.display = 'none';
+            document.getElementById('auth-container').style.display = 'flex';
+            showScreen('login-form');
+            if(metricsInterval) clearInterval(metricsInterval);
+        }
+
+        // --- APP NAVIGATION ---
+        function switchTab(tab) {
+            document.getElementById('tab-kiemaen').classList.remove('active');
+            document.getElementById('tab-kim').classList.remove('active');
+            document.getElementById('workspace-kiemaen').classList.remove('active');
+            document.getElementById('workspace-kim').classList.remove('active');
+            
+            document.getElementById('tab-' + tab).classList.add('active');
+            document.getElementById('workspace-' + tab).classList.add('active');
+            
+            if (tab === 'kim') {
+                refreshKimData();
+                metricsInterval = setInterval(refreshKimData, 5000);
             } else {
-                alert("Text-to-speech is not supported in this browser.");
+                if(metricsInterval) clearInterval(metricsInterval);
             }
         }
 
+        // --- KIEMAEN CHAT LOGIC ---
         async function sendChat() {
             const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if(!text) return;
+            
             const log = document.getElementById('chat-log');
-            const hero = document.getElementById('hero-logo');
-            const msg = input.value.trim();
+            log.innerHTML += `<div class="chat-msg chat-user">${text}</div>`;
+            input.value = '';
+            log.scrollTop = log.scrollHeight;
             
-            if(msg !== "" || selectedFile !== null) {
-                if(hero) hero.style.display = 'none';
-                
-                let displayMsg = msg;
-                if(selectedFile) displayMsg += `<br><span class="file-badge">📎 ${selectedFile.name}</span>`;
-                
-                log.innerHTML += `<div class="message msg-user">${displayMsg}</div>`;
-                
-                input.value = ""; 
-                toggleInputMode();
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({message: text})
+                });
+                const data = await res.json();
+                const reply = data.reply || data.response || data.message || "Error processing directive.";
+                log.innerHTML += `<div class="chat-msg chat-ai">${reply}</div>`;
                 log.scrollTop = log.scrollHeight;
-                
-                const formData = new FormData();
-                formData.append("prompt", msg !== "" ? msg : "Analyze this attached file.");
-                formData.append("ceo_mode", document.getElementById('top-login-btn').innerText === "Chairman Active" ? "true" : "false");
-                if(selectedFile) {
-                    formData.append("file", selectedFile);
-                    selectedFile = null;
-                    document.getElementById('file-indicator').style.display = "none";
-                    document.getElementById('file-upload-input').value = "";
+            } catch (e) {
+                log.innerHTML += `<div class="chat-msg chat-ai" style="color:var(--danger)">Network connection failed.</div>`;
+            }
+        }
+
+        // --- KIM QUANT TERMINAL LOGIC ---
+        async function refreshKimData() {
+            // Metrics
+            fetch('/api/kim/metrics').then(r => r.json()).then(data => {
+                if(data.status === 'success') {
+                    document.getElementById('k-bal').innerText = data.balance;
+                    document.getElementById('k-eq').innerText = data.equity;
+                    document.getElementById('k-pos').innerText = data.open_positions;
+                    const pnl = document.getElementById('k-pnl');
+                    pnl.innerText = data.floating_profit;
+                    pnl.style.color = data.floating_profit.includes('-') ? 'var(--danger)' : 'var(--success)';
                 }
-
-                try {
-                    const response = await fetch('/chat', { method: 'POST', body: formData });
-                    const data = await response.json();
-                    let replyText = data.status === 'error' ? (data.message || 'Error occurred.') : data.response;
-                    
-                    // Cleaner for Read Aloud: strips markdown, formatting hashes, long dashes, and code blocks
-                    let cleanText = replyText.replace(/[*_#\-~|`]/g, '').replace(/\n/g, ' ').replace(/(https?:\/\/[^\s]+)/g, 'link removed').trim();
-                    const msgId = 'msg-' + Date.now();
-
-                    log.innerHTML += `
-                    <div class="message msg-ai">
-                        <svg style="width:16px;height:16px;margin-right:5px;vertical-align:middle" viewBox="0 0 100 100"><use href="#pointy-flower"/></svg> 
-                        <b>Kiemaen:</b><br><div id="${msgId}">${replyText}</div>
-                        <div class="msg-actions">
-                            <span onclick="copyMsg('${msgId}')" tabindex="0" role="button" aria-label="Copy message">
-                                <svg viewBox="0 0 24 24" class="action-svg"><use href="#icon-copy"/></svg> Copy
-                            </span>
-                            <span onclick="speakMsg(this)" data-text="${encodeURIComponent(cleanText)}" tabindex="0" role="button" aria-label="Read Aloud">
-                                <svg viewBox="0 0 24 24" class="action-svg"><use href="#icon-volume"/></svg> Read Aloud
-                            </span>
-                        </div>
-                    </div>`;
-                } catch (err) { 
-                    log.innerHTML += `<div class="message msg-ai" style="color:#ef4444;">Connection Error.</div>`; 
-                }
-                log.scrollTop = log.scrollHeight;
-            }
-        }
-
-        // --- AUTH & MISC ---
-        let isLoginMode = true;
-        function openAuth() { document.getElementById('auth-modal').classList.add('show'); }
-        function closeAuth() { document.getElementById('auth-modal').classList.remove('show'); document.getElementById('auth-form').reset(); }
-        function toggleAuthMode() {
-            isLoginMode = !isLoginMode; document.getElementById('auth-form').reset();
-            const title = document.getElementById('auth-title'); const submitBtn = document.getElementById('auth-submit-btn');
-            const passConfirm = document.getElementById('auth-pass-confirm'); const switchText = document.getElementById('auth-switch');
-            if (isLoginMode) {
-                title.innerText = "Chairman Login"; submitBtn.innerText = "Authenticate Chairman"; passConfirm.style.display = "none"; passConfirm.required = false; switchText.innerHTML = "New Chairman? <span>Register here</span>";
-            } else {
-                title.innerText = "Chairman Registration"; submitBtn.innerText = "Register Security Key"; passConfirm.style.display = "block"; passConfirm.required = true; switchText.innerHTML = "Already registered? <span>Login here</span>";
-            }
-        }
-        async function submitAuth(e) {
-            e.preventDefault();
-            if (!isLoginMode) {
-                if (document.getElementById('auth-pass').value !== document.getElementById('auth-pass-confirm').value) { alert("Passwords do not match."); return; }
-                alert("Registration Successful. Please Login."); toggleAuthMode(); return;
-            }
-            const topBtn = document.getElementById('top-login-btn');
-            topBtn.innerText = "Chairman Active"; topBtn.style.color = "#60a5fa"; topBtn.style.borderColor = "#3b82f6";
-            alert("Authentication Verified."); closeAuth();
-        }
-        async function forgotPassword() {
-            const email = document.getElementById("auth-email").value;
-            if(!email) { alert("Enter Chairman Email to request reset."); return; }
-            alert("Validation secure. Reset link dispatched.");
-        }
-        async function triggerKitLive() {
-            const target = prompt("Kit B2B System: Enter target client email address:");
-            if(!target) return;
+            }).catch(e => console.log(e));
             
-            const subject = "Kiemaen Enterprise Integration";
-            const body = "We have analyzed your business operations. Our AI systems have identified a 15% efficiency gap. Let us schedule a brief technical consultation.";
-            
-            // The Chairman Approval Checkpoint
-            const isApproved = confirm(`Kit drafted the following email to ${target}:
-
-SUBJECT: ${subject}
-
-BODY: ${body}
-
-Do you approve sending this live? (OK to Send, Cancel to Abort)`);
-            
-            if(!isApproved) {
-                alert("Kit: Campaign aborted by Chairman.");
-                return;
-            }
-            
-            alert("Kit: Approval received. Dispatching live B2B outreach...");
-            const fd = new FormData();
-            fd.append("target_email", target);
-            fd.append("subject", subject);
-            fd.append("body", body);
-            try {
-                const res = await fetch("/api/kit/outreach", {method: "POST", body: fd});
-                const data = await res.json();
-                alert(data.message);
-            } catch(e) { alert("Network Error: Could not reach Kit."); }
-        }
-
-        async function triggerKatLive() {
-            const signal = prompt("Kat VIP System: Enter market signal or update to broadcast:");
-            if(!signal) return;
-            alert("Kat: Broadcasting live to VIPs...");
-            const fd = new FormData();
-            fd.append("signal", signal);
-            try {
-                const res = await fetch("/api/kat/broadcast", {method: "POST", body: fd});
-                const data = await res.json();
-                alert(data.message);
-            } catch(e) { alert("Network Error: Could not reach Kat."); }
-        }
-
-        async function connectBroker() {
-            const login = document.getElementById('vm-login').value.trim();
-            const pass = document.getElementById('vm-pass').value.trim();
-            if(!login || !pass) { 
-                alert("Please enter both your Vault Markets Account Number and Password."); 
-                return; 
-            }
-            alert("Kim: Contacting Vault Markets live servers...");
-            const fd = new FormData();
-            fd.append("account_id", login);
-            fd.append("password", pass);
-            fd.append("server", "VaultMarkets-Live");
-
-            try {
-                const res = await fetch("/api/kim/connect", {method: "POST", body: fd});
-                const data = await res.json();
-                if(data.status === "success") {
-                    alert(data.message);
-                    document.getElementById('kim-status').innerText = "Live Synchronized [" + login + "]";
-                    document.getElementById('kim-status').style.color = "#10b981";
-                    
-                    // Display live metrics
-                    document.getElementById('kim-balance').innerText = data.balance || "$0.00";
-                    document.getElementById('kim-positions').innerText = data.open_positions || "0 Active Trades";
-                    document.getElementById('kim-profit').innerText = data.floating_profit || "$+0.00";
-                    if(data.floating_profit && data.floating_profit.includes('-')) {
-                        document.getElementById('kim-profit').style.color = "#ef4444";
-                    } else {
-                        document.getElementById('kim-profit').style.color = "#10b981";
-                    }
+            // DLQ
+            fetch('/api/kim/dlq').then(r => r.json()).then(data => {
+                const tbody = document.getElementById('dlq-table');
+                if(data.status === 'success' && data.dlq_entries.length > 0) {
+                    tbody.innerHTML = data.dlq_entries.map(row => 
+                        `<tr><td>${row.id}</td><td>${row.task_type}</td><td>${row.failed_at}</td><td style="color:var(--danger)">${row.error_reason}</td></tr>`
+                    ).join('');
                 } else {
-                    alert("Vault Markets Authentication Error: " + data.message);
+                    tbody.innerHTML = '<tr><td colspan="4">Queue is empty / All clear.</td></tr>';
                 }
-            } catch(e) {
-                alert("Network Error: Could not establish live bridge with Kim.");
-            }
+            }).catch(e => console.log(e));
         }
 
-        const legalTexts = {
-            privacy: "<h4>Privacy Policy</h4><p>Effective Date: September 2026</p><p>Kiemaen Enterprise operates in compliance with POPIA (South Africa) and GDPR standards. We practice data minimization. We only collect the email address you provide for authentication and maintain secure local logs of AI interactions. We do not sell your personal data.</p>",
-            terms: "<h4>Terms and Conditions</h4><p>By using Kiemaen AGI, you agree to our terms. Kiemaen is an AI assistant software tool. <strong>Disclaimer:</strong> Kiemaen Enterprise, including the Kim agent, is NOT a registered financial advisor.</p>",
-            cookie: "<h4>Cookie Policy</h4><p>We do not use tracking cookies. We only use Strictly Necessary Cookies and Local Storage (JWT tokens) required to keep your Chairman session secure.</p>",
-            refund: "<h4>Refund Policy</h4><p>All software licensing and enterprise API costs are final and non-refundable once deployed.</p>"
-        };
-
-        function openLegal(type) {
-            document.getElementById('legal-title').innerText = type.charAt(0).toUpperCase() + type.slice(1);
-            document.getElementById('legal-body').innerHTML = legalTexts[type];
-            document.getElementById('legal-modal').classList.add('show');
-        }
-        function closeLegal() { document.getElementById('legal-modal').classList.remove('show'); }
-        function acceptCookies() {
-            localStorage.setItem('kiemaen_cookie_consent', 'accepted');
-            document.getElementById('cookie-consent').classList.remove('show');
-        }
-        window.onload = function() {
-            if(!localStorage.getItem('kiemaen_cookie_consent')) {
-                setTimeout(() => document.getElementById('cookie-consent').classList.add('show'), 1500);
-            }
-        }
-    
-        // Auto-refresh Kim's live telemetry every 5 seconds
-        async function refreshKimLiveMetrics() {
+        async function triggerScalp() {
+            if(!confirm("Execute algorithmic scalp cluster?")) return;
             try {
-                const res = await fetch("/api/kim/live-metrics");
+                const res = await fetch('/api/kim/scalp-loop', {method: 'POST'});
                 const data = await res.json();
-                if (data.account_id && data.account_id !== "Not Linked") {
-                    document.getElementById('kim-balance').innerText = data.balance;
-                    document.getElementById('kim-positions').innerText = data.open_positions;
-                    document.getElementById('kim-profit').innerText = data.floating_profit;
-                    
-                    if (data.floating_profit && data.floating_profit.includes('-')) {
-                        document.getElementById('kim-profit').style.color = "#ef4444";
-                    } else {
-                        document.getElementById('kim-profit').style.color = "#10b981";
-                    }
-                }
-            } catch(e) {}
+                alert(data.message || data.status);
+                refreshKimData();
+            } catch(e) { alert("Failed to connect to execution pipeline."); }
         }
-        setInterval(refreshKimLiveMetrics, 5000);
 
-
-    function copyMessageText(element) {
-        let rawHtml = element.innerHTML || element.innerText || "";
-        let plainText = rawHtml.replace(/<br\s*[\/]?>/gi, "\n").replace(/<[^>]+>/g, "").trim();
-        
-        if (navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText(plainText).then(() => showToast("Copied to clipboard!"));
-        } else {
-            let textArea = document.createElement("textarea");
-            textArea.value = plainText;
-            textArea.style.position = "fixed";
-            textArea.style.left = "-999999px";
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
+        async function triggerEmergency() {
+            if(!confirm("DANGER: This will forcefully flatten all accounts. Proceed?")) return;
             try {
-                document.execCommand('copy');
-                showToast("Copied to clipboard!");
-            } catch (err) {
-                console.error("Copy failed", err);
-            }
-            document.body.removeChild(textArea);
+                const res = await fetch('/api/kim/emergency-close', {method: 'POST'});
+                const data = await res.json();
+                alert(`Closed ${data.result?.closed || 0} positions.`);
+                refreshKimData();
+            } catch(e) { alert("Kill switch failed."); }
         }
-    }
-    
-</script>
-    
-    <script id="persistent-login-engine">
-        const SESSION_TTL = 3 * 24 * 60 * 60 * 1000; // 1 hour
-
-        function persistSessionData() {
-            const chatBox = document.querySelector('.chat-box, #chat-box, .messages-panel');
-            if (chatBox) {
-                localStorage.setItem('kim_chat_cache', JSON.stringify({
-                    html: chatBox.innerHTML,
-                    time: Date.now()
-                }));
-            }
-        }
-
-        function watchAndAutoLogin() {
-            // Check if we have saved credentials
-            const rawCreds = localStorage.getItem('kim_vault_creds');
-            if (!rawCreds) return;
-            
-            const creds = JSON.parse(rawCreds);
-            if (Date.now() - creds.time > SESSION_TTL) {
-                localStorage.removeItem('kim_vault_creds');
-                return;
-            }
-
-            // Continuously scan the DOM until the login inputs and button appear
-            const loginChecker = setInterval(() => {
-                if (document.querySelector(".chairman-active, .logged-in-indicator")) { clearInterval(loginChecker); return; }
-                const inputs = document.querySelectorAll('input');
-                const buttons = Array.from(document.querySelectorAll('button'));
-                const linkBtn = buttons.find(b => b.innerText.toLowerCase().includes('link'));
-
-                if (inputs.length >= 2 && linkBtn) {
-                    clearInterval(loginChecker);
-                    let accField = null, passField = null;
-                    inputs.forEach(i => {
-                        if (i.type === 'password') passField = i;
-                        else accField = i;
-                    });
-
-                    if (accField && passField) {
-                        accField.value = creds.acc;
-                        passField.value = creds.pwd;
-                        accField.dispatchEvent(new Event('input', { bubbles: true }));
-                        passField.dispatchEvent(new Event('input', { bubbles: true }));
-                        
-                        setTimeout(() => { linkBtn.click(); }, 400);
-                    }
-                }
-            }, 300);
-
-            // Timeout check after 10 seconds
-            setTimeout(() => clearInterval(loginChecker), 30000);
-        }
-
-        // Capture credentials when user manually clicks link
-        document.addEventListener('click', (e) => {
-            if (e.target.tagName === 'BUTTON' && e.target.innerText.toLowerCase().includes('link')) {
-                setTimeout(() => {
-                    const inputs = document.querySelectorAll('input');
-                    let accField = null, passField = null;
-                    inputs.forEach(i => {
-                        if (i.type === 'password') passField = i;
-                        else accField = i;
-                    });
-                    if (accField && accField.value && passField && passField.value) {
-                        localStorage.setItem('kim_vault_creds', JSON.stringify({
-                            acc: accField.value,
-                            pwd: passField.value,
-                            time: Date.now()
-                        }));
-                    }
-                }, 500);
-            }
-        });
-
-        document.addEventListener('DOMContentLoaded', () => {
-            // Restore chat history cache
-            const cache = localStorage.getItem('kim_chat_cache');
-            if (cache) {
-                const data = JSON.parse(cache);
-                if (Date.now() - data.time < SESSION_TTL) {
-                    const chatBox = document.querySelector('.chat-box, #chat-box, .messages-panel');
-                    if (chatBox) chatBox.innerHTML = data.html;
-                }
-            }
-
-            watchAndAutoLogin();
-
-            const chatBox = document.querySelector('.chat-box, #chat-box, .messages-panel');
-            if (chatBox) {
-                new MutationObserver(persistSessionData).observe(chatBox, { childList: true, subtree: true, characterData: true });
-            }
-            setInterval(persistSessionData, 5000);
-        });
-    
-    function copyMessageText(element) {
-        let rawHtml = element.innerHTML || element.innerText || "";
-        let plainText = rawHtml.replace(/<br\s*[\/]?>/gi, "\n").replace(/<[^>]+>/g, "").trim();
-        
-        if (navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText(plainText).then(() => showToast("Copied to clipboard!"));
-        } else {
-            let textArea = document.createElement("textarea");
-            textArea.value = plainText;
-            textArea.style.position = "fixed";
-            textArea.style.left = "-999999px";
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            try {
-                document.execCommand('copy');
-                showToast("Copied to clipboard!");
-            } catch (err) {
-                console.error("Copy failed", err);
-            }
-            document.body.removeChild(textArea);
-        }
-    }
-    
-</script>
-    
-<!-- KIEMAEN MOBILE COPY INTERCEPTOR -->
-<script>
-document.addEventListener('click', function(e) {
-    // Intercept any click on an element functioning as a copy button
-    let target = e.target.closest('.copy-btn, button[title*="Copy"], .copy-button');
-    if (!target && e.target.innerText && e.target.innerText.toLowerCase().includes('copy')) {
-        target = e.target;
-    }
-    
-    if (target) {
-        e.preventDefault();
-        e.stopPropagation(); // Block the broken original copy function
-        
-        let msgContainer = target.closest('.message, .chat-message, .message-content') || target.parentElement;
-        if (msgContainer) {
-            let htmlContent = msgContainer.innerHTML;
-            
-            // Strip out button text/icons so they aren't copied
-            htmlContent = htmlContent.replace(/<button[^>]*>.*?<\/button>/gi, '');
-            htmlContent = htmlContent.replace(/<svg[^>]*>.*?<\/svg>/gi, '');
-            
-            // Preserve line breaks and strip remaining HTML code
-            let plainText = htmlContent.replace(/<br\s*[\/]?>/gi, '\n').replace(/<[^>]+>/g, '').trim();
-            
-            // Mobile-Safe Clipboard execution hack
-            let textArea = document.createElement('textarea');
-            textArea.value = plainText;
-            textArea.style.position = 'absolute';
-            textArea.style.opacity = '0';
-            textArea.style.left = '-9999px';
-            document.body.appendChild(textArea);
-            
-            textArea.focus();
-            textArea.setSelectionRange(0, 999999); // Mobile selection constraint
-            
-            try {
-                document.execCommand('copy');
-                // Display Custom Toast
-                let toast = document.createElement('div');
-                toast.innerText = '✅ Report Copied!';
-                toast.style.cssText = 'position:fixed;bottom:10%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:#fff;padding:10px 20px;border-radius:20px;z-index:9999;font-family:sans-serif;font-size:14px;';
-                document.body.appendChild(toast);
-                setTimeout(() => toast.remove(), 2500);
-            } catch (err) {
-                console.error('Copy failed', err);
-            }
-            document.body.removeChild(textArea);
-        }
-    }
-}, true);
-</script>
-
-
-    
-    
-
-<script>
-async function triggerKimScalp() {
-    const btn = document.getElementById('kimScalpBtn');
-    if (btn) btn.innerText = "⚡ SCANNING MARKET & EXECUTING...";
-    try {
-        const res = await fetch('/api/kim/scalp-loop', { method: 'POST' });
-        const data = await res.json();
-        if (data.status === "success") {
-            if (window.showToast) showToast("✅ Kim Scalp Executed on " + (data.symbol || 'Market'));
-        } else {
-            if (window.showToast) showToast("⚠️ Kim Scalp Notice: " + (data.message || 'Check logs'));
-        }
-    } catch(e) {
-        if (window.showToast) showToast("❌ Network Error connecting to Kim");
-    } finally {
-        if (btn) btn.innerText = "⚡ EXECUTE KIM QUICK SCALP";
-    }
-}
-</script>
-    
-
-<script>
-async function triggerEmergencyClose() {
-    const btn = document.getElementById('kimEmergencyBtn');
-    if (btn) btn.innerText = "🚨 CLOSING ALL POSITIONS...";
-    try {
-        const res = await fetch('/api/kim/emergency-close', { method: 'POST' });
-        const data = await res.json();
-        if (data.status === "success") {
-            if (window.showToast) showToast("🚨 Emergency Close Dispatched!");
-        } else {
-            if (window.showToast) showToast("⚠️ Notice: " + (data.message || 'Error closing'));
-        }
-    } catch(e) {
-        if (window.showToast) showToast("❌ Network Error connecting to Kim");
-    } finally {
-        if (btn) btn.innerText = "🚨 EMERGENCY CLOSE ALL TRADES";
-    }
-}
-</script>
-    
+    </script>
 </body>
-    
-    
-    
-    
 </html>

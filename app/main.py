@@ -186,7 +186,31 @@ async def reset_password_with_otp(data: dict):
     conn.close()
     return {"status": "success", "message": "Password successfully reset."}
 
+
+@app.post("/api/auth/login")
+async def login_user(data: dict):
+    email = data.get("email")
+    password = data.get("password")
+    if not email or not password:
+        return {"status": "error", "message": "Missing credentials"}
+    
+    import hashlib
+    import sqlite3
+    hashed_pwd = hashlib.sha256(password.encode()).hexdigest()
+    
+    conn = sqlite3.connect("data/enterprise_management.db")
+    user = conn.execute("SELECT is_verified FROM enterprise_users WHERE email = ? AND password = ?", (email, hashed_pwd)).fetchone()
+    conn.close()
+    
+    if not user:
+        return {"status": "error", "message": "Invalid email or password."}
+    if user[0] == 0:
+        return {"status": "error", "message": "Account not verified. Please register again to request a new code.", "needs_verification": True}
+        
+    return {"status": "success", "message": "Login successful"}
+
 # -- KIM EXECUTION & DIAGNOSTICS --
+
 @app.get("/api/kim/dlq")
 async def view_dead_letter_queue():
     try:
