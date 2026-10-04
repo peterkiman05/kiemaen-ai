@@ -7,37 +7,55 @@
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --accent: #38bdf8; --danger: #ef4444; --success: #10b981; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
-        body { background: var(--bg); color: var(--text); display: flex; flex-direction: column; height: 100vh; }
+        body { background: var(--bg); color: var(--text); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        /* Auth Screens */
+        /* Auth Screens (Unchanged) */
         #auth-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
         .auth-box { background: var(--card); padding: 2rem; border-radius: 12px; width: 100%; max-width: 400px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5); }
         .auth-box h2 { margin-bottom: 1.5rem; text-align: center; }
         .auth-box input { width: 100%; padding: 0.75rem; margin-bottom: 1rem; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: white; }
         .auth-box button { width: 100%; padding: 0.75rem; border-radius: 6px; border: none; background: var(--accent); color: #0f172a; font-weight: bold; cursor: pointer; margin-bottom: 1rem; }
-        .auth-box button:hover { opacity: 0.9; }
         .auth-link { color: var(--accent); cursor: pointer; text-align: center; display: block; font-size: 0.9rem; margin-top: 0.5rem; }
         
         /* App Layout */
         #app-container { display: none; flex-direction: column; height: 100vh; }
-        nav { display: flex; background: var(--card); padding: 1rem; gap: 1rem; border-bottom: 1px solid #334155; }
+        nav { display: flex; background: var(--card); padding: 1rem; gap: 1rem; border-bottom: 1px solid #334155; z-index: 10; }
         nav button { background: transparent; border: 1px solid var(--accent); color: var(--accent); padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; }
         nav button.active { background: var(--accent); color: var(--bg); }
         
         /* Workspaces */
-        .workspace { flex: 1; padding: 1.5rem; overflow-y: auto; display: none; }
-        .workspace.active { display: block; }
+        .workspace { flex: 1; overflow-y: auto; display: none; position: relative; }
+        .workspace.active { display: flex; flex-direction: column; }
         
-        /* Kiemaen Chat */
-        #chat-log { background: var(--card); border-radius: 8px; padding: 1rem; height: calc(100vh - 200px); overflow-y: auto; margin-bottom: 1rem; }
-        .chat-msg { margin-bottom: 1rem; padding: 0.75rem; border-radius: 8px; max-width: 80%; }
-        .chat-user { background: #334155; margin-left: auto; }
-        .chat-ai { background: #1e293b; border: 1px solid #334155; margin-right: auto; }
-        .chat-input-area { display: flex; gap: 1rem; }
-        .chat-input-area input { flex: 1; padding: 0.75rem; border-radius: 6px; border: 1px solid #334155; background: var(--card); color: white; }
-        .chat-input-area button { padding: 0.75rem 1.5rem; border-radius: 6px; border: none; background: var(--accent); color: var(--bg); font-weight: bold; cursor: pointer; }
+        /* ========================================= */
+        /* KIEMAEN (CEO) ORIGINAL AESTHETIC RESTORED */
+        /* ========================================= */
+        #workspace-kiemaen { background-color: #050a14; }
+        .k-hero { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.3s; }
+        .k-title { color: #4285f4; font-size: 2.2rem; font-weight: bold; margin-top: 15px; letter-spacing: -0.5px; }
         
-        /* Kim Quant Terminal */
+        #k-chat-log { display: none; flex: 1; padding: 2rem 1rem; overflow-y: auto; padding-bottom: 100px; }
+        .k-msg { margin-bottom: 1.5rem; line-height: 1.5; font-size: 1rem; max-width: 85%; }
+        .k-msg-user { margin-left: auto; background: #1e293b; padding: 10px 15px; border-radius: 18px 18px 0 18px; color: #e2e8f0; }
+        .k-msg-ai { margin-right: auto; color: #94a3b8; }
+        
+        .k-input-wrapper { position: absolute; bottom: 20px; left: 0; right: 0; display: flex; justify-content: center; padding: 0 15px; }
+        .k-pill { background: #1e232f; border-radius: 30px; display: flex; align-items: center; padding: 8px 15px; width: 100%; max-width: 600px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .k-pill input { flex: 1; background: transparent; border: none; color: white; padding: 10px; font-size: 1rem; outline: none; }
+        .k-pill input::placeholder { color: #64748b; }
+        .k-icon-btn { background: transparent; border: none; cursor: pointer; padding: 5px; display: flex; align-items: center; justify-content: center; }
+        .k-icon-btn svg { width: 20px; height: 20px; fill: #9aa0a6; }
+        
+        /* ========================================= */
+        /* KIM QUANT TERMINAL & BROKER LOGIN         */
+        /* ========================================= */
+        #workspace-kim { padding: 1.5rem; background: var(--bg); }
+        .setup-card { background: var(--card); padding: 2rem; border-radius: 8px; border: 1px solid #334155; max-width: 500px; margin: 2rem auto; }
+        .setup-card h2 { margin-bottom: 1.5rem; text-align: center; }
+        .setup-card input { width: 100%; padding: 0.75rem; margin-bottom: 1rem; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: white; }
+        .setup-card button { width: 100%; padding: 1rem; background: var(--accent); color: var(--bg); font-weight: bold; border: none; border-radius: 6px; cursor: pointer; }
+        
+        #kim-dashboard { display: none; }
         .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
         .metric-card { background: var(--card); padding: 1.5rem; border-radius: 8px; text-align: center; border: 1px solid #334155; }
         .metric-card h3 { font-size: 0.9rem; color: #94a3b8; margin-bottom: 0.5rem; }
@@ -50,40 +68,32 @@
         table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 8px; overflow: hidden; }
         th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #334155; }
         th { background: #0f172a; color: #94a3b8; }
-        
         .alert { color: var(--danger); text-align: center; margin-bottom: 1rem; font-size: 0.9rem; }
-        .success-msg { color: var(--success); text-align: center; margin-bottom: 1rem; font-size: 0.9rem; }
     </style>
 </head>
 <body>
 
-    <!-- AUTHENTICATION CONTAINER -->
+    <!-- AUTHENTICATION CONTAINER (Unchanged) -->
     <div id="auth-container">
-        <!-- Login Form -->
         <div id="login-form" class="auth-box">
             <h2>Kiemaen Enterprise</h2>
-            <div id="login-msg"></div>
+            <div id="login-msg" class="alert"></div>
             <input type="email" id="login-email" placeholder="Email Address">
             <input type="password" id="login-password" placeholder="Password">
             <button onclick="login()">Sign In</button>
             <span class="auth-link" onclick="showScreen('register-form')">New User? Register here</span>
         </div>
-
-        <!-- Register Form -->
         <div id="register-form" class="auth-box" style="display: none;">
             <h2>Create Account</h2>
-            <div id="reg-msg"></div>
+            <div id="reg-msg" class="alert"></div>
             <input type="email" id="reg-email" placeholder="Email Address">
             <input type="password" id="reg-password" placeholder="Create Password">
             <button onclick="register()">Register & Send Code</button>
             <span class="auth-link" onclick="showScreen('login-form')">Back to Login</span>
         </div>
-
-        <!-- OTP Form -->
         <div id="otp-form" class="auth-box" style="display: none;">
             <h2>Verify Email</h2>
-            <p style="text-align:center; font-size:0.9rem; margin-bottom:1rem; color:#94a3b8;">Enter the 6-digit code sent to your email.</p>
-            <div id="otp-msg"></div>
+            <div id="otp-msg" class="alert"></div>
             <input type="text" id="otp-code" placeholder="6-Digit Code">
             <button onclick="verifyOTP()">Confirm Identity</button>
             <span class="auth-link" onclick="showScreen('login-form')">Cancel</span>
@@ -98,168 +108,194 @@
             <button onclick="logout()" style="margin-left: auto; border-color: var(--danger); color: var(--danger);">Logout</button>
         </nav>
 
-        <!-- Kiemaen Chat Workspace -->
+        <!-- ========================================= -->
+        <!-- KIEMAEN (CEO) ORIGINAL AESTHETIC RESTORED -->
+        <!-- ========================================= -->
         <div id="workspace-kiemaen" class="workspace active">
-            <div id="chat-log">
-                <div class="chat-msg chat-ai">Welcome to Kiemaen Enterprise. Awaiting executive directive.</div>
+            <!-- Central Logo View -->
+            <div id="k-hero" class="k-hero">
+                <svg viewBox="0 0 100 100" width="100" height="100">
+                    <defs>
+                        <radialGradient id="grad" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%" stop-color="#8ab4f8" />
+                            <stop offset="100%" stop-color="#1a73e8" />
+                        </radialGradient>
+                    </defs>
+                    <g fill="url(#grad)">
+                        <ellipse cx="50" cy="25" rx="14" ry="28" opacity="0.9" />
+                        <ellipse cx="50" cy="25" rx="14" ry="28" transform="rotate(72 50 50)" opacity="0.9" />
+                        <ellipse cx="50" cy="25" rx="14" ry="28" transform="rotate(144 50 50)" opacity="0.9" />
+                        <ellipse cx="50" cy="25" rx="14" ry="28" transform="rotate(216 50 50)" opacity="0.9" />
+                        <ellipse cx="50" cy="25" rx="14" ry="28" transform="rotate(288 50 50)" opacity="0.9" />
+                    </g>
+                    <circle cx="50" cy="50" r="10" fill="#050a14" />
+                </svg>
+                <div class="k-title">Kiemaen AI</div>
             </div>
-            <div class="chat-input-area">
-                <input type="text" id="chat-input" placeholder="Enter command or directive (e.g. 'Execute gold scalp')" onkeypress="if(event.key === 'Enter') sendChat()">
-                <button onclick="sendChat()">Send</button>
+
+            <!-- Chat Log View -->
+            <div id="k-chat-log"></div>
+
+            <!-- Floating Input Pill -->
+            <div class="k-input-wrapper">
+                <div class="k-pill">
+                    <button class="k-icon-btn"><svg viewBox="0 0 24 24"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 0 0 5 0V5c0-3.31-2.69-6-6-6S3 1.69 3 5v11.5C3 20.64 6.36 24 10.5 24s7.5-3.36 7.5-7.5V6h-1.5z"/></svg></button>
+                    <input type="text" id="k-input" placeholder="Ask Kiemaen..." onkeypress="if(event.key === 'Enter') sendChat()">
+                    <button class="k-icon-btn"><svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg></button>
+                    <button class="k-icon-btn" onclick="sendChat()">
+                        <svg viewBox="0 0 100 100" style="width:28px; height:28px;">
+                            <g fill="#4285f4"><ellipse cx="50" cy="25" rx="14" ry="28" opacity="0.9" /><ellipse cx="50" cy="25" rx="14" ry="28" transform="rotate(72 50 50)" opacity="0.9" /><ellipse cx="50" cy="25" rx="14" ry="28" transform="rotate(144 50 50)" opacity="0.9" /><ellipse cx="50" cy="25" rx="14" ry="28" transform="rotate(216 50 50)" opacity="0.9" /><ellipse cx="50" cy="25" rx="14" ry="28" transform="rotate(288 50 50)" opacity="0.9" /></g><circle cx="50" cy="50" r="10" fill="#1e232f" />
+                        </svg>
+                    </button>
+                </div>
             </div>
         </div>
 
-        <!-- Kim Quant Terminal Workspace -->
+        <!-- ========================================= -->
+        <!-- KIM QUANT TERMINAL & BROKER LOGIN         -->
+        <!-- ========================================= -->
         <div id="workspace-kim" class="workspace">
-            <div class="metrics-grid">
-                <div class="metric-card"><h3>Total Balance</h3><p id="k-bal">Loading...</p></div>
-                <div class="metric-card"><h3>Live Equity</h3><p id="k-eq">Loading...</p></div>
-                <div class="metric-card"><h3>Floating PnL</h3><p id="k-pnl" style="color:var(--success)">Loading...</p></div>
-                <div class="metric-card"><h3>Open Trades</h3><p id="k-pos">Loading...</p></div>
-            </div>
             
-            <div class="action-bar">
-                <button class="btn-scalp" onclick="triggerScalp()">⚡ Trigger Quick Scalp (MTF Engine)</button>
-                <button class="btn-kill" onclick="triggerEmergency()">🚨 Emergency Kill Switch</button>
+            <!-- Link Broker Card -->
+            <div id="kim-setup" class="setup-card">
+                <h2>Link Institutional Broker</h2>
+                <p style="text-align:center; color:#94a3b8; font-size:0.9rem; margin-bottom:1.5rem;">Initialize Kim's execution engine with your MetaAPI credentials.</p>
+                <div id="kim-setup-msg" class="alert" style="display:none;"></div>
+                <input type="text" id="meta-token" placeholder="MetaAPI Token">
+                <input type="text" id="meta-acc1" placeholder="Primary Account ID (e.g. 8760042)">
+                <input type="text" id="meta-acc2" placeholder="Secondary Account ID (Optional)">
+                <button onclick="connectBroker()">Authenticate & Sync</button>
             </div>
 
-            <h3 style="margin-bottom: 1rem;">Dead Letter Queue (DLQ) Diagnostics</h3>
-            <table>
-                <thead><tr><th>ID</th><th>Type</th><th>Failed At</th><th>Error Reason</th></tr></thead>
-                <tbody id="dlq-table"><tr><td colspan="4">Loading DLQ...</td></tr></tbody>
-            </table>
+            <!-- Live Dashboard (Hidden until connected) -->
+            <div id="kim-dashboard">
+                <div class="metrics-grid">
+                    <div class="metric-card"><h3>Total Balance</h3><p id="k-bal">Loading...</p></div>
+                    <div class="metric-card"><h3>Live Equity</h3><p id="k-eq">Loading...</p></div>
+                    <div class="metric-card"><h3>Floating PnL</h3><p id="k-pnl" style="color:var(--success)">Loading...</p></div>
+                    <div class="metric-card"><h3>Open Trades</h3><p id="k-pos">Loading...</p></div>
+                </div>
+                
+                <div class="action-bar">
+                    <button class="btn-scalp" onclick="triggerScalp()">⚡ Trigger Quick Scalp (MTF Engine)</button>
+                    <button class="btn-kill" onclick="triggerEmergency()">🚨 Emergency Kill Switch</button>
+                </div>
+
+                <h3 style="margin-bottom: 1rem;">Dead Letter Queue (DLQ) Diagnostics</h3>
+                <table>
+                    <thead><tr><th>ID</th><th>Type</th><th>Failed At</th><th>Error Reason</th></tr></thead>
+                    <tbody id="dlq-table"><tr><td colspan="4">Loading DLQ...</td></tr></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
     <script>
         let currentEmail = "";
         let metricsInterval = null;
+        let isBrokerConnected = false;
 
-        // --- AUTHENTICATION LOGIC ---
+        /* AUTH (Unchanged) */
         function showScreen(id) {
-            document.getElementById('login-form').style.display = 'none';
-            document.getElementById('register-form').style.display = 'none';
-            document.getElementById('otp-form').style.display = 'none';
+            ['login-form', 'register-form', 'otp-form'].forEach(x => document.getElementById(x).style.display = 'none');
             document.getElementById(id).style.display = 'block';
         }
-
         async function login() {
             const email = document.getElementById('login-email').value;
             const pass = document.getElementById('login-password').value;
-            const msg = document.getElementById('login-msg');
-            msg.className = 'alert'; msg.innerText = 'Authenticating...';
-            
             try {
-                const res = await fetch('/api/auth/login', {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({email: email, password: pass})
-                });
+                const res = await fetch('/api/auth/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email, password: pass}) });
                 const data = await res.json();
-                if (data.status === 'success') {
-                    document.getElementById('auth-container').style.display = 'none';
-                    document.getElementById('app-container').style.display = 'flex';
-                } else {
-                    msg.innerText = data.message;
-                }
-            } catch (e) { msg.innerText = 'Network error.'; }
+                if (data.status === 'success') { document.getElementById('auth-container').style.display = 'none'; document.getElementById('app-container').style.display = 'flex'; }
+                else document.getElementById('login-msg').innerText = data.message;
+            } catch (e) { document.getElementById('login-msg').innerText = 'Network error.'; }
         }
-
         async function register() {
             const email = document.getElementById('reg-email').value;
             const pass = document.getElementById('reg-password').value;
-            const msg = document.getElementById('reg-msg');
-            msg.className = 'alert'; msg.innerText = 'Creating account & dispatching email...';
-            
             try {
-                const res = await fetch('/api/auth/register', {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({email: email, password: pass})
-                });
+                const res = await fetch('/api/auth/register', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email, password: pass}) });
                 const data = await res.json();
-                if (data.status === 'success') {
-                    currentEmail = email;
-                    showScreen('otp-form');
-                    document.getElementById('otp-msg').className = 'success-msg';
-                    document.getElementById('otp-msg').innerText = data.message;
-                } else {
-                    msg.innerText = data.message;
-                }
-            } catch (e) { msg.innerText = 'Network error.'; }
+                if (data.status === 'success') { currentEmail = email; showScreen('otp-form'); document.getElementById('otp-msg').innerText = data.message; document.getElementById('otp-msg').style.color = 'var(--success)'; }
+                else document.getElementById('reg-msg').innerText = data.message;
+            } catch (e) { document.getElementById('reg-msg').innerText = 'Network error.'; }
         }
-
         async function verifyOTP() {
             const code = document.getElementById('otp-code').value;
-            const msg = document.getElementById('otp-msg');
-            msg.className = 'alert'; msg.innerText = 'Verifying...';
-            
             try {
-                const res = await fetch('/api/auth/verify-email', {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({email: currentEmail, code: code})
-                });
+                const res = await fetch('/api/auth/verify-email', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email: currentEmail, code}) });
                 const data = await res.json();
-                if (data.status === 'success') {
-                    document.getElementById('auth-container').style.display = 'none';
-                    document.getElementById('app-container').style.display = 'flex';
-                } else {
-                    msg.innerText = data.message;
-                }
-            } catch (e) { msg.innerText = 'Network error.'; }
+                if (data.status === 'success') { document.getElementById('auth-container').style.display = 'none'; document.getElementById('app-container').style.display = 'flex'; }
+                else document.getElementById('otp-msg').innerText = data.message;
+            } catch (e) { document.getElementById('otp-msg').innerText = 'Network error.'; }
         }
+        function logout() { document.getElementById('app-container').style.display = 'none'; document.getElementById('auth-container').style.display = 'flex'; showScreen('login-form'); if(metricsInterval) clearInterval(metricsInterval); }
 
-        function logout() {
-            document.getElementById('app-container').style.display = 'none';
-            document.getElementById('auth-container').style.display = 'flex';
-            showScreen('login-form');
-            if(metricsInterval) clearInterval(metricsInterval);
-        }
-
-        // --- APP NAVIGATION ---
+        /* TABS */
         function switchTab(tab) {
-            document.getElementById('tab-kiemaen').classList.remove('active');
-            document.getElementById('tab-kim').classList.remove('active');
-            document.getElementById('workspace-kiemaen').classList.remove('active');
-            document.getElementById('workspace-kim').classList.remove('active');
-            
+            document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.workspace').forEach(w => w.classList.remove('active'));
             document.getElementById('tab-' + tab).classList.add('active');
             document.getElementById('workspace-' + tab).classList.add('active');
             
-            if (tab === 'kim') {
+            if(metricsInterval) clearInterval(metricsInterval);
+            if (tab === 'kim' && isBrokerConnected) {
                 refreshKimData();
                 metricsInterval = setInterval(refreshKimData, 5000);
-            } else {
-                if(metricsInterval) clearInterval(metricsInterval);
             }
         }
 
-        // --- KIEMAEN CHAT LOGIC ---
+        /* KIEMAEN CHAT (Restored Aesthetic) */
         async function sendChat() {
-            const input = document.getElementById('chat-input');
+            const input = document.getElementById('k-input');
             const text = input.value.trim();
             if(!text) return;
             
-            const log = document.getElementById('chat-log');
-            log.innerHTML += `<div class="chat-msg chat-user">${text}</div>`;
+            // Hide hero, show chat log
+            document.getElementById('k-hero').style.display = 'none';
+            const log = document.getElementById('k-chat-log');
+            log.style.display = 'block';
+            
+            log.innerHTML += `<div class="k-msg k-msg-user">${text}</div>`;
             input.value = '';
             log.scrollTop = log.scrollHeight;
             
             try {
-                const res = await fetch('/api/chat', {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({message: text})
-                });
+                const res = await fetch('/api/chat', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({message: text}) });
                 const data = await res.json();
                 const reply = data.reply || data.response || data.message || "Error processing directive.";
-                log.innerHTML += `<div class="chat-msg chat-ai">${reply}</div>`;
+                log.innerHTML += `<div class="k-msg k-msg-ai">${reply}</div>`;
                 log.scrollTop = log.scrollHeight;
-            } catch (e) {
-                log.innerHTML += `<div class="chat-msg chat-ai" style="color:var(--danger)">Network connection failed.</div>`;
-            }
+            } catch (e) { log.innerHTML += `<div class="k-msg k-msg-ai" style="color:var(--danger)">Network connection failed.</div>`; }
         }
 
-        // --- KIM QUANT TERMINAL LOGIC ---
-        async function refreshKimData() {
-            // Metrics
+        /* KIM BROKER LOGIN & DASHBOARD */
+        async function connectBroker() {
+            const token = document.getElementById('meta-token').value;
+            const acc1 = document.getElementById('meta-acc1').value;
+            const acc2 = document.getElementById('meta-acc2').value;
+            const msg = document.getElementById('kim-setup-msg');
+            
+            if(!token || !acc1) { msg.style.display = 'block'; msg.innerText = 'Token and primary Account ID required.'; return; }
+            msg.style.display = 'none';
+            
+            let accounts = [acc1];
+            if(acc2) accounts.push(acc2);
+
+            try {
+                const res = await fetch('/api/kim/connect', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({token, accounts}) });
+                const data = await res.json();
+                if(data.status === 'success') {
+                    isBrokerConnected = true;
+                    document.getElementById('kim-setup').style.display = 'none';
+                    document.getElementById('kim-dashboard').style.display = 'block';
+                    refreshKimData();
+                    metricsInterval = setInterval(refreshKimData, 5000);
+                } else { msg.style.display = 'block'; msg.innerText = data.message; }
+            } catch(e) { msg.style.display = 'block'; msg.innerText = 'Network Error.'; }
+        }
+
+        function refreshKimData() {
             fetch('/api/kim/metrics').then(r => r.json()).then(data => {
                 if(data.status === 'success') {
                     document.getElementById('k-bal').innerText = data.balance;
@@ -271,16 +307,11 @@
                 }
             }).catch(e => console.log(e));
             
-            // DLQ
             fetch('/api/kim/dlq').then(r => r.json()).then(data => {
                 const tbody = document.getElementById('dlq-table');
                 if(data.status === 'success' && data.dlq_entries.length > 0) {
-                    tbody.innerHTML = data.dlq_entries.map(row => 
-                        `<tr><td>${row.id}</td><td>${row.task_type}</td><td>${row.failed_at}</td><td style="color:var(--danger)">${row.error_reason}</td></tr>`
-                    ).join('');
-                } else {
-                    tbody.innerHTML = '<tr><td colspan="4">Queue is empty / All clear.</td></tr>';
-                }
+                    tbody.innerHTML = data.dlq_entries.map(r => `<tr><td>${r.id}</td><td>${r.task_type}</td><td>${r.failed_at}</td><td style="color:var(--danger)">${r.error_reason}</td></tr>`).join('');
+                } else { tbody.innerHTML = '<tr><td colspan="4">Queue is empty / All clear.</td></tr>'; }
             }).catch(e => console.log(e));
         }
 
@@ -290,17 +321,14 @@
                 const res = await fetch('/api/kim/scalp-loop', {method: 'POST'});
                 const data = await res.json();
                 alert(data.message || data.status);
-                refreshKimData();
             } catch(e) { alert("Failed to connect to execution pipeline."); }
         }
-
         async function triggerEmergency() {
             if(!confirm("DANGER: This will forcefully flatten all accounts. Proceed?")) return;
             try {
                 const res = await fetch('/api/kim/emergency-close', {method: 'POST'});
                 const data = await res.json();
                 alert(`Closed ${data.result?.closed || 0} positions.`);
-                refreshKimData();
             } catch(e) { alert("Kill switch failed."); }
         }
     </script>

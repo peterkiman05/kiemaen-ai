@@ -151,6 +151,13 @@ class Kim:
         
         self._init_db()
 
+    
+    def update_credentials(self, token: str, accounts: list):
+        self.robot.token = token.strip()
+        self.robot.accounts = [a.strip() for a in accounts if a.strip()]
+        self.portfolio.open_positions = []
+        self.portfolio.balance = 0.0
+
     def _init_db(self):
         os.makedirs("data", exist_ok=True)
         conn = sqlite3.connect(self.db_path, check_same_thread=False)

@@ -13,6 +13,13 @@ import hashlib
 from datetime import datetime, timedelta
 import sqlite3
 
+
+try:
+    from app.agents.kim import Kim
+    kim_worker = Kim()
+except:
+    kim_worker = None
+
 app = FastAPI(title="Kiemaen Enterprise AI")
 
 if os.path.exists("web"):
@@ -39,8 +46,10 @@ async def start_kim_background_loop():
         conn.commit()
         conn.close()
         
-        from app.agents.kim import Kim
-        kim_worker = Kim()
+        global kim_worker
+        if kim_worker is None:
+            from app.agents.kim import Kim
+            kim_worker = Kim()
         asyncio.create_task(kim_worker.start_background_engine())
         print("Kim Background Engine initialized successfully.")
     except Exception as e:
@@ -211,6 +220,19 @@ async def login_user(data: dict):
 
 # -- KIM EXECUTION & DIAGNOSTICS --
 
+@app.post("/api/kim/connect")
+async def connect_kim_broker(data: dict):
+    global kim_worker
+    token = data.get("token", "").strip()
+    accs = data.get("accounts", [])
+    if not token or not accs:
+        return {"status": "error", "message": "Missing credentials"}
+    if kim_worker:
+        kim_worker.update_credentials(token, accs)
+        return {"status": "success", "message": "Broker connected."}
+    return {"status": "error", "message": "Engine offline"}
+
+
 @app.get("/api/kim/dlq")
 async def view_dead_letter_queue():
     try:
@@ -225,8 +247,8 @@ async def view_dead_letter_queue():
 @app.post("/api/kim/scalp-loop")
 async def trigger_kim_scalp_loop():
     try:
-        from app.agents.kim import Kim
-        kim = Kim()
+        global kim_worker
+        kim = kim_worker
         tick = await kim.get_precise_bid_ask("XAUUSD.mic")
         target_symbol = "XAUUSD.mic" if tick.get("bid", 0) > 0 else "EURUSD.mic"
         res = kim.enqueue_task("SCALP_CLUSTER", {"symbol": target_symbol, "action": "BUY", "max_entries": 3})
@@ -237,8 +259,8 @@ async def trigger_kim_scalp_loop():
 @app.post("/api/kim/emergency-close")
 async def trigger_emergency_close():
     try:
-        from app.agents.kim import Kim
-        kim = Kim()
+        global kim_worker
+        kim = kim_worker
         res = await kim.emergency_close_all()
         return {"status": "success", "result": res}
     except Exception as e:
@@ -249,8 +271,8 @@ async def trigger_emergency_close():
 @app.get("/api/kim/status")
 async def get_kim_metrics_endpoint():
     try:
-        from app.agents.kim import Kim
-        kim = Kim()
+        global kim_worker
+        kim = kim_worker
         data = await kim.get_live_metrics()
         return JSONResponse(status_code=200, content=data)
     except Exception as e:
@@ -274,8 +296,7 @@ class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
                         return await call_next(request)
 
                     try:
-                        from app.agents.kim import Kim
-                        kim_worker = Kim()
+                        global kim_worker
                         
                         symbol = "XAUUSD.mic" if "gold" in raw_payload or "xau" in raw_payload else "EURUSD.mic"
                         
