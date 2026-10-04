@@ -10,7 +10,7 @@ import pandas as pd
 class Robot:
     def __init__(self):
         self.token = os.environ.get("META_API_TOKEN", "").strip()
-        self.accounts = ["8760042", "8760048"]
+        self.accounts = []
     
     async def fetch_tick(self, symbol: str, account_id: str = "8760042") -> dict:
         if not self.token:

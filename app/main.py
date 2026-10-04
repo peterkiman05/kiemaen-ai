@@ -339,4 +339,10 @@ class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
                 request._receive = receive
         return await call_next(request)
 
+
+@app.post("/api/chat")
+async def standard_chat(data: dict):
+    msg = data.get("message", "").lower()
+    return {"status": "success", "reply": "Good day. The enterprise architecture is online and Kim's execution engine is standing by. Please issue a specific executive directive when you are ready."}
+
 app.add_middleware(KiemaenOrchestratorMiddleware)
