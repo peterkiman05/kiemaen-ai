@@ -17,7 +17,7 @@ class Robot:
             raise Exception("META_API_TOKEN is not configured.")
         async with httpx.AsyncClient(timeout=5.0) as client:
             res = await client.get(
-                "https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/" + account_id + "/symbols/" + symbol + "/current-price",
+                "https://mt-client-api-v1.new-york.agiliumtrade.ai/users/current/accounts/" + account_id + "/symbols/" + symbol + "/current-price",
                 headers={"auth-token": self.token}
             )
             if res.status_code == 200:
@@ -84,7 +84,7 @@ class Portfolio:
         async with httpx.AsyncClient(timeout=8.0) as client:
             for acc_id in self.robot.accounts:
                 res_pos = await client.get(
-                    "https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/" + acc_id + "/positions",
+                    "https://mt-client-api-v1.new-york.agiliumtrade.ai/users/current/accounts/" + acc_id + "/positions",
                     headers={"auth-token": self.robot.token}
                 )
                 if res_pos.status_code == 200:
@@ -96,7 +96,7 @@ class Portfolio:
                     raise Exception("Failed to sync positions for account " + acc_id + ". " + res_pos.text)
                 
                 res_acc = await client.get(
-                    "https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/" + acc_id + "/account-information",
+                    "https://mt-client-api-v1.new-york.agiliumtrade.ai/users/current/accounts/" + acc_id + "/account-information",
                     headers={"auth-token": self.robot.token}
                 )
                 if res_acc.status_code == 200:
@@ -128,7 +128,7 @@ class Trade:
         }
         async with httpx.AsyncClient(timeout=8.0) as client:
             res = await client.post(
-                "https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/" + account_id + "/trade",
+                "https://mt-client-api-v1.new-york.agiliumtrade.ai/users/current/accounts/" + account_id + "/trade",
                 headers={"auth-token": self.robot.token},
                 json=payload
             )
@@ -276,7 +276,7 @@ class Kim:
             for pos in self.portfolio.open_positions:
                 try:
                     res = await client.post(
-                        "https://mt-client-api-v1.london.agiliumtrade.ai/users/current/accounts/" + pos.get("account_id") + "/positions/" + pos.get("id") + "/close",
+                        "https://mt-client-api-v1.new-york.agiliumtrade.ai/users/current/accounts/" + pos.get("account_id") + "/positions/" + pos.get("id") + "/close",
                         headers={"auth-token": self.robot.token}
                     )
                     if res.status_code in [200, 204]: closed += 1
