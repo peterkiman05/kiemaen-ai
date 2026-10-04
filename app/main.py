@@ -31,6 +31,7 @@ async def health_ping_handler():
 @app.on_event("startup")
 async def start_kim_background_loop():
     try:
+        os.makedirs("data", exist_ok=True)
         conn = sqlite3.connect("data/enterprise_management.db")
         conn.execute('''CREATE TABLE IF NOT EXISTS email_verifications (email TEXT PRIMARY KEY, code TEXT, expires_at TEXT)''')
         conn.execute('''CREATE TABLE IF NOT EXISTS password_resets (email TEXT PRIMARY KEY, otp TEXT, expires_at TEXT)''')
