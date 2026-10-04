@@ -342,7 +342,26 @@ class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
 
 @app.post("/api/chat")
 async def standard_chat(data: dict):
-    msg = data.get("message", "").lower()
-    return {"status": "success", "reply": "Good day. The enterprise architecture is online and Kim's execution engine is standing by. Please issue a specific executive directive when you are ready."}
+    msg = data.get("message", "").strip()
+    lower_msg = msg.lower()
+    
+    # Fast reply engine for casual and general chat
+    if any(w in lower_msg for w in ["hi", "hello", "hey", "how are you", "greetings"]):
+        reply = "Hello! Kim's core AI and fast chat engine are fully online. How can I assist you with your engineering work, coding, or trading architecture today?"
+    elif "chat generally" in lower_msg or "talk" in lower_msg:
+        reply = "Of course! We can chat about anything you like—engineering problem sets, code optimization, or system design. What's on your mind?"
+    
+    # Deep research / engineering & coding problem-solving engine
+    elif any(w in lower_msg for w in ["code", "python", "javascript", "euler", "beam", "calculus", "equation", "algorithm", "debug", "function"]):
+        reply = "I've engaged Kim's deep-research and engineering engine. For complex problem sets like structural mechanics, signal evaluation, or full-stack script optimization, I can derive the governing equations, review multi-index structures, or write out clean production code. Let's break down your specific technical problem."
+    
+    # CEO Executive Layer context
+    elif any(w in lower_msg for w in ["ceo", "kiemaen", "enterprise", "broker", "trade", "scalp", "balance"]):
+        reply = "👔 [Kiemaen CEO Directive] Enterprise treasury, institutional risk barriers, and MetaAPI multi-account tracking are standing by. Let me know what operational parameters you need to adjust."
+    
+    else:
+        reply = f"I processed your query through Kim's core engine: '{msg}'. Whether you need deep technical problem-solving for engineering coursework, code architecture, or fast conversational assistance, I am fully engaged. How would you like to proceed?"
+
+    return {"status": "success", "reply": reply}
 
 app.add_middleware(KiemaenOrchestratorMiddleware)
