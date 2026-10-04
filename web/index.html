@@ -21,8 +21,8 @@
         /* App Layout & Side Menu */
         #app-container { display: none; flex-direction: column; height: 100vh; position: relative; }
         
-        /* Hamburger Menu Icon (Centered) */
-        .menu-toggle { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: none; border: none; color: white; font-size: 28px; cursor: pointer; z-index: 50; }
+        /* Hamburger Menu Icon (Top Left) */
+        .menu-toggle { position: absolute; top: 20px; left: 20px; background: none; border: none; color: white; font-size: 28px; cursor: pointer; z-index: 50; }
         
         /* Side Navigation Drawer */
         #side-menu { position: fixed; top: 0; left: -280px; width: 280px; height: 100%; background: #0f172a; border-right: 1px solid #1e293b; transition: left 0.3s ease; z-index: 100; display: flex; flex-direction: column; padding-top: 60px; box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
@@ -33,7 +33,7 @@
         .menu-item.active { border-left: 4px solid #38bdf8; color: #38bdf8; background: rgba(56, 189, 248, 0.1); }
         .menu-item-danger { color: #ef4444; border-bottom: none; margin-top: auto; padding-bottom: 2rem; }
         
-        /* Overlay for when menu is open */
+        /* Overlay */
         #menu-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 90; }
         #menu-overlay.active { display: block; }
 
@@ -42,11 +42,32 @@
         .workspace.active { display: flex; flex-direction: column; }
         
         /* ========================================= */
-        /* KIEMAEN (CEO) ORIGINAL AESTHETIC RESTORED */
+        /* KIEMAEN (CEO) WORKSPACE                   */
         /* ========================================= */
         #workspace-kiemaen { background-color: #050a14; }
-        .k-hero { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.3s; margin-top: -50px; }
-        .k-title { color: #4285f4; font-size: 2.5rem; font-weight: bold; margin-top: 15px; letter-spacing: -0.5px; }
+        .k-hero { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.3s; margin-top: -50px; position: relative; }
+        
+        /* Blended Text Title */
+        .k-title { 
+            font-size: 2.6rem; 
+            font-weight: bold; 
+            margin-top: 20px; 
+            letter-spacing: -0.5px;
+            background: linear-gradient(180deg, #8ab4f8 0%, #1a73e8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Legal Footer */
+        .k-footer {
+            position: absolute;
+            bottom: 20px;
+            text-align: center;
+            color: #475569;
+            font-size: 0.8rem;
+            width: 100%;
+            line-height: 1.6;
+        }
         
         #k-chat-log { display: none; flex: 1; padding: 5rem 1rem 100px 1rem; overflow-y: auto; }
         .k-msg { margin-bottom: 1.5rem; line-height: 1.5; font-size: 1rem; max-width: 85%; }
@@ -54,7 +75,7 @@
         .k-msg-ai { margin-right: auto; color: #94a3b8; }
         
         /* Restored Input Pill */
-        .k-input-wrapper { position: absolute; bottom: 20px; left: 0; right: 0; display: flex; justify-content: center; padding: 0 20px; }
+        .k-input-wrapper { position: absolute; bottom: 20px; left: 0; right: 0; display: flex; justify-content: center; padding: 0 20px; z-index: 10; background: var(--bg); padding-bottom: 20px; padding-top: 10px; }
         .k-pill { background: #1e232f; border-radius: 30px; display: flex; align-items: center; padding: 10px 20px; width: 100%; max-width: 600px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
         .k-pill input { flex: 1; background: transparent; border: none; color: white; padding: 5px 10px; font-size: 1.05rem; outline: none; }
         .k-pill input::placeholder { color: #64748b; }
@@ -63,7 +84,7 @@
         .k-icon-btn:hover svg { fill: #4285f4; }
         
         /* ========================================= */
-        /* KIM QUANT TERMINAL (UNCHANGED FUNCTIONALITY) */
+        /* KIM QUANT TERMINAL                        */
         /* ========================================= */
         #workspace-kim { padding: 5rem 1.5rem 1.5rem 1.5rem; background: var(--bg); }
         .setup-card { background: var(--card); padding: 2rem; border-radius: 8px; border: 1px solid #1e293b; max-width: 500px; margin: 0 auto; }
@@ -91,11 +112,18 @@
     <!-- AUTHENTICATION CONTAINER -->
     <div id="auth-container">
         <div id="login-form" class="auth-box">
-            <!-- Authentic Flower Logo for Auth -->
+            <!-- Pointy Logo for Auth -->
             <div style="display:flex; justify-content:center; margin-bottom:1rem;">
                 <svg viewBox="0 0 100 100" width="60" height="60">
-                    <defs><radialGradient id="grad-sm" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#8ab4f8"/><stop offset="100%" stop-color="#1a73e8"/></radialGradient></defs>
-                    <g fill="url(#grad-sm)"><ellipse cx="50" cy="25" rx="14" ry="28" opacity="0.9"/><ellipse cx="50" cy="25" rx="14" ry="28" transform="rotate(72 50 50)" opacity="0.9"/><ellipse cx="50" cy="25" rx="14" ry="28" transform="rotate(144 50 50)" opacity="0.9"/><ellipse cx="50" cy="25" rx="14" ry="28" transform="rotate(216 50 50)" opacity="0.9"/><ellipse cx="50" cy="25" rx="14" ry="28" transform="rotate(288 50 50)" opacity="0.9"/></g><circle cx="50" cy="50" r="10" fill="#0f172a"/>
+                    <defs><radialGradient id="grad-sm" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#000000"/><stop offset="30%" stop-color="#0f2b5c"/><stop offset="100%" stop-color="#1a73e8"/></radialGradient></defs>
+                    <g fill="url(#grad-sm)">
+                        <path d="M 50 50 Q 38 20 50 5 Q 62 20 50 50" />
+                        <path d="M 50 50 Q 38 20 50 5 Q 62 20 50 50" transform="rotate(72 50 50)" />
+                        <path d="M 50 50 Q 38 20 50 5 Q 62 20 50 50" transform="rotate(144 50 50)" />
+                        <path d="M 50 50 Q 38 20 50 5 Q 62 20 50 50" transform="rotate(216 50 50)" />
+                        <path d="M 50 50 Q 38 20 50 5 Q 62 20 50 50" transform="rotate(288 50 50)" />
+                    </g>
+                    <circle cx="50" cy="50" r="4" fill="#000000"/>
                 </svg>
             </div>
             <h2>Kiemaen AI</h2>
@@ -144,25 +172,32 @@
         <!-- ========================================= -->
         <div id="workspace-kiemaen" class="workspace active">
             
-            <!-- Central Logo View -->
+            <!-- Central Pointy Logo View -->
             <div id="k-hero" class="k-hero">
-                <svg viewBox="0 0 100 100" width="120" height="120">
+                <svg viewBox="0 0 100 100" width="130" height="130">
                     <defs>
                         <radialGradient id="grad-lg" cx="50%" cy="50%" r="50%">
-                            <stop offset="0%" stop-color="#8ab4f8" />
+                            <stop offset="0%" stop-color="#000000" />
+                            <stop offset="35%" stop-color="#082b5e" />
                             <stop offset="100%" stop-color="#1a73e8" />
                         </radialGradient>
                     </defs>
                     <g fill="url(#grad-lg)">
-                        <ellipse cx="50" cy="25" rx="14" ry="28" opacity="0.9" />
-                        <ellipse cx="50" cy="25" rx="14" ry="28" transform="rotate(72 50 50)" opacity="0.9" />
-                        <ellipse cx="50" cy="25" rx="14" ry="28" transform="rotate(144 50 50)" opacity="0.9" />
-                        <ellipse cx="50" cy="25" rx="14" ry="28" transform="rotate(216 50 50)" opacity="0.9" />
-                        <ellipse cx="50" cy="25" rx="14" ry="28" transform="rotate(288 50 50)" opacity="0.9" />
+                        <path d="M 50 50 Q 38 20 50 5 Q 62 20 50 50" opacity="0.95" />
+                        <path d="M 50 50 Q 38 20 50 5 Q 62 20 50 50" transform="rotate(72 50 50)" opacity="0.95" />
+                        <path d="M 50 50 Q 38 20 50 5 Q 62 20 50 50" transform="rotate(144 50 50)" opacity="0.95" />
+                        <path d="M 50 50 Q 38 20 50 5 Q 62 20 50 50" transform="rotate(216 50 50)" opacity="0.95" />
+                        <path d="M 50 50 Q 38 20 50 5 Q 62 20 50 50" transform="rotate(288 50 50)" opacity="0.95" />
                     </g>
-                    <circle cx="50" cy="50" r="10" fill="#050a14" />
+                    <circle cx="50" cy="50" r="5" fill="#000000" />
                 </svg>
                 <div class="k-title">Kiemaen AI</div>
+                
+                <!-- Legal Footer Restored -->
+                <div class="k-footer">
+                    © 2026 Kiemaen Enterprise. All rights reserved.<br>
+                    Privacy | Terms | Cookies | Refunds
+                </div>
             </div>
 
             <!-- Chat Log View -->
@@ -174,10 +209,18 @@
                     <button class="k-icon-btn"><svg viewBox="0 0 24 24"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 0 0 5 0V5c0-3.31-2.69-6-6-6S3 1.69 3 5v11.5C3 20.64 6.36 24 10.5 24s7.5-3.36 7.5-7.5V6h-1.5z"/></svg></button>
                     <input type="text" id="k-input" placeholder="Message Kiemaen..." onkeypress="if(event.key === 'Enter') sendChat()">
                     <button class="k-icon-btn"><svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg></button>
-                    <!-- Blue Flower Send Button inside pill -->
+                    
+                    <!-- Small Pointy Logo Send Button -->
                     <button class="k-icon-btn" onclick="sendChat()" style="margin-left: 5px;">
                         <svg viewBox="0 0 100 100" style="width:28px; height:28px;">
-                            <g fill="#4285f4"><ellipse cx="50" cy="25" rx="14" ry="28" opacity="0.9" /><ellipse cx="50" cy="25" rx="14" ry="28" transform="rotate(72 50 50)" opacity="0.9" /><ellipse cx="50" cy="25" rx="14" ry="28" transform="rotate(144 50 50)" opacity="0.9" /><ellipse cx="50" cy="25" rx="14" ry="28" transform="rotate(216 50 50)" opacity="0.9" /><ellipse cx="50" cy="25" rx="14" ry="28" transform="rotate(288 50 50)" opacity="0.9" /></g><circle cx="50" cy="50" r="10" fill="#1e232f" />
+                            <g fill="url(#grad-lg)">
+                                <path d="M 50 50 Q 38 20 50 5 Q 62 20 50 50" opacity="0.95" />
+                                <path d="M 50 50 Q 38 20 50 5 Q 62 20 50 50" transform="rotate(72 50 50)" opacity="0.95" />
+                                <path d="M 50 50 Q 38 20 50 5 Q 62 20 50 50" transform="rotate(144 50 50)" opacity="0.95" />
+                                <path d="M 50 50 Q 38 20 50 5 Q 62 20 50 50" transform="rotate(216 50 50)" opacity="0.95" />
+                                <path d="M 50 50 Q 38 20 50 5 Q 62 20 50 50" transform="rotate(288 50 50)" opacity="0.95" />
+                            </g>
+                            <circle cx="50" cy="50" r="5" fill="#1e232f" />
                         </svg>
                     </button>
                 </div>
@@ -245,7 +288,7 @@
             document.getElementById('tab-' + tab).classList.add('active');
             document.getElementById('workspace-' + tab).classList.add('active');
             
-            toggleMenu(); // Close menu after selection
+            toggleMenu(); 
             
             if(metricsInterval) clearInterval(metricsInterval);
             if (tab === 'kim' && isBrokerConnected) {
