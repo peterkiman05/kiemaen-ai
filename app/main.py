@@ -23,6 +23,22 @@ async def fetch_metaapi_account_data(account_id: str):
             }
         return {"connected": False}
 
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+# Initialize the core application
+app = FastAPI(title="Kim Quant Engine")
+
+# Fortify the middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 @app.get("/")
 async def serve_frontend():
     if os.path.exists("web/index.html"):
