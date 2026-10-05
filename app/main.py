@@ -365,3 +365,8 @@ async def standard_chat(data: dict):
     return {"status": "success", "reply": reply}
 
 app.add_middleware(KiemaenOrchestratorMiddleware)
+
+# Uptime Monitor Health Check
+@app.head("/")
+async def uptime_ping():
+    return {"status": "online"}
