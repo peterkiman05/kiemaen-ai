@@ -270,30 +270,34 @@ async def trigger_emergency_close():
 
 @app.get("/api/kim/metrics")
 async def get_kim_metrics():
-    global_balance = 0.0; global_equity = 0.0; global_pnl = 0.0
-    total_positions = 0; connected_accounts = 0; errors = []
+    try:
+        # Safely fetch the global variable without crashing
+        accs = globals().get("KIMS_CONNECTED_ACCOUNTS", [])
+        if not accs:
+            return {"status": "error", "message": "No MetaAPI GUIDs initialized in backend memory. Please authenticate again."}
 
-    if not KIMS_CONNECTED_ACCOUNTS:
-        return {"status": "error", "message": "No GUID provided to backend."}
+        global_balance = 0.0; global_equity = 0.0; global_pnl = 0.0; total_positions = 0; errors = []
 
-    for acc_id in KIMS_CONNECTED_ACCOUNTS:
-        try:
-            acc_data = await fetch_metaapi_account_data(acc_id)
-            if acc_data and acc_data.get("connected"):
-                global_balance += float(acc_data.get("balance", 0))
-                global_equity += float(acc_data.get("equity", 0))
-                global_pnl += float(acc_data.get("profit", 0))
-                total_positions += int(acc_data.get("open_positions", 0))
-                connected_accounts += 1
-            else:
-                errors.append(f"Account {acc_id[:8]}... offline")
-        except Exception as e:
-            errors.append(str(e))
+        for acc_id in accs:
+            try:
+                acc_data = await fetch_metaapi_account_data(acc_id)
+                if acc_data and acc_data.get("connected"):
+                    global_balance += float(acc_data.get("balance", 0))
+                    global_equity += float(acc_data.get("equity", 0))
+                    global_pnl += float(acc_data.get("profit", 0))
+                    total_positions += int(acc_data.get("open_positions", 0))
+                else:
+                    errors.append(f"Account {acc_id[:8]} offline")
+            except Exception as e:
+                errors.append(f"MetaAPI Error: {str(e)}")
 
-    if connected_accounts > 0:
-        return {"status": "success", "balance": round(global_balance, 2), "equity": round(global_equity, 2), "floating_profit": round(global_pnl, 2), "open_positions": total_positions}
-    else:
-        return {"status": "error", "message": " | ".join(errors)}
+        if len(errors) < len(accs) or global_balance > 0:
+            return {"status": "success", "balance": round(global_balance, 2), "equity": round(global_equity, 2), "floating_profit": round(global_pnl, 2), "open_positions": total_positions}
+        else:
+            return {"status": "error", "message": " | ".join(errors)}
+            
+    except Exception as critical_e:
+        return {"status": "error", "message": f"Python Backend Crash: {str(critical_e)}"}
 
 @app.get("/api/kim/live-metrics")
 @app.get("/api/kim/status")

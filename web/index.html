@@ -335,7 +335,10 @@
         }
 
         function refreshKimData() {
-            fetch('/api/kim/metrics').then(r => r.json()).then(data => {
+            fetch('/api/kim/metrics').then(async r => {
+            if (!r.ok) { throw new Error("Backend Crash (HTTP " + r.status + ")"); }
+            return r.json();
+        }).then(data => {
                 const pnl = document.getElementById('k-pnl');
                 const bal = document.getElementById('k-bal');
                 
@@ -364,14 +367,36 @@
                     pnl.innerText = 'Offline';
                     pnl.style.color = '#94a3b8';
                 }
-            }).catch(e => console.log(e));
+            }).catch(e => {
+            const bal = document.getElementById('k-bal');
+            bal.innerText = "CRASH (Click)";
+            bal.style.color = "var(--danger)";
+            bal.style.cursor = "pointer";
+            bal.onclick = () => alert("Frontend caught a fatal server error:\n" + e.message);
+            document.getElementById('k-eq').innerText = "Offline";
+            document.getElementById('k-pos').innerText = "-";
+            const pnl = document.getElementById('k-pnl');
+            pnl.innerText = "Offline";
+            pnl.style.color = '#94a3b8';
+        });
             
             fetch('/api/kim/dlq').then(r => r.json()).then(data => {
                 const tbody = document.getElementById('dlq-table');
                 if(data.status === 'success' && data.dlq_entries && data.dlq_entries.length > 0) {
                     tbody.innerHTML = data.dlq_entries.map(r => `<tr><td>${r.id}</td><td>${r.task_type}</td><td>${r.failed_at}</td><td style="color:var(--danger)">${r.error_reason}</td></tr>`).join('');
                 } else { tbody.innerHTML = '<tr><td colspan="4">Queue is empty / All clear.</td></tr>'; }
-            }).catch(e => console.log(e));
+            }).catch(e => {
+            const bal = document.getElementById('k-bal');
+            bal.innerText = "CRASH (Click)";
+            bal.style.color = "var(--danger)";
+            bal.style.cursor = "pointer";
+            bal.onclick = () => alert("Frontend caught a fatal server error:\n" + e.message);
+            document.getElementById('k-eq').innerText = "Offline";
+            document.getElementById('k-pos').innerText = "-";
+            const pnl = document.getElementById('k-pnl');
+            pnl.innerText = "Offline";
+            pnl.style.color = '#94a3b8';
+        });
         }
 
         async function triggerScalp() {
