@@ -344,17 +344,13 @@ class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
 async def standard_chat(data: dict):
     msg = data.get("message", "").strip()
     lower_msg = msg.lower()
-    
-    if any(w in lower_msg for w in ["code", "python", "javascript", "euler", "beam", "calculus", "equation"]):
+    if any(w in lower_msg for w in ["code", "python", "javascript", "euler", "beam", "calculus", "equation"]): 
         reply = "I've engaged my deep-research engineering engine. Let's break down the technical problem, derive the equations, and optimize the code."
-    elif any(w in lower_msg for w in ["ceo", "kiemaen", "enterprise", "broker", "trade", "scalp", "balance"]):
+    elif any(w in lower_msg for w in ["ceo", "kiemaen", "enterprise", "broker", "trade", "scalp", "balance"]): 
         reply = "👔 [Kiemaen CEO Directive] Enterprise treasury and institutional risk barriers are standing by. What operational parameters do we need to adjust?"
     else:
-        # Fluid conversational fallback
         reply = f"I hear you. I am actively tracking our background quantitative parameters, but my chat engine is all yours. Let's talk about {msg} — what's on your mind?"
-
     return {"status": "success", "reply": reply}
-
 app.add_middleware(KiemaenOrchestratorMiddleware)
 
 # Uptime Monitor Health Check

@@ -10,10 +10,7 @@
         body { background: var(--bg); color: var(--text); display: flex; flex-direction: column; height: 100vh; overflow: hidden; position: relative; }
         
         .svg-defs { width: 0; height: 0; position: absolute; }
-        .global-watermark {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 80vw; max-width: 600px; opacity: 0.03; pointer-events: none; z-index: 0;
-        }
+        .global-watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80vw; max-width: 600px; opacity: 0.03; pointer-events: none; z-index: 0; }
 
         /* Auth Screens */
         #auth-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: transparent; z-index: 10; position: relative; padding: 1rem; }
@@ -71,7 +68,7 @@
         .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
         .metric-card { background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(5px); padding: 1.5rem 1rem; border-radius: 8px; text-align: center; border: 1px solid #1e293b; }
         .metric-card h3 { font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.5rem; }
-        .metric-card p { font-size: 1.3rem; font-weight: bold; color: white; word-break: break-all; }
+        .metric-card p { font-size: 1.3rem; font-weight: bold; color: white; word-break: break-all; transition: color 0.3s; }
         
         .action-bar { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
         .btn-scalp { background: #10b981; color: white; padding: 1rem; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; flex: 1; min-width: 150px; text-align: center; }
@@ -96,7 +93,6 @@
             #side-menu { width: 260px; left: -260px; }
             .menu-item { padding: 1rem 1.5rem; font-size: 1.05rem; }
         }
-
         @media (max-width: 480px) {
             .metrics-grid { grid-template-columns: 1fr; }
             .k-title { font-size: 1.8rem; }
@@ -203,10 +199,10 @@
 
             <div id="kim-dashboard">
                 <div class="metrics-grid">
-                    <div class="metric-card"><h3>Total Balance</h3><p id="k-bal">Loading...</p></div>
-                    <div class="metric-card"><h3>Live Equity</h3><p id="k-eq">Loading...</p></div>
-                    <div class="metric-card"><h3>Floating PnL</h3><p id="k-pnl" style="color:var(--success)">Loading...</p></div>
-                    <div class="metric-card"><h3>Open Trades</h3><p id="k-pos">Loading...</p></div>
+                    <div class="metric-card"><h3>Total Balance</h3><p id="k-bal">Waiting...</p></div>
+                    <div class="metric-card"><h3>Live Equity</h3><p id="k-eq">Waiting...</p></div>
+                    <div class="metric-card"><h3>Floating PnL</h3><p id="k-pnl" style="color:#94a3b8">Waiting...</p></div>
+                    <div class="metric-card"><h3>Open Trades</h3><p id="k-pos">Waiting...</p></div>
                 </div>
                 
                 <div class="action-bar">
@@ -341,24 +337,34 @@
             } catch(e) { msg.style.display = 'block'; msg.innerText = 'Network Error.'; }
         }
 
-        // CRITICAL BUG FIX: Safely stringify the PnL variable before calling .includes()
+        // CRITICAL UPDATE: Handles when the backend is syncing or errors out.
         function refreshKimData() {
             fetch('/api/kim/metrics').then(r => r.json()).then(data => {
+                const pnl = document.getElementById('k-pnl');
                 if(data.status === 'success') {
                     document.getElementById('k-bal').innerText = data.balance !== undefined ? data.balance : 'N/A';
                     document.getElementById('k-eq').innerText = data.equity !== undefined ? data.equity : 'N/A';
                     document.getElementById('k-pos').innerText = data.open_positions !== undefined ? data.open_positions : '0';
-                    
-                    const pnl = document.getElementById('k-pnl');
                     const fp = data.floating_profit !== undefined ? String(data.floating_profit) : '0';
                     pnl.innerText = fp;
                     pnl.style.color = fp.includes('-') ? 'var(--danger)' : 'var(--success)';
+                } else {
+                    document.getElementById('k-bal').innerText = 'Syncing...';
+                    document.getElementById('k-eq').innerText = 'Syncing...';
+                    document.getElementById('k-pos').innerText = '...';
+                    pnl.innerText = 'Syncing...';
+                    pnl.style.color = '#94a3b8';
                 }
-            }).catch(e => console.log("Metrics sync error:", e));
+            }).catch(e => {
+                document.getElementById('k-bal').innerText = 'Err';
+                document.getElementById('k-eq').innerText = 'Err';
+                document.getElementById('k-pos').innerText = 'Err';
+                document.getElementById('k-pnl').innerText = 'Err';
+            });
             
             fetch('/api/kim/dlq').then(r => r.json()).then(data => {
                 const tbody = document.getElementById('dlq-table');
-                if(data.status === 'success' && data.dlq_entries.length > 0) {
+                if(data.status === 'success' && data.dlq_entries && data.dlq_entries.length > 0) {
                     tbody.innerHTML = data.dlq_entries.map(r => `<tr><td>${r.id}</td><td>${r.task_type}</td><td>${r.failed_at}</td><td style="color:var(--danger)">${r.error_reason}</td></tr>`).join('');
                 } else { tbody.innerHTML = '<tr><td colspan="4">Queue is empty / All clear.</td></tr>'; }
             }).catch(e => console.log(e));
