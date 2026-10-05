@@ -348,10 +348,13 @@
                     const fp = data.floating_profit !== undefined ? String(data.floating_profit) : '0';
                     pnl.innerText = fp;
                     pnl.style.color = fp.includes('-') ? 'var(--danger)' : 'var(--success)';
-                } else {
+                                } else {
                     let errMsg = data.message || 'Syncing...';
-                    if (errMsg.length > 25) errMsg = "MetaAPI Auth/Region Error";
-                    document.getElementById('k-bal').innerText = errMsg;
+                    document.getElementById('k-bal').innerText = "ERROR (Click Here)";
+                    document.getElementById('k-bal').style.cursor = "pointer";
+                    document.getElementById('k-bal').onclick = function() { alert("RAW BACKEND ERROR:
+
+" + errMsg); };
                     document.getElementById('k-bal').style.fontSize = "1rem";
                     document.getElementById('k-bal').style.color = "var(--danger)";
                     document.getElementById('k-eq').innerText = 'Offline';
