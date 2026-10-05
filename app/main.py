@@ -223,17 +223,22 @@ async def login_user(data: dict):
 # -- KIM EXECUTION & DIAGNOSTICS --
 
 @app.post("/api/kim/connect")
-async def connect_kim_broker(data: dict):
-    global kim_worker
+async def connect_broker(data: dict):
+    # Force Python to hold these in global memory
+    global KIMS_CONNECTED_ACCOUNTS
+    global META_API_TOKEN
+    
     token = data.get("token", "").strip()
-    accs = data.get("accounts", [])
-    if not token or not accs:
-        return {"status": "error", "message": "Missing credentials"}
-    if kim_worker:
-        kim_worker.update_credentials(token, accs)
-        return {"status": "success", "message": "Broker connected."}
-    return {"status": "error", "message": "Engine offline"}
-
+    accounts = data.get("accounts", [])
+    
+    if not token or not accounts:
+        return {"status": "error", "message": "Token and Account GUIDs are required."}
+        
+    # Lock the credentials into the backend's active state
+    META_API_TOKEN = token
+    KIMS_CONNECTED_ACCOUNTS = [acc.strip() for acc in accounts if acc.strip()]
+    
+    return {"status": "success"}
 
 @app.get("/api/kim/dlq")
 async def view_dead_letter_queue():
