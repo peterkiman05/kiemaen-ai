@@ -181,15 +181,16 @@
         </div>
 
         <div id="workspace-kim" class="workspace">
-            <div id="kim-setup" class="setup-card">
-                <h2>Link MT5 Account</h2>
-                <p style="text-align:center; color:#94a3b8; font-size:0.9rem; margin-bottom:1.5rem;">Enter your MetaAPI token and direct MT5 credentials. Kim will auto-provision and sync your account.</p>
+                        <div id="kim-setup" class="setup-card">
+                <h2>Add MT5 Account</h2>
+                <p style="text-align:center; color:#94a3b8; font-size:0.9rem; margin-bottom:1.5rem;">Connect a live account. Kim will store it permanently and sync it with your existing portfolios.</p>
                 <div id="kim-setup-msg" class="alert" style="display:none;"></div>
-                <input type="text" id="meta-token" placeholder="MetaAPI Master Token">
+                <input type="password" id="meta-token" placeholder="MetaAPI Master Token (Optional if already saved)">
                 <input type="text" id="mt5-login" placeholder="MT5 Account Number (e.g. 8760042)">
                 <input type="password" id="mt5-pass" placeholder="MT5 Password">
-                <input type="text" id="mt5-server" placeholder="Broker Server Name (e.g. VaultMarkets-Live)">
-                <button onclick="connectBroker()">Authenticate & Sync</button>
+                <input type="text" id="mt5-server" value="VaultMarkets-Live" placeholder="Broker Server Name">
+                <button onclick="connectBroker()">Link & Store Account</button>
+                <button onclick="cancelSetup()" style="background: transparent; border: 1px solid #334155; margin-top: 10px;">Cancel</button>
             </div>
 
             <div id="kim-dashboard">
@@ -200,9 +201,10 @@
                     <div class="metric-card"><h3>Open Trades</h3><p id="k-pos">Loading...</p></div>
                 </div>
                 
-                <div class="action-bar">
-                    <button class="btn-scalp" onclick="triggerScalp()">⚡ Trigger Quick Scalp</button>
-                    <button class="btn-kill" onclick="triggerEmergency()">🚨 Emergency Kill Switch</button>
+                                <div class="action-bar">
+                    <button class="btn-scalp" onclick="triggerScalp()">⚡ Quick Scalp</button>
+                    <button class="btn-scalp" style="background:#3b82f6;" onclick="showAddAccount()">➕ Add Account</button>
+                    <button class="btn-kill" onclick="triggerEmergency()">🚨 Kill Switch</button>
                 </div>
 
                 <h3 style="margin-bottom: 1rem; color: #e2e8f0;">Dead Letter Queue (DLQ)</h3>
