@@ -1,3 +1,5 @@
+import os
+from groq import Groq
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -343,13 +345,26 @@ class KiemaenOrchestratorMiddleware(BaseHTTPMiddleware):
 @app.post("/api/chat")
 async def standard_chat(data: dict):
     msg = data.get("message", "").strip()
-    lower_msg = msg.lower()
-    if any(w in lower_msg for w in ["code", "python", "javascript", "euler", "beam", "calculus", "equation"]): 
-        reply = "I've engaged my deep-research engineering engine. Let's break down the technical problem, derive the equations, and optimize the code."
-    elif any(w in lower_msg for w in ["ceo", "kiemaen", "enterprise", "broker", "trade", "scalp", "balance"]): 
-        reply = "👔 [Kiemaen CEO Directive] Enterprise treasury and institutional risk barriers are standing by. What operational parameters do we need to adjust?"
-    else:
-        reply = f"I hear you. I am actively tracking our background quantitative parameters, but my chat engine is all yours. Let's talk about {msg} — what's on your mind?"
+    try:
+        client = Groq(api_key=os.environ.get("GROQ_API_KEY", ""))
+        system_prompt = (
+            "You are Kim, an advanced autonomous AI execution engine. You have a dual-engine cognitive architecture: "
+            "1. A fast, responsive conversational engine for general chat. "
+            "2. A deep-research engine that activates for complex engineering, coding, mathematics, and problem solving. "
+            "Kiemaen is the CEO of the enterprise who monitors your activities. You operate independently under his corporate roof. "
+            "Be highly intelligent, authentic, and flexible. Analyze which engine is required based on the user's prompt and respond accordingly."
+        )
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": msg}
+            ],
+            model="llama3-8b-8192"
+        )
+        reply = chat_completion.choices[0].message.content
+    except Exception as e:
+        reply = f"AI Core Offline. Please verify your GROQ_API_KEY in Render environment variables. Details: {str(e)}"
+    
     return {"status": "success", "reply": reply}
 app.add_middleware(KiemaenOrchestratorMiddleware)
 
