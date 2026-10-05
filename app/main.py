@@ -269,6 +269,32 @@ async def trigger_emergency_close():
         return {"status": "error", "message": str(e)}
 
 @app.get("/api/kim/metrics")
+async def get_kim_metrics():
+    global_balance = 0.0; global_equity = 0.0; global_pnl = 0.0
+    total_positions = 0; connected_accounts = 0; errors = []
+
+    if not KIMS_CONNECTED_ACCOUNTS:
+        return {"status": "error", "message": "No GUID provided to backend."}
+
+    for acc_id in KIMS_CONNECTED_ACCOUNTS:
+        try:
+            acc_data = await fetch_metaapi_account_data(acc_id)
+            if acc_data and acc_data.get("connected"):
+                global_balance += float(acc_data.get("balance", 0))
+                global_equity += float(acc_data.get("equity", 0))
+                global_pnl += float(acc_data.get("profit", 0))
+                total_positions += int(acc_data.get("open_positions", 0))
+                connected_accounts += 1
+            else:
+                errors.append(f"Account {acc_id[:8]}... offline")
+        except Exception as e:
+            errors.append(str(e))
+
+    if connected_accounts > 0:
+        return {"status": "success", "balance": round(global_balance, 2), "equity": round(global_equity, 2), "floating_profit": round(global_pnl, 2), "open_positions": total_positions}
+    else:
+        return {"status": "error", "message": " | ".join(errors)}
+
 @app.get("/api/kim/live-metrics")
 @app.get("/api/kim/status")
 async def get_kim_metrics_endpoint():
