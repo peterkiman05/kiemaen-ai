@@ -1,3 +1,30 @@
+
+import httpx
+
+async def fetch_metaapi_account_data(account_id: str):
+    global META_API_TOKEN
+    url = f"https://mt-client-api-v1.agiliumtrade.agiliumtrade.ai/users/current/accounts/{account_id}"
+    headers = {"auth-token": META_API_TOKEN}
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        res = await client.get(url, headers=headers)
+        if res.status_code == 200:
+            data = res.json()
+            # Fetch live account information (balance, equity, profit)
+            state_res = await client.get(f"{url}/account-information", headers=headers)
+            pos_res = await client.get(f"{url}/positions", headers=headers)
+            
+            state = state_res.json() if state_res.status_code == 200 else {}
+            positions = pos_res.json() if pos_res.status_code == 200 else []
+            
+            return {
+                "connected": data.get("connectionStatus") == "CONNECTED",
+                "balance": state.get("balance", 0.0),
+                "equity": state.get("equity", 0.0),
+                "profit": state.get("profit", 0.0),
+                "open_positions": len(positions)
+            }
+        return {"connected": False}
+
 import os
 from groq import Groq
 from fastapi import FastAPI
@@ -224,21 +251,56 @@ async def login_user(data: dict):
 
 @app.post("/api/kim/connect")
 async def connect_broker(data: dict):
-    # Force Python to hold these in global memory
     global KIMS_CONNECTED_ACCOUNTS
     global META_API_TOKEN
     
     token = data.get("token", "").strip()
-    accounts = data.get("accounts", [])
+    login = data.get("login", "").strip()
+    password = data.get("password", "").strip()
+    server = data.get("server", "").strip()
     
-    if not token or not accounts:
-        return {"status": "error", "message": "Token and Account GUIDs are required."}
+    if not token or not login or not password or not server:
+        return {"status": "error", "message": "Token, Login, Password, and Server are required."}
         
-    # Lock the credentials into the backend's active state
     META_API_TOKEN = token
-    KIMS_CONNECTED_ACCOUNTS = [acc.strip() for acc in accounts if acc.strip()]
+    headers = {"auth-token": token, "Content-Type": "application/json"}
     
-    return {"status": "success"}
+    # Automatically provision the account on MetaAPI using credentials
+    payload = {
+        "login": login,
+        "password": password,
+        "server": server,
+        "platform": "mt5",
+        "name": f"Kim-{login}",
+        "magic": 100000
+    }
+    
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        # Check if account already exists
+        accs_res = await client.get("https://mt-client-api-v1.agiliumtrade.agiliumtrade.ai/users/current/accounts", headers=headers)
+        target_id = None
+        
+        if accs_res.status_code == 200:
+            for acc in accs_res.json():
+                if acc.get("login") == login:
+                    target_id = acc.get("_id")
+                    break
+                    
+        # If not found, create it automatically
+        if not target_id:
+            create_res = await client.post("https://mt-client-api-v1.agiliumtrade.agiliumtrade.ai/users/current/accounts", json=payload, headers=headers)
+            if create_res.status_code in [200, 201]:
+                target_id = create_res.json().get("id")
+            else:
+                return {"status": "error", "message": f"MetaAPI Provisioning Error: {create_res.text}"}
+                
+        if target_id:
+            # Deploy the account automatically
+            await client.post(f"https://mt-client-api-v1.agiliumtrade.agiliumtrade.ai/users/current/accounts/{target_id}/deploy", headers=headers)
+            KIMS_CONNECTED_ACCOUNTS = [target_id]
+            return {"status": "success"}
+        else:
+            return {"status": "error", "message": "Failed to link or provision account."}
 
 @app.get("/api/kim/dlq")
 async def view_dead_letter_queue():

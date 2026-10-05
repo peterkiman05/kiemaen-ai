@@ -182,11 +182,13 @@
 
         <div id="workspace-kim" class="workspace">
             <div id="kim-setup" class="setup-card">
-                <h2>Link MT5 Accounts</h2>
-                <p style="text-align:center; color:#94a3b8; font-size:0.9rem; margin-bottom:1.5rem;">Kim will dynamically map, sync, and execute trades across all designated MT5 accounts simultaneously.</p>
+                <h2>Link MT5 Account</h2>
+                <p style="text-align:center; color:#94a3b8; font-size:0.9rem; margin-bottom:1.5rem;">Enter your MetaAPI token and direct MT5 credentials. Kim will auto-provision and sync your account.</p>
                 <div id="kim-setup-msg" class="alert" style="display:none;"></div>
                 <input type="text" id="meta-token" placeholder="MetaAPI Master Token">
-                <input type="text" id="meta-accs" placeholder="MetaAPI GUID (e.g. 77d74ff4...)">
+                <input type="text" id="mt5-login" placeholder="MT5 Account Number (e.g. 8760042)">
+                <input type="password" id="mt5-pass" placeholder="MT5 Password">
+                <input type="text" id="mt5-server" placeholder="Broker Server Name (e.g. VaultMarkets-Live)">
                 <button onclick="connectBroker()">Authenticate & Sync</button>
             </div>
 
@@ -316,13 +318,24 @@
 
         async function connectBroker() {
             const token = document.getElementById('meta-token').value;
-            const accsStr = document.getElementById('meta-accs').value;
+            const login = document.getElementById('mt5-login').value;
+            const password = document.getElementById('mt5-pass').value;
+            const server = document.getElementById('mt5-server').value;
             const msg = document.getElementById('kim-setup-msg');
-            const accounts = accsStr.split(',').map(a => a.trim()).filter(a => a);
-            if(!token || accounts.length === 0) { msg.style.display = 'block'; msg.innerText = 'Token and Account GUID required.'; return; }
+            
+            if(!token || !login || !password || !server) { 
+                msg.style.display = 'block'; 
+                msg.innerText = 'All fields (Token, Login, Password, Server) are required.'; 
+                return; 
+            }
             msg.style.display = 'none';
+            
             try {
-                const res = await fetch('/api/kim/connect', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({token, accounts}) });
+                const res = await fetch('/api/kim/connect', { 
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify({token, login, password, server}) 
+                });
                 const data = await res.json();
                 if(data.status === 'success') {
                     isBrokerConnected = true;
@@ -330,8 +343,14 @@
                     document.getElementById('kim-dashboard').style.display = 'block';
                     refreshKimData();
                     metricsInterval = setInterval(refreshKimData, 5000);
-                } else { msg.style.display = 'block'; msg.innerText = data.message; }
-            } catch(e) { msg.style.display = 'block'; msg.innerText = 'Network Error.'; }
+                } else { 
+                    msg.style.display = 'block'; 
+                    msg.innerText = data.message; 
+                }
+            } catch(e) { 
+                msg.style.display = 'block'; 
+                msg.innerText = 'Network Error connecting to server.'; 
+            }
         }
 
         function refreshKimData() {
