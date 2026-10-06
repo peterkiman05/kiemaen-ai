@@ -34,19 +34,25 @@ ACCOUNT_PASSWORDS = {
 # --- AUTO-PROVISIONING HELPER ---
 async def get_or_provision_account(client, login: str):
     headers = {"auth-token": MASTER_TOKEN, "Content-Type": "application/json"}
-    prov_url = "https://mt-provisioning-api-v1.agiliumtrade.agiliumtrade.ai/users/current/accounts"
+    prov_url = "https://mt-provisioning-api-v1.new-york.agiliumtrade.ai/users/current/accounts"
     
-    # 1. Check if it already exists on MetaAPI
+    # 1. Check if the account already exists on MetaAPI
     res = await client.get(prov_url, headers=headers)
     if res.status_code == 200:
         for acc in res.json():
             if str(acc.get("login")) == str(login):
-                return acc.get("_id")
+                target_id = acc.get("_id")
+                # Ensure it is actively deployed
+                if acc.get("state") != "DEPLOYED":
+                    await client.post(f"{prov_url}/{target_id}/deploy", headers=headers)
+                    import asyncio
+                    await asyncio.sleep(2)
+                return target_id, "Existing account active."
                 
-    # 2. Not found. Auto-provision it using hardcoded password.
+    # 2. Provision if not found
     pwd = ACCOUNT_PASSWORDS.get(str(login))
     if not pwd: 
-        return None
+        return None, f"No password stored for {login}"
         
     payload = {
         "name": f"Kim-{login}",
@@ -60,66 +66,13 @@ async def get_or_provision_account(client, login: str):
     create_res = await client.post(prov_url, json=payload, headers=headers)
     if create_res.status_code in [200, 201]:
         target_id = create_res.json().get("id")
-        # Deploy it to connect to the broker
         await client.post(f"{prov_url}/{target_id}/deploy", headers=headers)
-        # Wait 3 seconds for MetaAPI to securely establish the broker connection
+        import asyncio
         await asyncio.sleep(3) 
-        return target_id
+        return target_id, "Account deployed."
         
-    return None
-
-# --- CORE ROUTES ---
-@app.get("/")
-async def serve_main_ai():
-    if os.path.exists("web/index.html"):
-        return FileResponse("web/index.html")
-    return {"status": "active", "system": "Kiemaen AI Core Engine"}
-
-@app.get("/terminal")
-async def serve_kim_terminal():
-    if os.path.exists("web/terminal.html"):
-        return FileResponse("web/terminal.html")
-    return {"status": "error", "message": "Terminal UI missing."}
-
-@app.post("/api/auth/login")
-async def login_user(request: Request):
-    try:
-        data = await request.json()
-        email = data.get("email", "").strip()
-        password = data.get("password", "")
-        
-        if email == "P.cthole5@gmail.com" and password == "JcobCthole@5":
-            token = jwt.encode({"sub": email, "exp": datetime.datetime.utcnow() + datetime.timedelta(days=365)}, "kim_super_secret_admin_key", algorithm="HS256")
-            return {"status": "success", "token": token, "user": {"email": email, "is_admin": True, "is_verified": 1}}
-        
-        db_files = glob.glob("**/*.db", recursive=True)
-        if db_files:
-            conn = sqlite3.connect(db_files[0])
-            c = conn.cursor()
-            hashed = hashlib.sha256(password.encode()).hexdigest()
-            c.execute("SELECT email FROM users WHERE email=? AND (password=? OR pwd=?)", (email, hashed, hashed))
-            row = c.fetchone()
-            conn.close()
-            if row:
-                token = jwt.encode({"sub": email, "exp": datetime.datetime.utcnow() + datetime.timedelta(days=7)}, "kim_secret_key", algorithm="HS256")
-                return {"status": "success", "token": token}
-        return {"status": "error", "message": "Invalid credentials."}
-    except Exception as e:
-        return {"status": "error", "message": f"Auth error: {str(e)}"}
-
-@app.post("/api/auth/register")
-async def register_user(request: Request):
-    return {"status": "success", "message": "Account registered."}
-
-@app.post("/api/kim/scalper")
-async def scalper_handler(request: Request):
-    try:
-        data = await request.json()
-        if data.get("command") == "start":
-            return {"status": "success", "message": "Kim Scalping Engine ACTIVE: Monitoring M1/M5 Order Blocks on VaultMarkets-Live.", "state": "running"}
-        return {"status": "success", "message": "Kim Scalping Engine SUSPENDED.", "state": "stopped"}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+    # FORCE METAPI TO REVEAL THE EXACT ERROR
+    return None, f"MetaAPI Rejected: [{create_res.status_code}] {create_res.text}"
 
 # --- AUTO-PROVISIONING SYNC & EXECUTION ROUTES ---
 @app.get("/api/kim/sync/{login}")
@@ -127,11 +80,11 @@ async def sync_account(login: str):
     try:
         headers = {"auth-token": MASTER_TOKEN, "Content-Type": "application/json"}
         async with httpx.AsyncClient(verify=False, timeout=20.0) as client:
-            target_id = await get_or_provision_account(client, login)
+            target_id, msg = await get_or_provision_account(client, login)
             if not target_id:
-                return {"status": "error", "message": f"Account {login} auto-provisioning failed."}
+                return {"status": "error", "message": f"Sync Error: {msg}"}
                 
-            info_url = f"https://mt-client-api-v1.agiliumtrade.agiliumtrade.ai/users/current/accounts/{target_id}/account-information"
+            info_url = f"https://mt-client-api-v1.new-york.agiliumtrade.ai/users/current/accounts/{target_id}/account-information"
             info_res = await client.get(info_url, headers=headers)
             if info_res.status_code == 200:
                 data = info_res.json()
@@ -140,7 +93,7 @@ async def sync_account(login: str):
                     "balance": data.get("balance", 0.0),
                     "floating": data.get("profit", 0.0)
                 }
-            return {"status": "error"}
+            return {"status": "error", "message": f"Info Fetch Failed: {info_res.status_code}"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -156,11 +109,11 @@ async def execute_live_trade(request: Request):
         headers = {"auth-token": MASTER_TOKEN, "Content-Type": "application/json"}
         
         async with httpx.AsyncClient(verify=False, timeout=25.0) as client:
-            target_id = await get_or_provision_account(client, account_login)
+            target_id, msg = await get_or_provision_account(client, account_login)
             if not target_id:
-                return {"status": "error", "message": f"Auto-provisioning failed for {account_login}."}
+                return {"status": "error", "message": f"Setup Failed: {msg}"}
                 
-            trade_url = f"https://mt-client-api-v1.agiliumtrade.agiliumtrade.ai/users/current/accounts/{target_id}/trade"
+            trade_url = f"https://mt-client-api-v1.new-york.agiliumtrade.ai/users/current/accounts/{target_id}/trade"
             trade_payload = {"actionType": action, "symbol": symbol, "volume": volume}
             
             trade_res = await client.post(trade_url, json=trade_payload, headers=headers)
