@@ -8,7 +8,8 @@ import jwt
 import httpx
 import asyncio
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponsefrom fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Kiemaen AI & Kim Quant Engine")
 
