@@ -147,3 +147,47 @@ async def scalper_handler(request: Request):
         return {"status": "success", "message": "Autonomous Scalping Loops engaged on Accounts 8760042 & 8760048.", "state": "running"}
     else:
         return {"status": "success", "message": "Scalping engine suspended. Standby mode engaged.", "state": "stopped"}
+
+
+@app.post("/api/kim/execute_trade")
+async def execute_live_trade(request: Request):
+    try:
+        data = await request.json()
+        symbol = data.get("symbol", "XAUUSD")
+        login_target = data.get("login", "8760042")
+        
+        import httpx
+        headers = {"auth-token": MASTER_TOKEN}
+        
+        async with httpx.AsyncClient(verify=False, timeout=15.0) as client:
+            # Step A: Get the internal MetaAPI Account ID
+            prov_url = "https://mt-provisioning-api-v1.agiliumtrade.agiliumtrade.ai/users/current/accounts"
+            accs_res = await client.get(prov_url, headers=headers)
+            target_id = None
+            
+            if accs_res.status_code == 200:
+                for acc in accs_res.json():
+                    if acc.get("login") == login_target:
+                        target_id = acc.get("_id")
+                        break
+                        
+            if not target_id:
+                return {"status": "error", "message": f"Account {login_target} not found on MetaAPI."}
+                
+            # Step B: Send the Live Market Order
+            trade_url = f"https://mt-client-api-v1.agiliumtrade.agiliumtrade.ai/users/current/accounts/{target_id}/trade"
+            trade_payload = {
+                "actionType": "ORDER_TYPE_BUY",
+                "symbol": symbol,
+                "volume": 0.01
+            }
+            
+            trade_res = await client.post(trade_url, json=trade_payload, headers=headers)
+            
+            if trade_res.status_code in [200, 204]:
+                return {"status": "success", "message": f"LIVE TRADE OPENED: 0.01 BUY {symbol} on Acc {login_target}"}
+            else:
+                return {"status": "error", "message": f"Broker Rejected: {trade_res.text}"}
+                
+    except Exception as e:
+        return {"status": "error", "message": f"Backend Crash: {str(e)}"}
