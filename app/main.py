@@ -1,8 +1,12 @@
-import json
 import os
+import json
+import httpx
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
-import httpx
+
 
 async def fetch_metaapi_account_data(account_id: str):
     config = load_config()
@@ -27,8 +31,6 @@ async def fetch_metaapi_account_data(account_id: str):
         return {"connected": False}
 
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 # Initialize the core application
 app = FastAPI(title="Kim Quant Engine")
