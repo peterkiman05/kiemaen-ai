@@ -1,5 +1,8 @@
+import sqlite3
+import hashlib
 import datetime
 import asyncio
+import smtplib
 import os
 import json
 import httpx
@@ -224,8 +227,6 @@ async def login_user(data: dict):
     if not email or not password:
         return {"status": "error", "message": "Missing credentials"}
     
-    import hashlib
-    import sqlite3
     hashed_pwd = hashlib.sha256(password.encode()).hexdigest()
     
     conn = sqlite3.connect("data/enterprise_management.db")
