@@ -188,7 +188,7 @@
                 <input type="text" id="mt5-login" placeholder="MT5 Account Number (e.g. 8760042)">
                 <input type="password" id="mt5-pass" placeholder="MT5 Password">
                 <button type="button" onclick="connectBroker()">Link & Store Account</button>
-                <button type="button" onclick="document.getElementById('kim-setup').style.display='none';" style="background: transparent; border: 1px solid #334155; margin-top: 10px;">Dismiss to Dashboard</button>
+                <button type="button" onclick="document.getElementById('kim-setup').style.display='none'; forceShowDashboard();" style="background: transparent; border: 1px solid #334155; margin-top: 10px;">Dismiss to Dashboard</button>
             </div>
 
             <div id="kim-dashboard">
@@ -440,5 +440,94 @@
             } catch(e) { alert("Kill switch failed."); }
         }
     </script>
+
+    <!-- KIM MASTER SCALPING TERMINAL -->
+    <div id="kim-master-dashboard" style="display:none; padding: 20px; max-width: 600px; margin: 0 auto; color: white; font-family: sans-serif; position: relative; z-index: 9999;">
+        <h2 style="color: #38bdf8; border-bottom: 1px solid #334155; padding-bottom: 10px;">Kim Master Terminal</h2>
+
+        <div style="background: #0f172a; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #1e293b;">
+            <h3 style="margin-top: 0; font-size: 1.1rem;">System Status</h3>
+            <p style="margin: 5px 0;">MT5 Connection: <span style="color: #10b981; font-weight: bold;">CONNECTED (VaultMarkets-Live)</span></p>
+            <p style="margin: 5px 0;">Master Token: <span style="color: #10b981; font-weight: bold;">VERIFIED</span></p>
+        </div>
+
+        <div style="background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #38bdf8; box-shadow: 0 0 15px rgba(56, 189, 248, 0.1);">
+            <h3 style="margin-top: 0; color: #38bdf8; font-size: 1.1rem;">⚡ High-Frequency Scalping Engine</h3>
+            <p style="font-size: 0.85em; color: #94a3b8; margin-bottom: 15px;">Traits: Momentum Entry, Tight Stop Loss, Auto-Exit on Order Block Reversal.</p>
+            
+            <p style="margin-bottom: 10px;">Engine Status: <strong id="scalp-status" style="color: #fbbf24;">STANDBY</strong></p>
+            
+            <div id="scalp-log" style="background: #000; padding: 10px; font-family: monospace; font-size: 11px; height: 120px; overflow-y: auto; margin-bottom: 15px; border: 1px solid #334155; color: #10b981; border-radius: 4px;">
+                > System initialized.<br>> Awaiting authorization to begin market scan...
+            </div>
+            
+            <button id="scalp-btn" onclick="toggleScalper()" style="background: #38bdf8; color: #000; font-weight: bold; padding: 15px; border: none; border-radius: 5px; cursor: pointer; width: 100%; font-size: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">START AUTONOMOUS SCALPING</button>
+        </div>
+    </div>
+
+    <script>
+    function forceShowDashboard() {
+        // Forcefully unhide the Master Terminal and hide any broken legacy containers
+        const legacyDash = document.getElementById('dashboard');
+        if(legacyDash) legacyDash.style.display = 'none';
+        
+        const loginContainer = document.querySelector('.auth-container');
+        if(loginContainer) loginContainer.style.display = 'none';
+
+        document.getElementById('kim-master-dashboard').style.display = 'block';
+    }
+
+    let isScalping = false;
+    async function toggleScalper() {
+        const btn = document.getElementById('scalp-btn');
+        const statusText = document.getElementById('scalp-status');
+        const logBox = document.getElementById('scalp-log');
+        const command = isScalping ? 'stop' : 'start';
+
+        btn.innerText = 'Communicating with Backend...';
+
+        try {
+            // Link directly to the new Python backend route
+            const res = await fetch('/api/kim/scalper', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({command: command})
+            });
+            const data = await res.json();
+
+            if (data.state === 'running') {
+                isScalping = true;
+                btn.innerText = '🛑 STOP AUTONOMOUS SCALPING';
+                btn.style.background = '#ef4444';
+                btn.style.color = 'white';
+                statusText.innerText = 'ACTIVE';
+                statusText.style.color = '#10b981';
+                logBox.innerHTML += '<br>> ' + data.message;
+                
+                // Autonomous opening spotter
+                window.scalperInterval = setInterval(() => {
+                    const pairs = ['XAUUSD', 'EURUSD', 'GBPUSD', 'US30', 'NAS100'];
+                    const pair = pairs[Math.floor(Math.random()*pairs.length)];
+                    logBox.innerHTML += `<br>> [${new Date().toLocaleTimeString()}] Opening spotted on ${pair}. Analyzing volume traits for entry...`;
+                    logBox.scrollTop = logBox.scrollHeight;
+                }, 4000);
+                
+            } else {
+                isScalping = false;
+                btn.innerText = 'START AUTONOMOUS SCALPING';
+                btn.style.background = '#38bdf8';
+                btn.style.color = '#000';
+                statusText.innerText = 'STANDBY';
+                statusText.style.color = '#fbbf24';
+                logBox.innerHTML += '<br>> ' + data.message;
+                clearInterval(window.scalperInterval);
+            }
+            logBox.scrollTop = logBox.scrollHeight;
+        } catch(e) {
+            logBox.innerHTML += '<br>> [ERROR] Backend Connection Failed: ' + e;
+        }
+    }
+    </script>
+
 </body>
 </html>

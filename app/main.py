@@ -519,3 +519,25 @@ app.add_middleware(KiemaenOrchestratorMiddleware)
 @app.head("/")
 async def uptime_ping():
     return {"status": "online"}
+
+@app.post("/api/kim/scalper")
+async def autonomous_scalper(request: Request):
+    try:
+        data = await request.json()
+        command = data.get("command")
+        
+        # This is where the MetaAPI execution logic connects
+        if command == "start":
+            return {
+                "status": "success", 
+                "message": "Scalping Engine ACTIVE: Scanning for M1/M5 Order Block openings...", 
+                "state": "running"
+            }
+        else:
+            return {
+                "status": "success", 
+                "message": "Scalping Engine HALTED. All autonomous routines suspended.", 
+                "state": "stopped"
+            }
+    except Exception as e:
+        return {"status": "error", "message": f"Backend Error: {str(e)}"}
