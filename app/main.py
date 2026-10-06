@@ -40,6 +40,16 @@ async def fetch_metaapi_account_data(account_id: str):
 
 
 # Initialize the core application
+
+# Failsafe for background worker
+try:
+    from app.worker import kim_worker
+except ImportError:
+    class DummyWorker:
+        def __getattr__(self, name):
+            return lambda *args, **kwargs: None
+    kim_worker = DummyWorker()
+
 app = FastAPI(title="Kim Quant Engine")
 
 # Fortify the middleware
