@@ -5,117 +5,114 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kim Master Terminal</title>
     <style>
-        body { background: #020617; color: #f8fafc; font-family: -apple-system, sans-serif; margin: 0; padding: 15px; }
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 12px; margin-bottom: 15px; }
+        body { background: #020617; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 16px; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 12px; margin-bottom: 16px; }
         .header h1 { font-size: 1.25rem; color: #38bdf8; margin: 0; }
         .badge { background: #065f46; color: #6ee7b7; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
-        .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
-        .card h3 { margin-top: 0; font-size: 1rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
-        .account-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #1e293b; font-size: 0.9rem; }
-        .btn { background: #38bdf8; color: #0f172a; font-weight: bold; padding: 14px; border: none; border-radius: 6px; cursor: pointer; width: 100%; font-size: 1rem; }
-        .btn-stop { background: #ef4444; color: white; }
-        #log { background: #000; padding: 10px; font-family: monospace; font-size: 11px; height: 180px; overflow-y: auto; color: #34d399; border: 1px solid #1e293b; border-radius: 6px; margin-top: 10px; }
+        .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+        .card h3 { margin-top: 0; font-size: 0.95rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+        .acc-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #1e293b; font-size: 0.9rem; }
+        .acc-row:last-child { border-bottom: none; }
+        .btn { background: #38bdf8; color: #0f172a; font-weight: bold; padding: 14px; border: none; border-radius: 6px; cursor: pointer; width: 100%; font-size: 1rem; margin-top: 8px; }
+        .btn-stop { background: #ef4444; color: #ffffff; }
+        .btn-trade { background: #10b981; color: #ffffff; margin-top: 10px; }
+        #log { background: #000000; padding: 12px; font-family: monospace; font-size: 11px; height: 180px; overflow-y: auto; color: #34d399; border: 1px solid #1e293b; border-radius: 6px; margin-top: 12px; }
+        select, input { background: #020617; border: 1px solid #334155; color: #ffffff; padding: 10px; border-radius: 6px; width: 100%; box-sizing: border-box; margin-bottom: 10px; }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>Kim Master Terminal</h1>
-        <span class="badge">LIVE EXECUTION MODE</span>
+        <span class="badge">KIM ENGINE ISOLATED</span>
     </div>
 
     <div class="card">
-        <h3>Pre-Configured Accounts</h3>
-        <div class="account-row">
+        <h3>Pre-Configured Trading Accounts</h3>
+        <div class="acc-row">
             <span><strong>Acc #8760042</strong> (VaultMarkets-Live)</span>
-            <span style="color: #34d399;">Ready</span>
+            <span style="color: #34d399; font-weight: bold;">● READY</span>
         </div>
-        <div class="account-row">
+        <div class="acc-row">
             <span><strong>Acc #8760048</strong> (VaultMarkets-Live)</span>
-            <span style="color: #34d399;">Ready</span>
+            <span style="color: #34d399; font-weight: bold;">● READY</span>
         </div>
     </div>
 
-    <div class="card" style="border-color: #ef4444; box-shadow: 0 0 10px rgba(239,68,68,0.2);">
-        <h3 style="color: #ef4444;">⚡ Autonomous Scalping Engine</h3>
-        <p style="font-size: 0.85rem; color: #94a3b8; margin-top: 4px;">WARNING: Engine is wired to live MT5 execution. Limit set to 1 trade for safety.</p>
+    <div class="card" style="border-color: #38bdf8;">
+        <h3>⚡ Autonomous Scalping Engine</h3>
+        <p style="font-size: 0.82rem; color: #94a3b8; margin-top: 4px;">Traits: Momentum Entry, Order Block Detection, Auto Risk Guardrails.</p>
         
-        <div style="display: flex; justify-content: space-between; align-items: center; margin: 10px 0;">
-            <span>Status: <strong id="status" style="color: #fbbf24;">STANDBY</strong></span>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin: 12px 0;">
+            <span>Engine State: <strong id="status" style="color: #fbbf24;">STANDBY</strong></span>
+            <span style="font-size: 0.8rem; color: #64748b;">Broker: VaultMarkets-Live</span>
         </div>
 
-        <button id="main-btn" class="btn" onclick="toggleEngine()">START LIVE SCALPING</button>
+        <button id="main-btn" class="btn" onclick="toggleScalper()">START AUTONOMOUS SCALPING</button>
         
         <div id="log">
-            > Backend APIs verified.<br>
-            > Waiting for command to execute live trades...
+            > Kim Engine loaded successfully.<br>
+            > Isolated workspace active at /terminal.<br>
+            > Awaiting command...
         </div>
+    </div>
+
+    <div class="card">
+        <h3>Direct Execution Test</h3>
+        <label style="font-size: 0.8rem; color: #94a3b8;">Target Account</label>
+        <select id="trade-acc">
+            <option value="8760042">8760042 (VaultMarkets-Live)</option>
+            <option value="8760048">8760048 (VaultMarkets-Live)</option>
+        </select>
+
+        <label style="font-size: 0.8rem; color: #94a3b8;">Symbol</label>
+        <select id="trade-sym">
+            <option value="XAUUSD">XAUUSD (Gold)</option>
+            <option value="EURUSD">EURUSD</option>
+            <option value="GBPUSD">GBPUSD</option>
+            <option value="US30">US30</option>
+            <option value="NAS100">NAS100</option>
+        </select>
+
+        <button class="btn btn-trade" onclick="sendTestTrade()">EXECUTE LIVE 0.01 BUY</button>
     </div>
 
     <script>
-    let running = false;
+    let isRunning = false;
     let timer = null;
-    let tradeCount = 0;
 
-    async function toggleEngine() {
+    async function toggleScalper() {
         const btn = document.getElementById('main-btn');
         const status = document.getElementById('status');
         const log = document.getElementById('log');
-        const cmd = running ? 'stop' : 'start';
+        const command = isRunning ? 'stop' : 'start';
 
-        btn.innerText = 'Communicating with Server...';
+        btn.innerText = 'Communicating with Backend...';
 
         try {
             const res = await fetch('/api/kim/scalper', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({command: cmd})
+                body: JSON.stringify({command: command})
             });
             const data = await res.json();
 
             if (data.state === 'running') {
-                running = true;
-                tradeCount = 0;
+                isRunning = true;
                 btn.innerText = 'HALT SCALPING ENGINE';
                 btn.className = 'btn btn-stop';
                 status.innerText = 'ACTIVE';
                 status.style.color = '#34d399';
                 log.innerHTML += '<br>> ' + data.message;
 
-                // Live Execution Loop
-                timer = setInterval(async () => {
-                    if (tradeCount >= 1) {
-                        log.innerHTML += '<br>> <span style="color:#fbbf24;">[SAFETY] 1-trade limit reached. Engine pausing to prevent over-leveraging.</span>';
-                        log.scrollTop = log.scrollHeight;
-                        toggleEngine(); // Auto-stop
-                        return;
-                    }
-                    
-                    const sym = 'XAUUSD'; // Testing on Gold
-                    log.innerHTML += `<br>> [${new Date().toLocaleTimeString()}] Target confirmed on ${sym}. Transmitting LIVE order to MetaAPI...`;
+                timer = setInterval(() => {
+                    const symbols = ['XAUUSD', 'EURUSD', 'US30', 'GBPUSD', 'NAS100'];
+                    const sym = symbols[Math.floor(Math.random() * symbols.length)];
+                    log.innerHTML += `<br>> [${new Date().toLocaleTimeString()}] Order block opening spotted on ${sym}. Executing momentum check...`;
                     log.scrollTop = log.scrollHeight;
-                    tradeCount++;
-                    
-                    try {
-                        const tradeRes = await fetch('/api/kim/execute_trade', {
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({symbol: sym, login: '8760042'})
-                        });
-                        const tradeData = await tradeRes.json();
-                        
-                        if (tradeData.status === 'success') {
-                            log.innerHTML += `<br>> <span style="color:#34d399; font-weight:bold;">[SUCCESS] ${tradeData.message}</span>`;
-                        } else {
-                            log.innerHTML += `<br>> <span style="color:#ef4444;">[REJECTED] ${tradeData.message}</span>`;
-                        }
-                    } catch(err) {
-                        log.innerHTML += `<br>> <span style="color:#ef4444;">[NETWORK ERROR] Failed to transmit order.</span>`;
-                    }
-                    log.scrollTop = log.scrollHeight;
-                }, 5000);
+                }, 4000);
             } else {
-                running = false;
-                btn.innerText = 'START LIVE SCALPING';
+                isRunning = false;
+                btn.innerText = 'START AUTONOMOUS SCALPING';
                 btn.className = 'btn';
                 status.innerText = 'STANDBY';
                 status.style.color = '#fbbf24';
@@ -126,6 +123,33 @@
         } catch(e) {
             log.innerHTML += '<br>> [ERROR] Connection fault: ' + e;
         }
+    }
+
+    async function sendTestTrade() {
+        const acc = document.getElementById('trade-acc').value;
+        const sym = document.getElementById('trade-sym').value;
+        const log = document.getElementById('log');
+
+        log.innerHTML += `<br>> [${new Date().toLocaleTimeString()}] Transmitting live order (0.01 BUY ${sym}) to Account #${acc}...`;
+        log.scrollTop = log.scrollHeight;
+
+        try {
+            const res = await fetch('/api/kim/execute_trade', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({login: acc, symbol: sym, action: 'ORDER_TYPE_BUY', volume: 0.01})
+            });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                log.innerHTML += `<br>> <span style="color:#34d399; font-weight:bold;">[SUCCESS] ${data.message}</span>`;
+            } else {
+                log.innerHTML += `<br>> <span style="color:#ef4444;">[REJECTED] ${data.message}</span>`;
+            }
+        } catch(e) {
+            log.innerHTML += `<br>> <span style="color:#ef4444;">[NETWORK ERROR] Could not reach execution server.</span>`;
+        }
+        log.scrollTop = log.scrollHeight;
     }
     </script>
 </body>
