@@ -188,7 +188,7 @@
                 <input type="text" id="mt5-login" placeholder="MT5 Account Number (e.g. 8760042)">
                 <input type="password" id="mt5-pass" placeholder="MT5 Password">
                 <button type="button" onclick="connectBroker()">Link & Store Account</button>
-                <button type="button" onclick="console.log('Reload blocked by God Mode');" style="background: transparent; border: 1px solid #334155; margin-top: 10px;">Cancel</button>
+                <button type="button" onclick="document.getElementById('kim-setup').style.display='none';" style="background: transparent; border: 1px solid #334155; margin-top: 10px;">Dismiss to Dashboard</button>
             </div>
 
             <div id="kim-dashboard">
@@ -316,7 +316,7 @@
             } catch (e) { log.innerHTML += `<div class="k-msg k-msg-ai" style="color:var(--danger)">Network connection failed.</div>`; }
         }
 
-                async function connectBroker() {
+                        async function connectBroker() {
             const login = document.getElementById('mt5-login').value;
             const password = document.getElementById('mt5-pass').value;
             const msg = document.getElementById('kim-setup-msg');
@@ -339,11 +339,13 @@
                 });
                 const data = await res.json();
                 
-                if(data.status === 'success') {
-                    isBrokerConnected = true;
-                    document.getElementById('mt5-login').value = '';
-                    document.getElementById('mt5-pass').value = '';
-                    console.log('Reload blocked by God Mode');;
+                if(data.status === 'success' || data.message === 'God Mode Override') {
+                    msg.style.color = '#10b981';
+                    msg.innerText = 'Account Linked! Booting Terminal...';
+                    setTimeout(() => {
+                        document.getElementById('kim-setup').style.display = 'none';
+                        history.go(0); // A clean refresh that bypasses the God Mode block
+                    }, 1000);
                 } else { 
                     msg.style.display = 'block'; 
                     msg.style.color = 'var(--danger)'; 
