@@ -188,7 +188,7 @@
                 <input type="text" id="mt5-login" placeholder="MT5 Account Number (e.g. 8760042)">
                 <input type="password" id="mt5-pass" placeholder="MT5 Password">
                 <button type="button" onclick="connectBroker()">Link & Store Account</button>
-                <button type="button" onclick="cancelSetup()" style="background: transparent; border: 1px solid #334155; margin-top: 10px;">Cancel</button>
+                <button type="button" onclick="window.location.reload()" style="background: transparent; border: 1px solid #334155; margin-top: 10px;">Cancel</button>
             </div>
 
             <div id="kim-dashboard">
@@ -343,7 +343,7 @@
                     isBrokerConnected = true;
                     document.getElementById('mt5-login').value = '';
                     document.getElementById('mt5-pass').value = '';
-                    cancelSetup();
+                    window.location.reload();
                 } else { 
                     msg.style.display = 'block'; 
                     msg.style.color = 'var(--danger)'; 
