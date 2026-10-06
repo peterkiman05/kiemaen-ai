@@ -1,3 +1,21 @@
+
+import os
+import json
+import httpx
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI(title="Kim Quant Engine")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 import jwt
 from datetime import timedelta
 import random
@@ -10,9 +28,7 @@ import smtplib
 import os
 import json
 import httpx
-from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
-from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 
