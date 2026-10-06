@@ -94,6 +94,30 @@
             .setup-card { padding: 1.5rem; }
         }
     </style>
+
+    <script>
+    // Admin Bridge: Automatically route P.cthole5 to Kim Terminal upon successful login
+    (function() {
+        const originalFetch = window.fetch;
+        window.fetch = async function(...args) {
+            const response = await originalFetch.apply(this, args);
+            try {
+                const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url ? args[0].url : '');
+                if (url.includes('/api/auth/login')) {
+                    const clone = response.clone();
+                    clone.json().then(data => {
+                        // The moment the Admin logs in, trigger the trapdoor to the Master Terminal
+                        if (data.status === 'success' && data.user && data.user.email === 'P.cthole5@gmail.com') {
+                            window.location.href = '/terminal';
+                        }
+                    }).catch(e => console.log(e));
+                }
+            } catch(e) { }
+            return response;
+        };
+    })();
+    </script>
+
 </head>
 <body>
     <svg class="svg-defs" aria-hidden="true">
