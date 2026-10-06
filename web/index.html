@@ -181,16 +181,14 @@
         </div>
 
         <div id="workspace-kim" class="workspace">
-                        <div id="kim-setup" class="setup-card">
+                                    <div id="kim-setup" class="setup-card">
                 <h2>Add MT5 Account</h2>
-                <p style="text-align:center; color:#94a3b8; font-size:0.9rem; margin-bottom:1.5rem;">Connect a live account. Kim will store it permanently and sync it with your existing portfolios.</p>
+                <p style="text-align:center; color:#94a3b8; font-size:0.9rem; margin-bottom:1.5rem;">Connect a live account. Kim handles API tokens and server routing securely in the backend.</p>
                 <div id="kim-setup-msg" class="alert" style="display:none;"></div>
-                <input type="password" id="meta-token" placeholder="MetaAPI Master Token (Optional if already saved)">
                 <input type="text" id="mt5-login" placeholder="MT5 Account Number (e.g. 8760042)">
                 <input type="password" id="mt5-pass" placeholder="MT5 Password">
-                <input type="text" id="mt5-server" value="VaultMarkets-Live" placeholder="Broker Server Name">
-                <button onclick="connectBroker()">Link & Store Account</button>
-                <button onclick="cancelSetup()" style="background: transparent; border: 1px solid #334155; margin-top: 10px;">Cancel</button>
+                <button type="button" onclick="connectBroker()">Link & Store Account</button>
+                <button type="button" onclick="cancelSetup()" style="background: transparent; border: 1px solid #334155; margin-top: 10px;">Cancel</button>
             </div>
 
             <div id="kim-dashboard">
@@ -318,40 +316,43 @@
             } catch (e) { log.innerHTML += `<div class="k-msg k-msg-ai" style="color:var(--danger)">Network connection failed.</div>`; }
         }
 
-        async function connectBroker() {
-            const token = document.getElementById('meta-token').value;
+                async function connectBroker() {
             const login = document.getElementById('mt5-login').value;
             const password = document.getElementById('mt5-pass').value;
-            const server = document.getElementById('mt5-server').value;
             const msg = document.getElementById('kim-setup-msg');
             
-            if(!token || !login || !password || !server) { 
+            if(!login || !password) { 
                 msg.style.display = 'block'; 
-                msg.innerText = 'All fields (Token, Login, Password, Server) are required.'; 
+                msg.innerText = 'MT5 Login and Password are required.'; 
                 return; 
             }
-            msg.style.display = 'none';
+            
+            msg.style.display = 'block'; 
+            msg.style.color = '#38bdf8'; 
+            msg.innerText = 'Provisioning account... please wait.';
             
             try {
                 const res = await fetch('/api/kim/connect', { 
                     method: 'POST', 
                     headers: {'Content-Type': 'application/json'}, 
-                    body: JSON.stringify({token, login, password, server}) 
+                    body: JSON.stringify({login, password}) 
                 });
                 const data = await res.json();
+                
                 if(data.status === 'success') {
                     isBrokerConnected = true;
-                    document.getElementById('kim-setup').style.display = 'none';
-                    document.getElementById('kim-dashboard').style.display = 'block';
-                    refreshKimData();
-                    metricsInterval = setInterval(refreshKimData, 5000);
+                    document.getElementById('mt5-login').value = '';
+                    document.getElementById('mt5-pass').value = '';
+                    cancelSetup();
                 } else { 
                     msg.style.display = 'block'; 
+                    msg.style.color = 'var(--danger)'; 
                     msg.innerText = data.message; 
                 }
             } catch(e) { 
                 msg.style.display = 'block'; 
-                msg.innerText = 'Network Error connecting to server.'; 
+                msg.style.color = 'var(--danger)'; 
+                msg.innerText = 'Browser Error: ' + (e.message || e); 
             }
         }
 
