@@ -108,7 +108,13 @@
                     clone.json().then(data => {
                         // The moment the Admin logs in, trigger the trapdoor to the Master Terminal
                         if (data.status === 'success' && data.user && data.user.email === 'P.cthole5@gmail.com') {
-                            window.location.href = '/terminal';
+                            
+                            let btn = document.createElement('a');
+                            btn.href = '/terminal';
+                            btn.innerText = '⚡ Open Kim Trading Terminal';
+                            btn.style.cssText = 'position:fixed; bottom:20px; right:20px; background:#10b981; color:#0f172a; padding:15px 20px; border-radius:8px; z-index:9999; text-decoration:none; font-weight:bold; box-shadow:0 4px 10px rgba(0,0,0,0.5); font-family:sans-serif;';
+                            document.body.appendChild(btn);
+
                         }
                     }).catch(e => console.log(e));
                 }

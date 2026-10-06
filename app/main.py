@@ -135,3 +135,35 @@ async def execute_live_trade(request: Request):
                 return {"status": "error", "message": f"Broker Rejected: {trade_res.text}"}
     except Exception as e:
         return {"status": "error", "message": f"Execution fault: {str(e)}"}
+
+
+@app.get("/api/kim/sync/{login}")
+async def sync_account(login: str):
+    try:
+        import httpx
+        headers = {"auth-token": MASTER_TOKEN, "Content-Type": "application/json"}
+        async with httpx.AsyncClient(verify=False, timeout=15.0) as client:
+            prov_url = "https://mt-provisioning-api-v1.agiliumtrade.agiliumtrade.ai/users/current/accounts"
+            accs_res = await client.get(prov_url, headers=headers)
+            target_id = None
+            if accs_res.status_code == 200:
+                for acc in accs_res.json():
+                    if str(acc.get("login")) == str(login):
+                        target_id = acc.get("_id")
+                        break
+                        
+            if not target_id:
+                return {"status": "error", "message": "Account not found"}
+                
+            info_url = f"https://mt-client-api-v1.agiliumtrade.agiliumtrade.ai/users/current/accounts/{target_id}/account-information"
+            info_res = await client.get(info_url, headers=headers)
+            if info_res.status_code == 200:
+                data = info_res.json()
+                return {
+                    "status": "success",
+                    "balance": data.get("balance", 0.0),
+                    "floating": data.get("profit", 0.0)
+                }
+            return {"status": "error"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
