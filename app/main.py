@@ -1,3 +1,5 @@
+import random
+import uuid
 import sqlite3
 import hashlib
 import datetime
