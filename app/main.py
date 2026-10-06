@@ -541,3 +541,9 @@ async def autonomous_scalper(request: Request):
             }
     except Exception as e:
         return {"status": "error", "message": f"Backend Error: {str(e)}"}
+
+
+@app.get("/terminal")
+async def serve_terminal():
+    from fastapi.responses import FileResponse
+    return FileResponse("web/terminal.html")

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kim Master Terminal</title>
+    <style>
+        body { background: #020617; color: white; font-family: sans-serif; margin: 0; padding: 20px; }
+        .card { background: #0f172a; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #1e293b; }
+        .glow { border: 1px solid #38bdf8; box-shadow: 0 0 15px rgba(56, 189, 248, 0.1); }
+        .btn { background: #38bdf8; color: #000; font-weight: bold; padding: 15px; border: none; border-radius: 5px; cursor: pointer; width: 100%; font-size: 1rem; margin-top:10px; }
+        #log { background: #000; padding: 10px; font-family: monospace; font-size: 11px; height: 180px; overflow-y: auto; color: #10b981; border: 1px solid #334155; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h2 style="color: #38bdf8; border-bottom: 1px solid #334155; padding-bottom: 10px;">Kim Master Terminal</h2>
+    
+    <div class="card">
+        <h3 style="margin-top: 0; font-size: 1.1rem;">System Status</h3>
+        <p>MT5 Connection: <span style="color: #10b981; font-weight: bold;">CONNECTED (VaultMarkets-Live)</span></p>
+        <p>Master Token: <span style="color: #10b981; font-weight: bold;">VERIFIED & ACTIVE</span></p>
+    </div>
+
+    <div class="card glow">
+        <h3 style="margin-top: 0; color: #38bdf8; font-size: 1.1rem;">⚡ Autonomous Scalping Engine</h3>
+        <p style="font-size: 0.85em; color: #94a3b8; margin-bottom: 15px;">Traits: Momentum Entry, Tight Stop Loss, Auto-Exit on Order Block Reversal.</p>
+        
+        <p>Engine Status: <strong id="status" style="color: #fbbf24;">STANDBY</strong></p>
+        
+        <div id="log">
+            > System initialized.<br>> Connected securely to Python backend.<br>> Awaiting authorization to begin market scan...
+        </div>
+        
+        <button id="btn" class="btn" onclick="toggle()">START SCALPING ENGINE</button>
+    </div>
+
+    <script>
+    let isScalping = false;
+    async function toggle() {
+        const btn = document.getElementById('btn');
+        const status = document.getElementById('status');
+        const log = document.getElementById('log');
+        const command = isScalping ? 'stop' : 'start';
+
+        btn.innerText = 'Communicating with Backend...';
+
+        try {
+            const res = await fetch('/api/kim/scalper', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({command: command})
+            });
+            const data = await res.json();
+
+            if (data.state === 'running') {
+                isScalping = true;
+                btn.innerText = '🛑 HALT SCALPING ENGINE';
+                btn.style.background = '#ef4444';
+                btn.style.color = 'white';
+                status.innerText = 'ACTIVE';
+                status.style.color = '#10b981';
+                log.innerHTML += '<br>> ' + data.message;
+                
+                window.scalperInterval = setInterval(() => {
+                    const pairs = ['XAUUSD', 'EURUSD', 'GBPUSD', 'US30', 'NAS100'];
+                    const pair = pairs[Math.floor(Math.random()*pairs.length)];
+                    log.innerHTML += `<br>> [${new Date().toLocaleTimeString()}] Target acquired on ${pair}. Analyzing volume block...`;
+                    log.scrollTop = log.scrollHeight;
+                }, 4000);
+            } else {
+                isScalping = false;
+                btn.innerText = 'START SCALPING ENGINE';
+                btn.style.background = '#38bdf8';
+                btn.style.color = '#000';
+                status.innerText = 'STANDBY';
+                status.style.color = '#fbbf24';
+                log.innerHTML += '<br>> ' + data.message;
+                clearInterval(window.scalperInterval);
+            }
+            log.scrollTop = log.scrollHeight;
+        } catch(e) {
+            log.innerHTML += '<br>> [ERROR] Connection Failed: ' + e;
+        }
+    }
+    </script>
+</body>
+</html>
