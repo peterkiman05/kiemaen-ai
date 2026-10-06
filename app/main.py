@@ -47,7 +47,9 @@ try:
 except ImportError:
     class DummyWorker:
         def __getattr__(self, name):
-            return lambda *args, **kwargs: None
+            async def async_dummy(*args, **kwargs):
+                pass
+            return async_dummy
     kim_worker = DummyWorker()
 
 app = FastAPI(title="Kim Quant Engine")
