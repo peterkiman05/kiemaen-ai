@@ -83,7 +83,7 @@ async def scalper_handler(request: Request):
 # --- 4. NEW YORK AUTO-PROVISIONING HELPER ---
 async def get_or_provision_account(client, login: str):
     headers = {"auth-token": MASTER_TOKEN, "Content-Type": "application/json"}
-    prov_url = "https://mt-provisioning-api-v1.new-york.agiliumtrade.ai/users/current/accounts"
+    prov_url = "https://mt-provisioning-api-v1.agiliumtrade.agiliumtrade.ai/users/current/accounts"
     
     res = await client.get(prov_url, headers=headers)
     if res.status_code == 200:
@@ -127,7 +127,7 @@ async def sync_account(login: str):
             if not target_id:
                 return {"status": "error", "message": msg}
                 
-            info_url = f"https://mt-client-api-v1.new-york.agiliumtrade.ai/users/current/accounts/{target_id}/account-information"
+            info_url = f"https://mt-client-api-v1.agiliumtrade.agiliumtrade.ai/users/current/accounts/{target_id}/account-information"
             info_res = await client.get(info_url, headers=headers)
             if info_res.status_code == 200:
                 data = info_res.json()
@@ -156,7 +156,7 @@ async def execute_live_trade(request: Request):
             if not target_id:
                 return {"status": "error", "message": msg}
                 
-            trade_url = f"https://mt-client-api-v1.new-york.agiliumtrade.ai/users/current/accounts/{target_id}/trade"
+            trade_url = f"https://mt-client-api-v1.agiliumtrade.agiliumtrade.ai/users/current/accounts/{target_id}/trade"
             trade_payload = {"actionType": action, "symbol": symbol, "volume": volume}
             
             trade_res = await client.post(trade_url, json=trade_payload, headers=headers)
