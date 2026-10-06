@@ -50,7 +50,8 @@ except ImportError:
     class DummyWorker:
         def __getattr__(self, name):
             async def async_dummy(*args, **kwargs):
-                pass
+                print(f"\n🚨 DEV MODE: Intercepted background task '{name}' 🚨")
+                print(f"Payload: args={args}, kwargs={kwargs}\n")
             return async_dummy
     kim_worker = DummyWorker()
 
