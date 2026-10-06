@@ -95,13 +95,12 @@
             } catch(e) {}
         }
     }
-    setInterval(syncAccounts, 5000); // Sync every 5 seconds
+    setInterval(syncAccounts, 5000); 
     syncAccounts();
 
     // --- AUTONOMOUS EXECUTION ---
     let isRunning = false;
     let timer = null;
-    let tradeCount = 0;
 
     async function toggleScalper() {
         const btn = document.getElementById('main-btn');
@@ -121,26 +120,17 @@
 
             if (data.state === 'running') {
                 isRunning = true;
-                tradeCount = 0;
                 btn.innerText = 'HALT SCALPING ENGINE';
                 btn.className = 'btn btn-stop';
                 status.innerText = 'ACTIVE';
                 status.style.color = '#34d399';
                 log.innerHTML += '<br>> ' + data.message;
 
-                // LIVE EXECUTION LOOP
+                // CONTINUOUS LIVE EXECUTION LOOP (No safety brakes)
                 timer = setInterval(async () => {
-                    if (tradeCount >= 1) { // 1 Trade safety limit per start
-                        log.innerHTML += '<br>> <span style="color:#fbbf24;">[SAFETY] Live limit reached. Engine paused to protect capital.</span>';
-                        log.scrollTop = log.scrollHeight;
-                        toggleScalper();
-                        return;
-                    }
-                    
                     const sym = 'XAUUSD';
                     log.innerHTML += `<br>> [${new Date().toLocaleTimeString()}] Order block confirmed on ${sym}. Executing LIVE order...`;
                     log.scrollTop = log.scrollHeight;
-                    tradeCount++;
                     
                     try {
                         const tradeRes = await fetch('/api/kim/execute_trade', {
@@ -159,7 +149,7 @@
                         log.innerHTML += `<br>> <span style="color:#ef4444;">[NETWORK ERROR] Failed to execute.</span>`;
                     }
                     log.scrollTop = log.scrollHeight;
-                    syncAccounts(); // Force immediate balance update
+                    syncAccounts(); 
                 }, 6000);
             } else {
                 isRunning = false;
