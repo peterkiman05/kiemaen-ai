@@ -105,17 +105,40 @@ def create_pending_verification(username: str, email: str, password: str):
     conn = get_kiemaen_db()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT id FROM users WHERE lower(user_key)=lower(?) OR lower(email)=lower(?)", (username, email))
-        existing = cur.fetchone()
-        if existing:
-            return None, "That username or email is already registered."
-        admin_email = os.getenv("KIEMAEN_ADMIN_EMAIL", "").strip().lower()
-        role = "admin" if admin_email and email == admin_email else "user"
         cur.execute(
-            """INSERT INTO users (user_key,email,password_hash,role,verification_code,verification_expires)
-               VALUES (?,?,?,?,?,?)""",
-            (username, email, hash_password(password), role, code, expires),
+            """SELECT id,user_key,email,verification_code FROM users
+               WHERE lower(user_key)=lower(?) OR lower(email)=lower(?)""",
+            (username, email),
         )
+        matches = cur.fetchall()
+        if matches:
+            # A previous registration may have sent a code but never been verified.
+            # Reuse that pending account and issue a fresh code instead of blocking
+            # the user as though the account were fully registered.
+            if len(matches) != 1:
+                return None, "The username and email are associated with different accounts. Contact support."
+            existing = matches[0]
+            same_identity = (
+                existing["user_key"].lower() == username.lower()
+                and (existing["email"] or "").lower() == email.lower()
+            )
+            if not same_identity:
+                return None, "That username or email is already registered."
+            if existing["verification_code"] is None:
+                return None, "That username or email is already registered."
+            cur.execute(
+                """UPDATE users SET password_hash=?,verification_code=?,verification_expires=?
+                   WHERE id=?""",
+                (hash_password(password), code, expires, existing["id"]),
+            )
+        else:
+            admin_email = os.getenv("KIEMAEN_ADMIN_EMAIL", "").strip().lower()
+            role = "admin" if admin_email and email == admin_email else "user"
+            cur.execute(
+                """INSERT INTO users (user_key,email,password_hash,role,verification_code,verification_expires)
+                   VALUES (?,?,?,?,?,?)""",
+                (username, email, hash_password(password), role, code, expires),
+            )
         conn.commit()
         return code, None
     finally:
