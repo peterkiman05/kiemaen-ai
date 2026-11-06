@@ -45,6 +45,8 @@ def init_db():
 @asynccontextmanager
 async def lifespan(app):
     init_db()
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
     yield
 
 import os
@@ -55,8 +57,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dotenv import load_dotenv
 
 from core.brain import ask_kiemaen
-from core.database import get_db
-from core.models import User
+from core.database import get_db, engine
+from core.models import User, Base
 from core.auth import (
     login_user, 
     logout_user, 
@@ -72,7 +74,7 @@ from core.auth import (
     add_pin, get_pins, remove_pin, add_task, get_tasks, complete_task, revoke_all_sessions
 )
 from core.mailer import send_verification_email
-from core.security import (firewall_middleware, is_path_safe, is_locked_file,
+from core.security import (firewall_middleware, is_path_safe, is_locked_file, IS_PRODUCTION,
                             propose_edit, confirm_edit, reject_edit, rollback_edit,
                             validate_python_syntax, LOCKED_FILES)
 from core.evolution import AUTHORIZE_EVOLUTION_TOKEN, verify_evolution_token
@@ -130,7 +132,13 @@ async def register_request_code(username: str = Form(...), email: str = Form(...
     code, error = create_pending_verification(username, email, password)
     if error:
         return {"status": "error", "message": error}
-    send_verification_email(email, code, username)
+    sent, mail_message = send_verification_email(email, code, username)
+    if not sent:
+        conn = get_kiemaen_db()
+        conn.execute("DELETE FROM users WHERE user_key=? AND verification_code=?", (username, code))
+        conn.commit()
+        conn.close()
+        return {"status": "error", "message": mail_message}
     return {"status": "ok", "message": f"Verification code sent to {email}."}
 
 
@@ -140,7 +148,7 @@ def issue_session_cookie(response: Response, user_id, username, is_admin):
         key="session_token",
         value=token,
         httponly=True,
-        secure=False,
+        secure=IS_PRODUCTION,
         samesite="lax",
         max_age=86400,
         path="/"
@@ -163,7 +171,11 @@ async def login_request(username: str = Form(...), password: str = Form(...)):
     if not email:
         return {"status": "error", "message": "No email associated with this account."}
     code = create_login_code(username)
-    send_verification_email(email, code, username)
+    if not code:
+        return {"status": "error", "message": "Unable to create a login code. Please try again."}
+    sent, mail_message = send_verification_email(email, code, username)
+    if not sent:
+        return {"status": "error", "message": mail_message}
     return {"status": "otp_required", "message": f"Login code sent to {email}."}
 
 @app.post("/login/verify")
@@ -177,6 +189,18 @@ async def login_verify(response: Response, username: str = Form(...), code: str 
 @app.get("/")
 async def home():
     return FileResponse("web/index.html")
+
+@app.post("/session/logout")
+async def session_logout(response: Response, session_token: str = Cookie(default=None)):
+    delete_session(session_token)
+    response.delete_cookie("session_token", path="/", secure=IS_PRODUCTION, httponly=True, samesite="lax")
+    return {"status": "ok"}
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok", "service": "kiemaen-ai"}
+
 
 @app.get("/me")
 async def me(session_token: str = Cookie(default=None)):
@@ -210,6 +234,7 @@ async def chat(
     msg: str = Form(default=""),
     file: UploadFile = File(default=None),
     image: UploadFile = File(default=None),
+    mode: str = Form(default="auto"),
     session_token: str = Cookie(default=None)
 ):
     user = get_session_user(session_token) or {"id": 0, "username": "Guest", "is_admin": False}
@@ -218,6 +243,7 @@ async def chat(
 
     text = prompt or msg
     image_bytes = await image.read() if image else None
+    image_mime = image.content_type if image else "image/jpeg"
     
     doc_text = None
     if file:
@@ -276,7 +302,7 @@ async def chat(
                 complete_task(user["id"], int(parts[1]))
                 return {"status": "ok", "response": f"Task {parts[1]} marked as completed.", "category": "meta"}
 
-        reply, category = await ask_kiemaen(text, image_bytes, doc_text=doc_text, user_key=user_key, is_admin=is_admin, user_id=user["id"])
+        reply, category = await ask_kiemaen(text, image_bytes, doc_text=doc_text, user_key=user_key, is_admin=is_admin, user_id=user["id"], mode=mode, image_mime=image_mime)
         return {"status": "ok", "response": reply, "category": category}
 
     except Exception as e:
