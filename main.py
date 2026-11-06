@@ -222,10 +222,23 @@ async def chat(
     doc_text = None
     if file:
         file_bytes = await file.read()
+        content_type = (file.content_type or "").lower()
+        filename = (file.filename or "").lower()
         try:
-            doc_text = file_bytes.decode('utf-8', errors='ignore')
+            if content_type == "application/pdf" or filename.endswith(".pdf"):
+                from io import BytesIO
+                from pypdf import PdfReader
+                reader = PdfReader(BytesIO(file_bytes))
+                doc_text = "\\n".join(page.extract_text() or "" for page in reader.pages)
+            elif filename.endswith(".docx") or "wordprocessingml" in content_type:
+                from io import BytesIO
+                from docx import Document
+                document = Document(BytesIO(file_bytes))
+                doc_text = "\\n".join(paragraph.text for paragraph in document.paragraphs)
+            else:
+                doc_text = file_bytes.decode("utf-8", errors="strict")
         except Exception:
-            doc_text = f"[Binary file uploaded: {file.filename}]"
+            doc_text = f"[Could not extract text from {file.filename}. Please upload a text-based PDF, DOCX, TXT, or Markdown file.]"
 
     try:
         stripped_cmd = text.strip()

@@ -43,7 +43,8 @@ def get_kiemaen_db():
     cur.execute("""CREATE TABLE IF NOT EXISTS sessions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         token TEXT UNIQUE NOT NULL,
-        user_id INTEGER NOT NULL
+        user_id INTEGER NOT NULL,
+        expires_at TEXT
     )""")
     cur.execute("""CREATE TABLE IF NOT EXISTS tasks (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,6 +58,9 @@ def get_kiemaen_db():
         message TEXT NOT NULL,
         created_at TEXT NOT NULL
     )""")
+    session_columns = {row["name"] for row in cur.execute("PRAGMA table_info(sessions)").fetchall()}
+    if "expires_at" not in session_columns:
+        cur.execute("ALTER TABLE sessions ADD COLUMN expires_at TEXT")
     existing = {row["name"] for row in cur.execute("PRAGMA table_info(users)").fetchall()}
     for name, definition in (
         ("email", "TEXT"), ("password_hash", "TEXT"), ("password", "TEXT"),
@@ -213,7 +217,8 @@ def create_session(user_id: int) -> str:
     token = secrets.token_urlsafe(32)
     conn = get_kiemaen_db()
     try:
-        conn.execute("INSERT INTO sessions (token,user_id) VALUES (?,?)", (token, user_id))
+        expiry = (datetime.datetime.utcnow() + datetime.timedelta(days=1)).isoformat()
+        conn.execute("INSERT INTO sessions (token,user_id,expires_at) VALUES (?,?,?)", (token, user_id, expiry))
         conn.commit()
         return token
     finally:
@@ -227,8 +232,8 @@ def get_session_user(token: str):
     try:
         row = conn.execute(
             """SELECT u.id,u.user_key,u.role FROM sessions s
-               JOIN users u ON u.id=s.user_id WHERE s.token=?""",
-            (token,),
+               JOIN users u ON u.id=s.user_id WHERE s.token=? AND s.expires_at>?""",
+            (token, datetime.datetime.utcnow().isoformat()),
         ).fetchone()
         if not row:
             return None

@@ -16,3 +16,5 @@ PyJWT
 pyotp
 groq
 pandas
+pypdf
+python-docx
