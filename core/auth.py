@@ -6,6 +6,7 @@ helpers remain available for the versioned API routes.
 from __future__ import annotations
 
 import datetime
+import os
 import secrets
 import sqlite3
 import time
@@ -105,10 +106,12 @@ def create_pending_verification(username: str, email: str, password: str):
         existing = cur.fetchone()
         if existing:
             return None, "That username or email is already registered."
+        admin_email = os.getenv("KIEMAEN_ADMIN_EMAIL", "").strip().lower()
+        role = "admin" if admin_email and email == admin_email else "user"
         cur.execute(
             """INSERT INTO users (user_key,email,password_hash,role,verification_code,verification_expires)
-               VALUES (?,?,?,'user',?,?)""",
-            (username, email, hash_password(password), code, expires),
+               VALUES (?,?,?,?,?,?)""",
+            (username, email, hash_password(password), role, code, expires),
         )
         conn.commit()
         return code, None
