@@ -16,23 +16,40 @@
 [hidden]{display:none!important}
 @media(max-width:700px){#app{padding:0 14px 12px}.top{height:66px}.top .brand h1{font-size:17px}.top .brand svg{width:30px;height:30px}.pill{display:none}#chat{padding:24px 2px 18px;min-height:48vh}.bubble{max-width:91%}.welcome{margin-top:10vh}.welcome h2{font-size:27px}.composer{border-radius:19px;padding:10px}#prompt{min-height:52px}.action{padding:8px 9px}#mode{margin-left:auto;padding:8px 9px}#send{padding:9px 14px}.foot{font-size:10px}.auth-card{padding:26px 22px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+
+.icon-only{display:inline-grid;place-items:center;width:42px;height:42px;padding:0!important;flex:0 0 42px}
+.icon-only svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.primary.icon-only{margin-top:14px;width:100%;height:48px;flex-basis:100%;border-radius:13px}
+#logout{display:grid;place-items:center;width:38px;height:38px;padding:0}
+#logout svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.code-copy{display:grid;place-items:center;width:30px;height:30px;padding:0}
+.code-copy svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.mini{display:grid;place-items:center;width:34px;height:34px;padding:0}
+.mini svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.bubble pre{padding-top:48px}
+.bubble pre code{display:block;white-space:pre;overflow-x:auto}
+.bubble .hljs{background:transparent;padding:0}
+.bubble mjx-container[display="true"]{display:block;max-width:100%;overflow-x:auto;overflow-y:hidden;padding:8px 0}
+
 </style></head><body>
 <div id="auth"><section class="auth-card">
 <div class="brand"><svg viewBox="0 0 100 100" aria-label="Kiemaen clover"><g fill="#4c9ff2"><path d="M50 50Q38 20 50 5Q62 20 50 50"/><path d="M50 50Q38 20 50 5Q62 20 50 50" transform="rotate(72 50 50)"/><path d="M50 50Q38 20 50 5Q62 20 50 50" transform="rotate(144 50 50)"/><path d="M50 50Q38 20 50 5Q62 20 50 50" transform="rotate(216 50 50)"/><path d="M50 50Q38 20 50 5Q62 20 50 50" transform="rotate(288 50 50)"/></g><circle cx="50" cy="50" r="5" fill="#07111f"/></svg><h1>Kiemaen AI</h1></div>
 <p class="sub" id="authSub">Your unified personal assistant</p>
-<div id="loginPanel"><input class="field" id="loginUser" autocomplete="username" placeholder="Username or email"><input class="field" id="loginPass" type="password" autocomplete="current-password" placeholder="Password"><button class="primary" id="loginBtn">Continue</button><span class="link" id="showRegister">Create an account</span></div>
-<div id="registerPanel" hidden><input class="field" id="regUser" autocomplete="username" placeholder="Choose a username"><input class="field" id="regEmail" type="email" autocomplete="email" placeholder="Email address"><input class="field" id="regPass" type="password" autocomplete="new-password" placeholder="Password (at least 10 characters)"><button class="primary" id="registerBtn">Send verification code</button><span class="link" id="showLogin">Back to login</span></div>
-<div id="otpPanel" hidden><p class="sub" id="otpInfo">Enter the six-digit code sent to your email.</p><input class="field" id="otpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit verification code"><button class="primary" id="verifyBtn">Verify and continue</button><span class="link" id="cancelOtp">Back</span></div><div class="notice" id="authNotice" role="status"></div>
+<div id="loginPanel"><input class="field" id="loginUser" autocomplete="username" placeholder="Username or email"><input class="field" id="loginPass" type="password" autocomplete="current-password" placeholder="Password"><button class="primary icon-only" id="loginBtn" title="Continue" aria-label="Continue"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button><span class="link" id="showRegister">Create an account</span></div>
+<div id="registerPanel" hidden><input class="field" id="regUser" autocomplete="username" placeholder="Choose a username"><input class="field" id="regEmail" type="email" autocomplete="email" placeholder="Email address"><input class="field" id="regPass" type="password" autocomplete="new-password" placeholder="Password (at least 10 characters)"><button class="primary icon-only" id="registerBtn" title="Send verification code" aria-label="Send verification code"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button><span class="link" id="showLogin">Back to login</span></div>
+<div id="otpPanel" hidden><p class="sub" id="otpInfo">Enter the six-digit code sent to your email.</p><input class="field" id="otpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit verification code"><button class="primary icon-only" id="verifyBtn" title="Verify and continue" aria-label="Verify and continue"><svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg></button><span class="link" id="cancelOtp">Back</span></div><div class="notice" id="authNotice" role="status"></div>
 </section></div>
-<div id="app"><header class="top"><div class="brand"><svg viewBox="0 0 100 100" aria-label="Kiemaen clover"><g fill="#4c9ff2"><path d="M50 50Q38 20 50 5Q62 20 50 50"/><path d="M50 50Q38 20 50 5Q62 20 50 50" transform="rotate(72 50 50)"/><path d="M50 50Q38 20 50 5Q62 20 50 50" transform="rotate(144 50 50)"/><path d="M50 50Q38 20 50 5Q62 20 50 50" transform="rotate(216 50 50)"/><path d="M50 50Q38 20 50 5Q62 20 50 50" transform="rotate(288 50 50)"/></g><circle cx="50" cy="50" r="5" fill="#07111f"/></svg><h1>Kiemaen AI</h1></div><div class="top-actions"><span class="pill" id="userLabel">Signed in</span><button id="logout">Log out</button></div></header>
+<div id="app"><header class="top"><div class="brand"><svg viewBox="0 0 100 100" aria-label="Kiemaen clover"><g fill="#4c9ff2"><path d="M50 50Q38 20 50 5Q62 20 50 50"/><path d="M50 50Q38 20 50 5Q62 20 50 50" transform="rotate(72 50 50)"/><path d="M50 50Q38 20 50 5Q62 20 50 50" transform="rotate(144 50 50)"/><path d="M50 50Q38 20 50 5Q62 20 50 50" transform="rotate(216 50 50)"/><path d="M50 50Q38 20 50 5Q62 20 50 50" transform="rotate(288 50 50)"/></g><circle cx="50" cy="50" r="5" fill="#07111f"/></svg><h1>Kiemaen AI</h1></div><div class="top-actions"><span class="pill" id="userLabel">Signed in</span><button id="logout" title="Log out" aria-label="Log out"><svg viewBox="0 0 24 24"><path d="M10 17l5-5-5-5M15 12H3M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6"/></svg></button></div></header>
 <main id="chat" aria-live="polite"><div class="welcome" id="welcome"><svg class="mark" viewBox="0 0 100 100"><g fill="#4c9ff2"><path d="M50 50Q38 20 50 5Q62 20 50 50"/><path d="M50 50Q38 20 50 5Q62 20 50 50" transform="rotate(72 50 50)"/><path d="M50 50Q38 20 50 5Q62 20 50 50" transform="rotate(144 50 50)"/><path d="M50 50Q38 20 50 5Q62 20 50 50" transform="rotate(216 50 50)"/><path d="M50 50Q38 20 50 5Q62 20 50 50" transform="rotate(288 50 50)"/></g><circle cx="50" cy="50" r="5" fill="#07111f"/></svg><h2>What can I help you with?</h2><p>Everyday help, study, coding, research, engineering and problem-solving — all in one assistant.</p></div></main>
-<div class="composer-wrap"><div class="composer"><textarea id="prompt" rows="2" placeholder="Message Kiemaen..." aria-label="Message Kiemaen"></textarea><div class="composer-row"><button class="action" id="attachBtn" title="Attach an image or document">＋ File</button><input id="attachment" type="file" accept="image/*,.pdf,.txt,.md,.csv,.json,.py,.js,.docx" hidden><span id="fileName"></span><button class="action" id="micBtn" title="Dictate a message">◖ Voice</button><select id="mode" aria-label="Thinking mode"><option value="auto">Auto</option><option value="quick">Quick</option><option value="deep">Deep</option></select><button id="send">Send</button></div></div><div class="foot">Quick for everyday requests · Deep for complex work · Auto selects the mode</div></div></div>
+<div class="composer-wrap"><div class="composer"><textarea id="prompt" rows="2" placeholder="Message Kiemaen..." aria-label="Message Kiemaen"></textarea><div class="composer-row"><button class="action icon-only" id="attachBtn" title="Attach an image or document" aria-label="Attach an image or document"><svg viewBox="0 0 24 24"><path d="m21.4 11.1-8.5 8.5a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5"/></svg></button><input id="attachment" type="file" accept="image/*,.pdf,.txt,.md,.csv,.json,.py,.js,.docx" hidden><span id="fileName"></span><button class="action icon-only" id="micBtn" title="Dictate a message" aria-label="Dictate a message"><svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/></svg></button><select id="mode" aria-label="Thinking mode"><option value="auto">Auto</option><option value="quick">Quick</option><option value="deep">Deep</option></select><button id="send" class="icon-only" title="Send message" aria-label="Send message"><svg viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></div><div class="foot">Quick for everyday requests · Deep for complex work · Auto selects the mode</div></div></div>
 <script>
-window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]'],['$','$']],processEscapes:true},options:{skipHtmlTags:['script','noscript','style','textarea','pre','code']}};
+window.MathJax={tex:{inlineMath:[['\(','\)']],displayMath:[['\[','\]'],['$$','$$']],processEscapes:true},options:{skipHtmlTags:['script','noscript','style','textarea','pre','code']}};
 </script>
-<script defer src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
 <script>
 const $=id=>document.getElementById(id);let pendingType="login",pendingIdentity="",selectedFile=null,busy=false;
 function showAuthPanel(panel){$("loginPanel").hidden=panel!=="login";$("registerPanel").hidden=panel!=="register";$("otpPanel").hidden=panel!=="otp";$("authNotice").textContent="";$("authSub").textContent=panel==="login"?"Your unified personal assistant":panel==="register"?"Create your Kiemaen account":"Verify your email"}
@@ -44,24 +61,45 @@ async function register(){const username=$("regUser").value.trim(),email=$("regE
 async function verifyOtp(){const code=$("otpCode").value.trim();if(!/^\d{6}$/.test(code)){$("authNotice").textContent="Enter the six-digit code.";return}$("verifyBtn").disabled=true;try{const d=pendingType==="register"?await postForm("/register/verify",{email:pendingIdentity,code}):await postForm("/login/verify",{username:pendingIdentity,code});if(d.status==="ok")enterApp(d.username||pendingIdentity);else $("authNotice").textContent=d.message||"Verification failed."}catch(e){$("authNotice").textContent=e.message}finally{$("verifyBtn").disabled=false}}
 $("loginBtn").addEventListener("click",login);$("registerBtn").addEventListener("click",register);$("verifyBtn").addEventListener("click",verifyOtp);$("showRegister").addEventListener("click",()=>showAuthPanel("register"));$("showLogin").addEventListener("click",()=>showAuthPanel("login"));$("cancelOtp").addEventListener("click",()=>showAuthPanel(pendingType==="register"?"register":"login"));$("otpCode").addEventListener("keydown",e=>{if(e.key==="Enter")verifyOtp()});$("loginPass").addEventListener("keydown",e=>{if(e.key==="Enter")login()});
 async function restoreSession(){try{const d=await(await fetch("/me")).json();if(d.status==="ok"&&d.username&&d.username!=="Guest")enterApp(d.username)}catch{}}restoreSession();
-function renderAnswer(target,text){
-  const source=String(text??"");
-  if(window.marked&&window.DOMPurify){
-    marked.setOptions({gfm:true,breaks:true});
-    target.innerHTML=DOMPurify.sanitize(marked.parse(source),{USE_PROFILES:{html:true}});
-    target.querySelectorAll("pre").forEach(pre=>{
-      const code=pre.querySelector("code");if(!code)return;
-      const lang=(code.className.match(/language-([\\w+-]+)/)||[])[1]||"code";
-      const label=document.createElement("span");label.className="code-label";label.textContent=lang;pre.appendChild(label);
-      const copy=document.createElement("button");copy.className="code-copy";copy.type="button";copy.textContent="Copy code";
-      copy.addEventListener("click",async()=>{try{await navigator.clipboard.writeText(code.innerText);copy.textContent="Copied"}catch{copy.textContent="Select code"}});
-      pre.appendChild(copy);
-    });
-    target.querySelectorAll("a").forEach(a=>{a.target="_blank";a.rel="noopener noreferrer"});
-  }else{target.textContent=source}
-  if(window.MathJax?.typesetPromise) MathJax.typesetPromise([target]).catch(()=>{});
+function iconSvg(name){
+ const paths={
+  copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
+  speak:'<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/>',
+  attach:'<path d="m21.4 11.1-8.5 8.5a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5"/>',
+  mic:'<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/>',
+  send:'<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+  logout:'<path d="M10 17l5-5-5-5M15 12H3"/><path d="M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6"/>',
+  arrow:'<path d="M5 12h14M12 5l7 7-7 7"/>',
+  check:'<path d="m5 12 4 4L19 6"/>'
+ };
+ return '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(paths[name]||paths.arrow)+'</svg>';
 }
-function addMessage(text,who){$("welcome").style.display="none";const row=document.createElement("div");row.className="message "+who;if(who==="ai"){const av=document.createElement("div");av.className="avatar";av.textContent="K";row.appendChild(av)}const body=document.createElement("div");body.style.maxWidth="100%";body.style.minWidth="0";const bubble=document.createElement("div");bubble.className="bubble";if(who==="ai")renderAnswer(bubble,text);else bubble.textContent=text;body.appendChild(bubble);if(who==="ai"){const tools=document.createElement("div");tools.className="tools";const copy=document.createElement("button");copy.className="mini";copy.textContent="▢ Copy answer";copy.addEventListener("click",async()=>{try{await navigator.clipboard.writeText(text);copy.textContent="✓ Copied"}catch{copy.textContent="Copy unavailable"}});const speak=document.createElement("button");speak.className="mini";speak.textContent="◖ Read aloud";speak.addEventListener("click",()=>{if("speechSynthesis"in window){speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(text))}});tools.append(copy,speak);body.appendChild(tools)}row.appendChild(body);$("chat").appendChild(row);$("chat").scrollTop=$("chat").scrollHeight}
+function setIconButton(button,name,label,cls){
+ button.type="button";button.className=cls||"mini";button.innerHTML=iconSvg(name);button.title=label;button.setAttribute("aria-label",label);return button;
+}
+function renderAnswer(target,text){
+ const source=String(text??"");
+ if(window.marked&&window.DOMPurify){
+  marked.setOptions({gfm:true,breaks:false});
+  const rendered=marked.parse(source);
+  target.innerHTML=DOMPurify.sanitize(rendered,{USE_PROFILES:{html:true}});
+  target.querySelectorAll("pre").forEach(pre=>{
+   const code=pre.querySelector("code");if(!code)return;
+   const match=code.className.match(/language-([\w+-]+)/);
+   const lang=match?match[1]:"code";
+   const label=document.createElement("span");label.className="code-label";label.textContent=lang.toUpperCase();pre.appendChild(label);
+   if(window.hljs&&match){try{hljs.highlightElement(code)}catch(e){}}
+   const copy=document.createElement("button");setIconButton(copy,"copy","Copy code","code-copy");
+   copy.addEventListener("click",async()=>{try{await navigator.clipboard.writeText(code.innerText);copy.title="Copied";copy.setAttribute("aria-label","Copied")}catch{copy.title="Select code to copy"}});
+   pre.appendChild(copy);
+  });
+  target.querySelectorAll("a").forEach(a=>{a.target="_blank";a.rel="noopener noreferrer"});
+ }else{
+  const pre=document.createElement("pre");const code=document.createElement("code");code.textContent=source;pre.appendChild(code);target.replaceChildren(pre);
+ }
+ if(window.MathJax?.typesetPromise) MathJax.typesetPromise([target]).catch(()=>{});
+}
+function addMessage(text,who){$("welcome").style.display="none";const row=document.createElement("div");row.className="message "+who;if(who==="ai"){const av=document.createElement("div");av.className="avatar";av.textContent="K";row.appendChild(av)}const body=document.createElement("div");body.style.maxWidth="100%";body.style.minWidth="0";const bubble=document.createElement("div");bubble.className="bubble";if(who==="ai")renderAnswer(bubble,text);else bubble.textContent=text;body.appendChild(bubble);if(who==="ai"){const tools=document.createElement("div");tools.className="tools";const copy=setIconButton(document.createElement("button"),"copy","Copy answer");copy.addEventListener("click",async()=>{try{await navigator.clipboard.writeText(text);copy.title="Copied";copy.setAttribute("aria-label","Copied")}catch{copy.title="Copy unavailable"}});const speak=setIconButton(document.createElement("button"),"speak","Read aloud");speak.addEventListener("click",()=>{if("speechSynthesis"in window){speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(text))}});tools.append(copy,speak);body.appendChild(tools)}row.appendChild(body);$("chat").appendChild(row);$("chat").scrollTop=$("chat").scrollHeight}
 async function sendChat(){if(busy)return;const prompt=$("prompt").value.trim();if(!prompt&&!selectedFile)return;busy=true;$("send").disabled=true;if(prompt)addMessage(prompt,"user");if(selectedFile)addMessage("Attached: "+selectedFile.name,"user");const fd=new FormData();fd.append("prompt",prompt);fd.append("mode",$("mode").value);if(selectedFile){if(selectedFile.type.startsWith("image/"))fd.append("image",selectedFile);else fd.append("file",selectedFile)}$("prompt").value="";$("fileName").textContent="";selectedFile=null;$("attachment").value="";const waiting=document.createElement("div");waiting.className="message ai";const b=document.createElement("div");b.className="bubble";b.textContent="Kiemaen is thinking…";waiting.appendChild(b);$("chat").appendChild(waiting);$("chat").scrollTop=$("chat").scrollHeight;try{const r=await fetch("/chat",{method:"POST",body:fd});const d=await r.json();waiting.remove();addMessage(d.response||d.message||d.detail||"No response returned.","ai")}catch(e){waiting.remove();addMessage("I couldn't reach the server. Please try again. ("+e.message+")","ai")}finally{busy=false;$("send").disabled=false;$("prompt").focus()}}
 $("send").addEventListener("click",sendChat);$("prompt").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendChat()}});$("attachBtn").addEventListener("click",()=>$("attachment").click());$("attachment").addEventListener("change",e=>{selectedFile=e.target.files[0]||null;$("fileName").textContent=selectedFile?selectedFile.name:""});$("logout").addEventListener("click",async()=>{try{await fetch("/session/logout",{method:"POST"})}catch{}$("app").style.display="none";$("auth").style.display="grid";$("loginPass").value="";showAuthPanel("login")});
 $("micBtn").addEventListener("click",()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){$("micBtn").textContent="Voice unavailable";return}const rec=new SR();rec.lang="en-ZA";rec.interimResults=false;$("micBtn").textContent="Listening…";rec.onresult=e=>{$("prompt").value=($("prompt").value+" "+e.results[0][0].transcript).trim()};rec.onerror=()=>{$("micBtn").textContent="🎙 Voice"};rec.onend=()=>{$("micBtn").textContent="🎙 Voice"};rec.start()});
