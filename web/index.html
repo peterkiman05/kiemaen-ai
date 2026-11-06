@@ -26,7 +26,7 @@
 .code-copy svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .mini{display:grid;place-items:center;width:34px;height:34px;padding:0}
 .mini svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.bubble pre{padding-top:48px}
+.bubble pre{padding-top:48px;max-width:100%;width:100%;box-sizing:border-box}.bubble pre code{max-width:100%;display:block;overflow-x:auto}.message.ai>div{min-width:0;max-width:100%}.message.ai .bubble{width:100%;max-width:100%}
 .bubble pre code{display:block;white-space:pre;overflow-x:auto}
 .bubble .hljs{background:transparent;padding:0}
 .bubble mjx-container[display="true"]{display:block;max-width:100%;overflow-x:auto;overflow-y:hidden;padding:8px 0}
@@ -77,30 +77,45 @@ function iconSvg(name){
 function setIconButton(button,name,label,cls){
  button.type="button";button.className=cls||"mini";button.innerHTML=iconSvg(name);button.title=label;button.setAttribute("aria-label",label);return button;
 }
+function fallbackMarkdown(target,source){
+ const lines=source.replace(/\r/g,"").split("\n");let i=0,paragraph=[],list=null,code=null,codeLang="";
+ const flushParagraph=()=>{if(!paragraph.length)return;const p=document.createElement("p");p.textContent=paragraph.join(" ");target.appendChild(p);paragraph=[]};
+ const closeList=()=>{if(list){target.appendChild(list);list=null}};
+ const inline=(parent,value)=>{const parts=value.split(/(`[^`]+`)/g);for(const part of parts){if(part.startsWith("`")&&part.endsWith("`")){const el=document.createElement("code");el.textContent=part.slice(1,-1);parent.appendChild(el)}else parent.appendChild(document.createTextNode(part))}};
+ while(i<lines.length){
+  const line=lines[i],fence=line.match(/^\s*```\s*([\w+-]*)/);
+  if(fence){flushParagraph();closeList();if(!code){code=document.createElement("code");code.className=fence[1]?"language-"+fence[1]:"";codeLang=fence[1]||"code";i++;let content=[];while(i<lines.length&&!/^\s*```\s*$/.test(lines[i]))content.push(lines[i++]);const pre=document.createElement("pre");code.textContent=content.join("\n");pre.appendChild(code);target.appendChild(pre);code=null;i++;continue}}
+  if(!line.trim()){flushParagraph();closeList();i++;continue}
+  const heading=line.match(/^(#{1,4})\s+(.+)$/);if(heading){flushParagraph();closeList();const el=document.createElement("h"+heading[1].length);inline(el,heading[2]);target.appendChild(el);i++;continue}
+  const bullet=line.match(/^\s*[-*+]\s+(.+)$/),number=line.match(/^\s*\d+[.)]\s+(.+)$/);
+  if(bullet||number){flushParagraph();const tag=bullet?"ul":"ol";if(!list||list.tagName.toLowerCase()!==tag){closeList();list=document.createElement(tag)}const li=document.createElement("li");inline(li,(bullet||number)[1]);list.appendChild(li);i++;continue}
+  paragraph.push(line.trim());i++;
+ }
+ flushParagraph();closeList();
+}
 function renderAnswer(target,text){
  const source=String(text??"");
  if(window.marked&&window.DOMPurify){
   marked.setOptions({gfm:true,breaks:false});
-  const rendered=marked.parse(source);
-  target.innerHTML=DOMPurify.sanitize(rendered,{USE_PROFILES:{html:true}});
-  target.querySelectorAll("pre").forEach(pre=>{
-   const code=pre.querySelector("code");if(!code)return;
-   const match=code.className.match(/language-([\w+-]+)/);
-   const lang=match?match[1]:"code";
-   const label=document.createElement("span");label.className="code-label";label.textContent=lang.toUpperCase();pre.appendChild(label);
-   if(window.hljs&&match){try{hljs.highlightElement(code)}catch(e){}}
-   const copy=document.createElement("button");setIconButton(copy,"copy","Copy code","code-copy");
-   copy.addEventListener("click",async()=>{try{await navigator.clipboard.writeText(code.innerText);copy.title="Copied";copy.setAttribute("aria-label","Copied")}catch{copy.title="Select code to copy"}});
-   pre.appendChild(copy);
-  });
-  target.querySelectorAll("a").forEach(a=>{a.target="_blank";a.rel="noopener noreferrer"});
+  target.innerHTML=DOMPurify.sanitize(marked.parse(source),{USE_PROFILES:{html:true}});
  }else{
-  const pre=document.createElement("pre");const code=document.createElement("code");code.textContent=source;pre.appendChild(code);target.replaceChildren(pre);
+  fallbackMarkdown(target,source);
  }
+ target.querySelectorAll("pre").forEach(pre=>{
+  const code=pre.querySelector("code");if(!code)return;
+  const match=code.className.match(/language-([\w+-]+)/);
+  const lang=match?match[1]:"code";
+  const label=document.createElement("span");label.className="code-label";label.textContent=lang.toUpperCase();pre.appendChild(label);
+  if(window.hljs&&match){try{hljs.highlightElement(code)}catch(e){}}
+  const copy=document.createElement("button");setIconButton(copy,"copy","Copy code","code-copy");
+  copy.addEventListener("click",async()=>{try{await navigator.clipboard.writeText(code.innerText);copy.title="Copied";copy.setAttribute("aria-label","Copied")}catch{copy.title="Select code to copy"}});
+  pre.appendChild(copy);
+ });
+ target.querySelectorAll("a").forEach(a=>{a.target="_blank";a.rel="noopener noreferrer"});
  if(window.MathJax?.typesetPromise) MathJax.typesetPromise([target]).catch(()=>{});
 }
 function addMessage(text,who){$("welcome").style.display="none";const row=document.createElement("div");row.className="message "+who;if(who==="ai"){const av=document.createElement("div");av.className="avatar";av.textContent="K";row.appendChild(av)}const body=document.createElement("div");body.style.maxWidth="100%";body.style.minWidth="0";const bubble=document.createElement("div");bubble.className="bubble";if(who==="ai")renderAnswer(bubble,text);else bubble.textContent=text;body.appendChild(bubble);if(who==="ai"){const tools=document.createElement("div");tools.className="tools";const copy=setIconButton(document.createElement("button"),"copy","Copy answer");copy.addEventListener("click",async()=>{try{await navigator.clipboard.writeText(text);copy.title="Copied";copy.setAttribute("aria-label","Copied")}catch{copy.title="Copy unavailable"}});const speak=setIconButton(document.createElement("button"),"speak","Read aloud");speak.addEventListener("click",()=>{if("speechSynthesis"in window){speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(text))}});tools.append(copy,speak);body.appendChild(tools)}row.appendChild(body);$("chat").appendChild(row);$("chat").scrollTop=$("chat").scrollHeight}
 async function sendChat(){if(busy)return;const prompt=$("prompt").value.trim();if(!prompt&&!selectedFile)return;busy=true;$("send").disabled=true;if(prompt)addMessage(prompt,"user");if(selectedFile)addMessage("Attached: "+selectedFile.name,"user");const fd=new FormData();fd.append("prompt",prompt);fd.append("mode",$("mode").value);if(selectedFile){if(selectedFile.type.startsWith("image/"))fd.append("image",selectedFile);else fd.append("file",selectedFile)}$("prompt").value="";$("fileName").textContent="";selectedFile=null;$("attachment").value="";const waiting=document.createElement("div");waiting.className="message ai";const b=document.createElement("div");b.className="bubble";b.textContent="Kiemaen is thinking…";waiting.appendChild(b);$("chat").appendChild(waiting);$("chat").scrollTop=$("chat").scrollHeight;try{const r=await fetch("/chat",{method:"POST",body:fd});const d=await r.json();waiting.remove();addMessage(d.response||d.message||d.detail||"No response returned.","ai")}catch(e){waiting.remove();addMessage("I couldn't reach the server. Please try again. ("+e.message+")","ai")}finally{busy=false;$("send").disabled=false;$("prompt").focus()}}
 $("send").addEventListener("click",sendChat);$("prompt").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendChat()}});$("attachBtn").addEventListener("click",()=>$("attachment").click());$("attachment").addEventListener("change",e=>{selectedFile=e.target.files[0]||null;$("fileName").textContent=selectedFile?selectedFile.name:""});$("logout").addEventListener("click",async()=>{try{await fetch("/session/logout",{method:"POST"})}catch{}$("app").style.display="none";$("auth").style.display="grid";$("loginPass").value="";showAuthPanel("login")});
-$("micBtn").addEventListener("click",()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){$("micBtn").textContent="Voice unavailable";return}const rec=new SR();rec.lang="en-ZA";rec.interimResults=false;$("micBtn").textContent="Listening…";rec.onresult=e=>{$("prompt").value=($("prompt").value+" "+e.results[0][0].transcript).trim()};rec.onerror=()=>{$("micBtn").textContent="🎙 Voice"};rec.onend=()=>{$("micBtn").textContent="🎙 Voice"};rec.start()});
+$("micBtn").addEventListener("click",()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){$("micBtn").title="Voice input unavailable in this browser";$("micBtn").setAttribute("aria-label","Voice input unavailable in this browser");return}const rec=new SR();rec.lang="en-ZA";rec.interimResults=false;$("micBtn").title="Listening";$("micBtn").setAttribute("aria-label","Listening");rec.onresult=e=>{$("prompt").value=($("prompt").value+" "+e.results[0][0].transcript).trim()};rec.onerror=()=>{$("micBtn").title="Dictate a message";$("micBtn").setAttribute("aria-label","Dictate a message")};rec.onend=()=>{$("micBtn").textContent="🎙 Voice"};rec.start()});
 </script></body></html>
