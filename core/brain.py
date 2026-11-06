@@ -14,11 +14,11 @@ from typing import Optional
 from groq import AsyncGroq
 
 
-QUICK_MODEL = os.getenv("KIEMAEN_QUICK_MODEL", "llama-3.1-8b-instant")
+QUICK_MODEL = os.getenv("KIEMAEN_QUICK_MODEL", "openai/gpt-oss-20b")
 DEEP_MODEL = os.getenv("KIEMAEN_DEEP_MODEL", "openai/gpt-oss-120b")
 VISION_MODEL = os.getenv(
     "KIEMAEN_VISION_MODEL",
-    "meta-llama/llama-4-scout-17b-16e-instruct",
+    "qwen/qwen3.8-27b",
 )
 
 QUICK_SYSTEM = """You are Kiemaen, one unified personal AI assistant.
@@ -77,9 +77,20 @@ async def ask_kiemaen(
 
     selected_mode = choose_mode(prompt, mode)
     has_image = bool(image_bytes)
-    model = VISION_MODEL if has_image else (
-        DEEP_MODEL if selected_mode == "deep" else QUICK_MODEL
-    )
+    # Migrate retired model IDs even if an old Render environment variable remains.
+    aliases = {
+        "llama-3.1-8b-instant": "openai/gpt-oss-20b",
+        "llama-3.3-70b-versatile": "openai/gpt-oss-120b",
+        "meta-llama/llama-4-scout-17b-16e-instruct": "qwen/qwen3.8-27b",
+        "qwen/qwen3.6-27b": "qwen/qwen3.8-27b",
+    }
+    requested_model = VISION_MODEL if has_image else (DEEP_MODEL if selected_mode == "deep" else QUICK_MODEL)
+    model = aliases.get(requested_model, requested_model)
+    fallback_models = [model] if has_image else list(dict.fromkeys([
+        model,
+        "openai/gpt-oss-20b" if selected_mode == "quick" else "openai/gpt-oss-120b",
+        "openai/gpt-oss-120b" if selected_mode == "quick" else "openai/gpt-oss-20b",
+    ]))
     system_prompt = DEEP_SYSTEM if selected_mode == "deep" else QUICK_SYSTEM
 
     user_text = (prompt or "").strip() or "Please inspect the attached input."
@@ -106,13 +117,27 @@ async def ask_kiemaen(
     try:
         client = AsyncGroq(api_key=api_key)
         try:
-            completion = await client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_content},
-                ],
-            )
+            completion = None
+            last_error = None
+            for candidate_model in fallback_models:
+                try:
+                    options = {"reasoning_effort": "high"} if selected_mode == "deep" and not has_image and candidate_model.startswith("openai/gpt-oss-") else {}
+                    completion = await client.chat.completions.create(
+                        model=candidate_model,
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_content},
+                        ],
+                        **options,
+                    )
+                    model = candidate_model
+                    break
+                except Exception as provider_error:
+                    last_error = provider_error
+                    if getattr(provider_error, "status_code", None) != 404:
+                        raise
+            if completion is None:
+                raise last_error or RuntimeError("No configured AI model is available.")
         finally:
             await client.close()
 
@@ -127,8 +152,13 @@ async def ask_kiemaen(
         # Keep provider details in server logs, not exposed to end users.
         import logging
         logging.exception("Kiemaen provider request failed")
-        return (
-            "Kiemaen couldn't complete that request because the AI service "
-            "returned an error. Please try again shortly.",
-            "error",
-        )
+        status = getattr(exc, "status_code", None)
+        if status == 401:
+            message = "Kiemaen's AI connection needs attention. The provider rejected its API key; refresh GROQ_API_KEY in Render."
+        elif status == 429:
+            message = "Kiemaen has reached the AI provider's current usage limit. Please wait a little and try again."
+        elif status == 404:
+            message = "Kiemaen's configured AI models are unavailable to this provider account. Check model access in GroqCloud."
+        else:
+            message = "Kiemaen couldn't reach its AI provider just now. Please try again shortly."
+        return (message, "error")
