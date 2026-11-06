@@ -70,6 +70,9 @@ def get_kiemaen_db():
     ):
         if name not in existing:
             cur.execute(f"ALTER TABLE users ADD COLUMN {name} {definition}")
+    admin_email = os.getenv("KIEMAEN_ADMIN_EMAIL", "").strip().lower()
+    if admin_email:
+        cur.execute("UPDATE users SET role='admin' WHERE lower(email)=? AND verification_code IS NULL", (admin_email,))
     conn.commit()
     return conn
 
