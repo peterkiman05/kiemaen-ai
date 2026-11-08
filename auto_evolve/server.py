@@ -1,5 +1,6 @@
 import os
 import asyncio
+import secrets
 from datetime import datetime
 from fastapi import FastAPI, Header, HTTPException
 import uvicorn
@@ -14,11 +15,14 @@ app = FastAPI(title="Kiemaen Auto-Evolve Admin API")
 monitor = Monitor(config=config)
 
 def get_token():
-    return os.environ.get("AUTO_EVOLVE_TOKEN") or config.get("token")
+    return os.environ.get("AUTO_EVOLVE_TOKEN", "").strip()
 
 def check_auth(x_admin_token):
     expected = get_token()
-    if not expected or x_admin_token != expected:
+    supplied = (x_admin_token or "").strip()
+    if not expected:
+        raise HTTPException(status_code=503, detail="Auto-evolution admin API is disabled: configure AUTO_EVOLVE_TOKEN.")
+    if not supplied or not secrets.compare_digest(supplied, expected):
         raise HTTPException(status_code=401, detail="Invalid or missing admin token.")
 
 @app.on_event("startup")
