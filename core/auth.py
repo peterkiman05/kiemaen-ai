@@ -477,7 +477,7 @@ async def verify_user_account(db, user_key: str, code: str):
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    if not user.verification_code or not secrets.compare_digest(user.verification_code, code.strip()):
+    if not user.verification_code or not verify_otp_code(user.verification_code, code):
         raise HTTPException(status_code=400, detail="Invalid verification code")
     if not user.verification_expires or datetime.datetime.utcnow() > user.verification_expires:
         raise HTTPException(status_code=400, detail="Verification code expired")
@@ -508,7 +508,7 @@ async def login_user(db, response: Response, request: Request, user_key: str, pa
         raise HTTPException(status_code=401, detail="Invalid MFA code")
     refresh_token = create_refresh_token()
     await db.execute(update(User).where(User.id == user.id).values(
-        failed_logins=0, locked_until=None, refresh_token=refresh_token,
+        failed_logins=0, locked_until=None, refresh_token=hash_session_token(refresh_token),
         last_login_at=datetime.datetime.utcnow()))
     await db.commit()
     access_token = create_access_token(user_key=user.user_key, role=user.role)
@@ -518,12 +518,14 @@ async def login_user(db, response: Response, request: Request, user_key: str, pa
 
 
 async def refresh_token_endpoint(db, request: Request, response: Response, refresh_token: str):
-    result = await db.execute(select(User).where(User.refresh_token == refresh_token))
+    result = await db.execute(select(User).where(
+        User.refresh_token.in_([hash_session_token(refresh_token), refresh_token])
+    ))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
     new_access, new_refresh = create_access_token(user_key=user.user_key, role=user.role), create_refresh_token()
-    await db.execute(update(User).where(User.id == user.id).values(refresh_token=new_refresh))
+    await db.execute(update(User).where(User.id == user.id).values(refresh_token=hash_session_token(new_refresh)))
     await db.commit()
     response.set_cookie("session_jwt", new_access, httponly=True, secure=IS_PRODUCTION,
                         samesite="strict", max_age=1800, path="/")

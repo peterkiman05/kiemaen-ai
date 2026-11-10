@@ -214,19 +214,33 @@ async def me(session_token: str = Cookie(default=None)):
 async def capabilities():
     return {
         "status": "ok",
-        "architecture": ["main.py", "core/brain.py", "core/auth.py", "core/evolution.py", "tools/coder.py"],
-        "database": ["memory.db (FTS5)", "auth.db (SQLAlchemy Async)"],
-        "ai_provider": "Groq API (Dynamic Model Discovery)",
-        "capabilities": [
-            "Local Termux execution",
-            "Argon2id password hashing & JWT cookies",
-            "Universal document & image parsing",
-            "Step-by-step LaTeX civil engineering & math tutoring",
-            "Game coding & Pygame loop support",
-            "Software publishing guidance",
-            "Daily task planner & persistent notebook",
-            "Admin-restricted auto-evolution pipeline"
-        ]
+        "runtime_entrypoint": "app.main:app -> main.app",
+        "ai_provider": "Groq",
+        "active_capabilities": [
+            "Quick and Deep response modes with automatic mode selection",
+            "Text conversation through the Groq chat API",
+            "JPEG, PNG and WebP image input with bounded upload size",
+            "PDF, DOCX and UTF-8 text document extraction with upload limits",
+            "Email verification and login codes",
+            "Argon2id password hashing",
+            "Browser sessions with hashed token storage",
+            "User-scoped task commands: TASK:, SHOW_TASKS and DONE_TASK",
+            "Admin-gated evolution authorization; no autonomous code changes"
+        ],
+        "not_yet_integrated": [
+            "Persistent conversational memory in normal chat",
+            "Aiven/PostgreSQL-backed browser accounts and tasks",
+            "Web research with source citations",
+            "A real OS-isolated code execution sandbox",
+            "Multi-provider AI routing",
+            "Autonomous device actions",
+            "Automated outcome-based learning"
+        ],
+        "database_status": {
+            "browser_accounts_tasks_sessions": "SQLite kiemaen.db",
+            "separate_api_auth": "SQLite auth.db",
+            "configured_aiven_database_url_used_by_active_app": False
+        }
     }
 
 @app.post("/chat")

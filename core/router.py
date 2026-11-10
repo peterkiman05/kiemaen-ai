@@ -2,8 +2,6 @@
 import sqlite3
 import os
 import re
-import subprocess
-import tempfile
 import json
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -85,28 +83,8 @@ def save_message(session_id: str, role: str, content: str):
 
 
 def execute_python_sandbox(code: str) -> str:
-    forbidden = ["import os", "import subprocess", "import sys", "shutil", "pathlib"]
-    for word in forbidden:
-        if word in code:
-            return f"Execution Blocked: Security violation detected ({word})."
-
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
-        f.write(code)
-        temp_path = f.name
-
-    try:
-        result = subprocess.run(
-            ["python", temp_path], capture_output=True, text=True, timeout=5
-        )
-        output = result.stdout if result.returncode == 0 else result.stderr
-        return output if output else "Process completed with no output."
-    except subprocess.TimeoutExpired:
-        return "Execution Error: Script timed out after 5 seconds."
-    except Exception as e:
-        return f"Execution Error: {str(e)}"
-    finally:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+    """Execution is disabled until a real OS-isolated sandbox is configured."""
+    return "Code execution is disabled: this service has no isolated execution sandbox."
 
 
 class ChatRequest(BaseModel):

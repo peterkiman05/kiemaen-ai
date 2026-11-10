@@ -30,6 +30,8 @@ Render starts `uvicorn app.main:app`. `app/main.py` is a compatibility wrapper i
 
 - Added salted PBKDF2 hashes for new email verification/login codes, SHA-256 hashes for newly issued browser session tokens, backward compatibility for unexpired legacy plaintext credentials, and a five-failure/10-minute process-local OTP throttle. A durable shared limiter remains part of the PostgreSQL migration.
 
+- Updated the capabilities endpoint to distinguish working features from planned features, rather than advertising inactive FTS5 memory, autonomous execution or PostgreSQL support. Added baseline browser security headers. Disabled the unused legacy router's subprocess code execution path. The separate JWT API refresh-token store now hashes newly issued refresh tokens while accepting existing plaintext tokens for compatibility.
+
 ## Work still requiring a data-safety plan
 - Do not switch browser authentication or task storage to PostgreSQL until a verified export/backup of live `kiemaen.db` has been obtained or it is established that the live file no longer exists.
 - Consolidate account systems only after schema mapping, password-hash compatibility checks, duplicate identity handling, session revocation design and migration tests.
