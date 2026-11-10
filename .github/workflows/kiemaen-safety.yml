@@ -12,6 +12,6 @@ jobs:
         with:
           python-version: "3.11"
       - name: Compile changed Python modules
-        run: python -m py_compile main.py core/upload_safety.py hands_free.py hands_free_huawei.py
+        run: python -m py_compile main.py core/upload_safety.py core/auth.py core/credential_safety.py hands_free.py hands_free_huawei.py
       - name: Run standard-library security tests
         run: python -m unittest discover -s tests -v

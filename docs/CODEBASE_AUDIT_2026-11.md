@@ -28,6 +28,8 @@ Render starts `uvicorn app.main:app`. `app/main.py` is a compatibility wrapper i
 - Disabled automatic alarm execution in the legacy Termux voice client and removed shell-command solicitation from the Huawei voice prompt. Model output is treated as untrusted.
 - Removed the three unused Kim/Kit/Kat agent modules from the Kiemaen app package, consistent with the unified-assistant design.
 
+- Added salted PBKDF2 hashes for new email verification/login codes, SHA-256 hashes for newly issued browser session tokens, backward compatibility for unexpired legacy plaintext credentials, and a five-failure/10-minute process-local OTP throttle. A durable shared limiter remains part of the PostgreSQL migration.
+
 ## Work still requiring a data-safety plan
 - Do not switch browser authentication or task storage to PostgreSQL until a verified export/backup of live `kiemaen.db` has been obtained or it is established that the live file no longer exists.
 - Consolidate account systems only after schema mapping, password-hash compatibility checks, duplicate identity handling, session revocation design and migration tests.

@@ -19,12 +19,37 @@ from sqlalchemy import select, update
 
 from .database import get_db
 from .models import User
+from .credential_safety import hash_otp_code, verify_otp_code, hash_session_token
 from .security import (
     IS_PRODUCTION, create_access_token, create_refresh_token, decode_token,
     hash_password, verify_password, verify_totp,
 )
 
 DB_PATH = Path(__file__).resolve().parent.parent / "kiemaen.db"
+
+# Process-local OTP throttling is an interim guard for the single-instance free
+# deployment. A durable shared limiter belongs in the PostgreSQL migration.
+_otp_failures: dict[str, list[float]] = {}
+_OTP_WINDOW_SECONDS = 600
+_OTP_MAX_FAILURES = 5
+
+def _otp_key(identity: str) -> str:
+    return (identity or "").strip().lower()
+
+def _otp_locked(identity: str) -> bool:
+    key = _otp_key(identity)
+    now = time.time()
+    recent = [stamp for stamp in _otp_failures.get(key, []) if now - stamp < _OTP_WINDOW_SECONDS]
+    _otp_failures[key] = recent
+    return len(recent) >= _OTP_MAX_FAILURES
+
+def _record_otp_failure(identity: str) -> None:
+    key = _otp_key(identity)
+    _otp_locked(key)
+    _otp_failures.setdefault(key, []).append(time.time())
+
+def _clear_otp_failures(identity: str) -> None:
+    _otp_failures.pop(_otp_key(identity), None)
 
 
 def get_kiemaen_db():
@@ -101,6 +126,7 @@ def create_pending_verification(username: str, email: str, password: str):
     if "@" not in email or len(email) > 254:
         return None, "Enter a valid email address."
     code = f"{secrets.randbelow(1_000_000):06d}"
+    stored_code = hash_otp_code(code)
     expires = (datetime.datetime.utcnow() + datetime.timedelta(minutes=10)).isoformat()
     conn = get_kiemaen_db()
     try:
@@ -129,7 +155,7 @@ def create_pending_verification(username: str, email: str, password: str):
             cur.execute(
                 """UPDATE users SET password_hash=?,verification_code=?,verification_expires=?
                    WHERE id=?""",
-                (hash_password(password), code, expires, existing["id"]),
+                (hash_password(password), stored_code, expires, existing["id"]),
             )
         else:
             admin_email = os.getenv("KIEMAEN_ADMIN_EMAIL", "").strip().lower()
@@ -137,32 +163,56 @@ def create_pending_verification(username: str, email: str, password: str):
             cur.execute(
                 """INSERT INTO users (user_key,email,password_hash,role,verification_code,verification_expires)
                    VALUES (?,?,?,?,?,?)""",
-                (username, email, hash_password(password), role, code, expires),
+                (username, email, hash_password(password), role, stored_code, expires),
             )
         conn.commit()
+        _clear_otp_failures(email)
+        _clear_otp_failures(username)
         return code, None
     finally:
         conn.close()
 
 
+def delete_pending_verification(username: str, code: str) -> bool:
+    conn = get_kiemaen_db()
+    try:
+        row = conn.execute(
+            "SELECT id,verification_code FROM users WHERE lower(user_key)=lower(?)",
+            (username.strip(),),
+        ).fetchone()
+        if not row or not verify_otp_code(row["verification_code"], code):
+            return False
+        conn.execute("DELETE FROM users WHERE id=?", (row["id"],))
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
 def verify_and_create_user(email: str, code: str):
+    identity = _otp_key(email)
+    if _otp_locked(identity):
+        return None, "Too many verification attempts. Request a new code later."
     conn = get_kiemaen_db()
     try:
         cur = conn.cursor()
         cur.execute(
-            """SELECT id,user_key,role,verification_expires FROM users
-               WHERE lower(email)=lower(?) AND verification_code=?""",
-            (email.strip(), code.strip()),
+            """SELECT id,user_key,role,verification_code,verification_expires FROM users
+               WHERE lower(email)=lower(?)""",
+            (email.strip(),),
         )
         row = cur.fetchone()
-        if not row:
+        if not row or not verify_otp_code(row["verification_code"], code):
+            _record_otp_failure(identity)
             return None, "Invalid email or verification code."
         if _is_expired(row["verification_expires"]):
             cur.execute("DELETE FROM users WHERE id=?", (row["id"],))
             conn.commit()
+            _clear_otp_failures(identity)
             return None, "Verification code expired. Please register again."
         cur.execute("UPDATE users SET verification_code=NULL,verification_expires=NULL WHERE id=?", (row["id"],))
         conn.commit()
+        _clear_otp_failures(identity)
         return {"id": row["id"], "username": row["user_key"], "is_admin": row["role"] == "admin"}, None
     finally:
         conn.close()
@@ -205,38 +255,48 @@ def get_user_email(username: str):
 
 def create_login_code(username: str):
     code = f"{secrets.randbelow(1_000_000):06d}"
+    stored_code = hash_otp_code(code)
     expires = (datetime.datetime.utcnow() + datetime.timedelta(minutes=10)).isoformat()
     conn = get_kiemaen_db()
     try:
         cur = conn.cursor()
         cur.execute(
             "UPDATE users SET verification_code=?,verification_expires=? WHERE lower(user_key)=lower(?) OR lower(email)=lower(?)",
-            (code, expires, username.strip(), username.strip()),
+            (stored_code, expires, username.strip(), username.strip()),
         )
         conn.commit()
-        return code if cur.rowcount else None
+        if cur.rowcount:
+            _clear_otp_failures(username)
+            return code
+        return None
     finally:
         conn.close()
 
 
 def verify_login_code(username: str, code: str):
+    identity = _otp_key(username)
+    if _otp_locked(identity):
+        return False, "Too many login attempts. Request a new code later."
     conn = get_kiemaen_db()
     try:
         cur = conn.cursor()
         cur.execute(
-            """SELECT id,user_key,role,verification_expires FROM users
-               WHERE (lower(user_key)=lower(?) OR lower(email)=lower(?)) AND verification_code=?""",
-            (username.strip(), username.strip(), code.strip()),
+            """SELECT id,user_key,role,verification_code,verification_expires FROM users
+               WHERE lower(user_key)=lower(?) OR lower(email)=lower(?)""",
+            (username.strip(), username.strip()),
         )
         row = cur.fetchone()
-        if not row:
+        if not row or not verify_otp_code(row["verification_code"], code):
+            _record_otp_failure(identity)
             return False, "Invalid login code."
         if _is_expired(row["verification_expires"]):
             cur.execute("UPDATE users SET verification_code=NULL,verification_expires=NULL WHERE id=?", (row["id"],))
             conn.commit()
+            _clear_otp_failures(identity)
             return False, "Login code expired. Request a new one."
         cur.execute("UPDATE users SET verification_code=NULL,verification_expires=NULL WHERE id=?", (row["id"],))
         conn.commit()
+        _clear_otp_failures(identity)
         return True, {"id": row["id"], "username": row["user_key"], "is_admin": row["role"] == "admin"}
     finally:
         conn.close()
@@ -247,7 +307,7 @@ def create_session(user_id: int) -> str:
     conn = get_kiemaen_db()
     try:
         expiry = (datetime.datetime.utcnow() + datetime.timedelta(days=1)).isoformat()
-        conn.execute("INSERT INTO sessions (token,user_id,expires_at) VALUES (?,?,?)", (token, user_id, expiry))
+        conn.execute("INSERT INTO sessions (token,user_id,expires_at) VALUES (?,?,?)", (hash_session_token(token), user_id, expiry))
         conn.commit()
         return token
     finally:
@@ -261,8 +321,8 @@ def get_session_user(token: str):
     try:
         row = conn.execute(
             """SELECT u.id,u.user_key,u.role FROM sessions s
-               JOIN users u ON u.id=s.user_id WHERE s.token=? AND s.expires_at>?""",
-            (token, datetime.datetime.utcnow().isoformat()),
+               JOIN users u ON u.id=s.user_id WHERE s.token IN (?,?) AND s.expires_at>?""",
+            (hash_session_token(token), token, datetime.datetime.utcnow().isoformat()),
         ).fetchone()
         if not row:
             return None
@@ -276,7 +336,7 @@ def delete_session(token: str):
         return
     conn = get_kiemaen_db()
     try:
-        conn.execute("DELETE FROM sessions WHERE token=?", (token,))
+        conn.execute("DELETE FROM sessions WHERE token IN (?,?)", (hash_session_token(token), token))
         conn.commit()
     finally:
         conn.close()

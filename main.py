@@ -72,7 +72,7 @@ from core.auth import (
     get_current_user,
     verify_user_credentials,
     create_session, get_session_user, delete_session,
-    create_pending_verification, verify_and_create_user,
+    create_pending_verification, delete_pending_verification, verify_and_create_user,
     get_user_email, create_login_code, verify_login_code,
     get_user_by_username, log_admin_alert, get_admin_alerts,
     add_pin, get_pins, remove_pin, add_task, get_tasks, complete_task, revoke_all_sessions
@@ -138,10 +138,7 @@ async def register_request_code(username: str = Form(...), email: str = Form(...
         return {"status": "error", "message": error}
     sent, mail_message = send_verification_email(email, code, username)
     if not sent:
-        conn = get_kiemaen_db()
-        conn.execute("DELETE FROM users WHERE user_key=? AND verification_code=?", (username, code))
-        conn.commit()
-        conn.close()
+        delete_pending_verification(username, code)
         return {"status": "error", "message": mail_message}
     return {"status": "ok", "message": f"Verification code sent to {email}."}
 
