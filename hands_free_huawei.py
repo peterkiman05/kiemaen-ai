@@ -70,13 +70,9 @@ def run_assistant():
             
         print(f"YOU: {user_text}")
         
-        tool_manual = (
-            " [SYSTEM RULE: You have execution rights on Android via Termux. To perform tasks, append [EXEC: <command>] to your output. "
-            "Alarm Example: [EXEC: am start -p com.google.android.deskclock -a android.intent.action.SET_ALARM --ei android.intent.extra.alarm.HOUR <HH> --ei android.intent.extra.alarm.MINUTES <MM> --ez android.intent.extra.alarm.SKIP_UI true] | "
-            "Torch Example: [EXEC: termux-torch on]]"
-        )
-        
-        payload = f"{user_text}{tool_manual}"
+        # Voice input is untrusted and no approved device-action API is connected.
+        # Keep this request conversational; never solicit shell commands from the model.
+        payload = user_text
         form_data = {"prompt": payload, "msg": payload}
         
         try:

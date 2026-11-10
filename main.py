@@ -57,6 +57,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dotenv import load_dotenv
 
 from core.brain import ask_kiemaen
+from core.upload_safety import (
+    MAX_DOCUMENT_BYTES, MAX_IMAGE_BYTES, read_limited_upload,
+    validate_document_upload, validate_image_bytes,
+)
 from core.database import get_db, engine
 from core.models import User, Base
 from core.auth import (
@@ -242,29 +246,32 @@ async def chat(
     is_admin = user["is_admin"]
 
     text = prompt or msg
-    image_bytes = await image.read() if image else None
-    image_mime = image.content_type if image else "image/jpeg"
-    
+    image_bytes = await read_limited_upload(image, MAX_IMAGE_BYTES, "Image") if image else None
+    image_mime = validate_image_bytes(image_bytes, image.content_type) if image_bytes else "image/jpeg"
+
     doc_text = None
     if file:
-        file_bytes = await file.read()
-        content_type = (file.content_type or "").lower()
-        filename = (file.filename or "").lower()
+        file_bytes = await read_limited_upload(file, MAX_DOCUMENT_BYTES, "Document")
+        file_extension = validate_document_upload(file.filename or "", file.content_type or "", file_bytes)
         try:
-            if content_type == "application/pdf" or filename.endswith(".pdf"):
+            if file_extension == ".pdf":
                 from io import BytesIO
                 from pypdf import PdfReader
                 reader = PdfReader(BytesIO(file_bytes))
+                if len(reader.pages) > 100:
+                    raise HTTPException(status_code=413, detail="PDFs are limited to 100 pages.")
                 doc_text = "\\n".join(page.extract_text() or "" for page in reader.pages)
-            elif filename.endswith(".docx") or "wordprocessingml" in content_type:
+            elif file_extension == ".docx":
                 from io import BytesIO
                 from docx import Document
                 document = Document(BytesIO(file_bytes))
                 doc_text = "\\n".join(paragraph.text for paragraph in document.paragraphs)
             else:
                 doc_text = file_bytes.decode("utf-8", errors="strict")
+        except HTTPException:
+            raise
         except Exception:
-            doc_text = f"[Could not extract text from {file.filename}. Please upload a text-based PDF, DOCX, TXT, or Markdown file.]"
+            doc_text = f"[Could not extract text from {file.filename}. Please upload a valid text-based PDF, DOCX, TXT, Markdown, CSV, JSON, Python, or JavaScript file.]"
 
     try:
         stripped_cmd = text.strip()

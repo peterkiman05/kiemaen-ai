@@ -10,14 +10,9 @@ def speak(text):
     subprocess.run(["termux-tts-speak", text])
 
 def handle_hardware(text):
-    # Intercept secret codes like [ALARM:07:00]
-    alarm_match = re.search(r'\[ALARM:(\d{2}:\d{2})\]', text)
-    if alarm_match:
-        time_str = alarm_match.group(1)
-        subprocess.run(["termux-alarm-set", "-t", time_str, "-m", "AI Assistant"])
-        text = text.replace(alarm_match.group(0), "")
-        print(f"⚙️ Action: Alarm set for {time_str}")
-    return text.strip()
+    """Treat model output as untrusted; never execute device actions automatically."""
+    cleaned = re.sub(r"\[ALARM:\d{2}:\d{2}\]", "[Alarm not set: explicit device confirmation is required.]", text)
+    return block_untrusted_hardware_actions(cleaned)
 
 def run_assistant():
     speak("System online. I am ready.")
