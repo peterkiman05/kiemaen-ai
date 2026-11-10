@@ -20,7 +20,7 @@ class UploadSafetyTests(unittest.TestCase):
         self.assertEqual(validate_document_upload("report.pdf", "", b"%PDF-1.7"), ".pdf")
     def test_rejects_unsupported_and_invalid_documents(self):
         for name, data in (("payload.exe", b"x"), ("report.pdf", b"not pdf"), ("notes.txt", b"\xff\xfe")):
-            with self.subTest(name=name), self.assertRaises(HTTPException): validate_document_upload(name, "", data)
+            with self.subTest(name=name), self.assertRaises(UploadValidationError): validate_document_upload(name, "", data)
     def test_valid_docx_structure(self):
         stream=io.BytesIO()
         with zipfile.ZipFile(stream,"w") as archive:
@@ -28,11 +28,11 @@ class UploadSafetyTests(unittest.TestCase):
             archive.writestr("word/document.xml","<document/>")
         self.assertEqual(validate_document_upload("report.docx","",stream.getvalue()),".docx")
     def test_invalid_docx(self):
-        with self.assertRaises(HTTPException): validate_document_upload("report.docx","",b"PK-invalid")
+        with self.assertRaises(UploadValidationError): validate_document_upload("report.docx","",b"PK-invalid")
     def test_oversized_upload(self):
         import asyncio
         async def run():
-            with self.assertRaises(HTTPException) as caught:
+            with self.assertRaises(UploadValidationError) as caught:
                 await read_limited_upload(FakeUpload(b"x"*(MAX_IMAGE_BYTES+1)),MAX_IMAGE_BYTES,"Image")
             self.assertEqual(caught.exception.status_code,413)
         asyncio.run(run())
