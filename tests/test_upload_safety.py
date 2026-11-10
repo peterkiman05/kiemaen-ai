@@ -1,9 +1,8 @@
 import io
 import unittest
 import zipfile
-from fastapi import HTTPException
 from core.upload_safety import (
-    MAX_IMAGE_BYTES, read_limited_upload, validate_document_upload, validate_image_bytes,
+    MAX_IMAGE_BYTES, UploadValidationError, read_limited_upload, validate_document_upload, validate_image_bytes,
 )
 class FakeUpload:
     def __init__(self, data): self.data = data
@@ -15,7 +14,7 @@ class UploadSafetyTests(unittest.TestCase):
         self.assertEqual(validate_image_bytes(b"RIFFxxxxWEBPdata", "image/webp"), "image/webp")
     def test_rejects_invalid_or_mismatched_images(self):
         for data, mime in ((b"not image", "image/png"), (b"\xff\xd8\xffjpeg", "image/png")):
-            with self.subTest(mime=mime), self.assertRaises(HTTPException): validate_image_bytes(data, mime)
+            with self.subTest(mime=mime), self.assertRaises(UploadValidationError): validate_image_bytes(data, mime)
     def test_text_and_pdf(self):
         self.assertEqual(validate_document_upload("notes.md", "", b"hello"), ".md")
         self.assertEqual(validate_document_upload("report.pdf", "", b"%PDF-1.7"), ".pdf")
