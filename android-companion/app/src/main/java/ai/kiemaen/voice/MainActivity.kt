@@ -66,6 +66,15 @@ class MainActivity : Activity() {
             setOnClickListener { startListening() }
         })
         root.addView(Button(this).apply {
+            text = "TEST READ ALOUD"
+            setOnClickListener {
+                ContextCompat.startForegroundService(
+                    this@MainActivity,
+                    Intent(this@MainActivity, WakeWordService::class.java).setAction(WakeWordService.ACTION_TEST_TTS)
+                )
+            }
+        })
+        root.addView(Button(this).apply {
             text = "STOP LISTENING"
             setOnClickListener {
                 stopService(Intent(this@MainActivity, WakeWordService::class.java))
