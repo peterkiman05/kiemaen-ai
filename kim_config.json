@@ -1,0 +1,8 @@
+{
+    "token": "eyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiJjYThlYjJmZWQwN2Y3TSIsImFjY2Vzc1J1bGVzIjpbXSwiaWF0IjoxNzkxMTc3Mjc2fQ.mock",
+    "server": "VaultMarkets-Live",
+    "accounts": [
+        {"login": "8760042", "server": "VaultMarkets-Live"},
+        {"login": "8760048", "server": "VaultMarkets-Live"}
+    ]
+}

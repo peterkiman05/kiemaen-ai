@@ -1,0 +1,358 @@
+
+# System hardware rule injection
+SYSTEM_ALARM_INSTRUCTION = " You are an autonomous AI connected to an Android phone. If the user asks to set an alarm or wake up, you MUST include the tag [ALARM:HH:MM] in 24-hour format in your response (e.g. [ALARM:07:00])."
+
+import sqlite3
+
+def get_kiemaen_db():
+    conn = sqlite3.connect("kiemaen.db", check_same_thread=False)
+    cursor = conn.cursor()
+    
+    # Updated Schema
+    cursor.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, user_key TEXT UNIQUE, email TEXT, password_hash TEXT, role TEXT DEFAULT 'user', verification_code TEXT, verification_expires REAL)")
+    
+    # Safely inject missing columns into the table we created earlier
+    try: cursor.execute("ALTER TABLE users ADD COLUMN password_hash TEXT")
+    except: pass
+    try: cursor.execute("ALTER TABLE users ADD COLUMN verification_code TEXT")
+    except: pass
+    try: cursor.execute("ALTER TABLE users ADD COLUMN verification_expires REAL")
+    except: pass
+
+    cursor.execute("CREATE TABLE IF NOT EXISTS pending_verifications (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, email TEXT, password TEXT, code TEXT)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, token TEXT UNIQUE, user_id INTEGER)")
+    conn.commit()
+    return conn
+
+from fastapi.responses import JSONResponse
+import traceback
+
+import sqlite3
+import os
+from contextlib import asynccontextmanager
+
+DB_PATH = os.path.join(os.path.dirname(__file__), "kiemaen.db")
+
+def init_db():
+    conn = get_kiemaen_db()
+    cursor = conn.cursor()
+    cursor.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, user_key TEXT UNIQUE, email TEXT, password TEXT, role TEXT DEFAULT 'user')")
+    cursor.execute("CREATE TABLE IF NOT EXISTS pending_verifications (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, email TEXT, password TEXT, code TEXT)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, token TEXT UNIQUE, user_id INTEGER)")
+    conn.commit()
+    conn.close()
+
+@asynccontextmanager
+async def lifespan(app):
+    init_db()
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    yield
+
+import os
+import difflib
+from fastapi import FastAPI, Form, File, UploadFile, Cookie, Response, Request, Depends, HTTPException
+from fastapi.responses import FileResponse, JSONResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+from dotenv import load_dotenv
+
+from core.brain import ask_kiemaen
+from core.upload_safety import (
+    MAX_DOCUMENT_BYTES, MAX_IMAGE_BYTES, read_limited_upload,
+    UploadValidationError, validate_document_upload, validate_image_bytes,
+)
+from core.database import get_db, engine
+from core.models import User, Base
+from core.auth import (
+    login_user, 
+    logout_user, 
+    refresh_token_endpoint, 
+    verify_user_account, 
+    require_admin, 
+    get_current_user,
+    verify_user_credentials,
+    create_session, get_session_user, delete_session,
+    create_pending_verification, delete_pending_verification, verify_and_create_user,
+    get_user_email, create_login_code, verify_login_code,
+    get_user_by_username, log_admin_alert, get_admin_alerts,
+    add_pin, get_pins, remove_pin, add_task, get_tasks, complete_task, revoke_all_sessions
+)
+from core.mailer import send_verification_email
+from core.security import (firewall_middleware, is_path_safe, is_locked_file, IS_PRODUCTION,
+                            propose_edit, confirm_edit, reject_edit, rollback_edit,
+                            validate_python_syntax, LOCKED_FILES)
+from core.evolution import AUTHORIZE_EVOLUTION_TOKEN, verify_evolution_token
+from tools.coder import read_file, write_file, extract_code, run_script
+from tools.registry import register_custom_tool, list_custom_tools
+from sqlalchemy import select
+
+load_dotenv()
+
+# ==========================================
+# 1. INITIALIZE FASTAPI APP & FIREWALL
+# ==========================================
+app = FastAPI(lifespan=lifespan)
+app.middleware("http")(firewall_middleware)
+
+# ==========================================
+# 2. PRODUCTION AUTHENTICATION ENDPOINTS
+# ==========================================
+@app.post("/auth/login")
+async def api_login(request: Request, response: Response, user_key: str = Form(...), password: str = Form(...), totp_code: str = Form(None), db: AsyncSession = Depends(get_db)):
+    return await login_user(db, response, request, user_key, password, totp_code)
+
+@app.post("/auth/refresh")
+async def api_refresh(request: Request, response: Response, refresh_token: str = Form(...), db: AsyncSession = Depends(get_db)):
+    return await refresh_token_endpoint(db, request, response, refresh_token)
+
+@app.post("/auth/verify")
+async def api_verify(user_key: str = Form(...), code: str = Form(...), db: AsyncSession = Depends(get_db)):
+    return await verify_user_account(db, user_key, code)
+
+@app.post("/auth/logout")
+async def api_logout(response: Response, db: AsyncSession = Depends(get_db), current_user = Depends(get_current_user)):
+    return await logout_user(db, response, current_user=current_user)
+
+@app.get("/admin/users")
+async def admin_list_users(db: AsyncSession = Depends(get_db), admin = Depends(require_admin)):
+    result = await db.execute(select(User))
+    users = result.scalars().all()
+    return [{
+        "user_key": u.user_key,
+        "role": u.role,
+        "mfa_enabled": u.mfa_enabled,
+        "locked_until": u.locked_until,
+        "last_login_at": u.last_login_at
+    } for u in users]
+
+# ==========================================
+# 3. CORE APP ROUTES & CAPABILITIES
+# ==========================================
+
+@app.post("/register/request-code")
+async def register_request_code(username: str = Form(...), email: str = Form(...), password: str = Form(...)):
+    if len(username) < 3 or len(password) < 4:
+        return {"status": "error", "message": "Username or password too short."}
+    code, error = create_pending_verification(username, email, password)
+    if error:
+        return {"status": "error", "message": error}
+    sent, mail_message = send_verification_email(email, code, username)
+    if not sent:
+        delete_pending_verification(username, code)
+        return {"status": "error", "message": mail_message}
+    return {"status": "ok", "message": f"Verification code sent to {email}."}
+
+
+def issue_session_cookie(response: Response, user_id, username, is_admin):
+    token = create_session(user_id)
+    response.set_cookie(
+        key="session_token",
+        value=token,
+        httponly=True,
+        secure=IS_PRODUCTION,
+        samesite="lax",
+        max_age=86400,
+        path="/"
+    )
+    return {"status": "ok", "username": username, "is_admin": is_admin}
+
+@app.post("/register/verify")
+async def register_verify(response: Response, email: str = Form(...), code: str = Form(...)):
+    user, error = verify_and_create_user(email, code)
+    if error:
+        return {"status": "error", "message": error}
+    return issue_session_cookie(response, user["id"], user["username"], user["is_admin"])
+
+@app.post("/login/request")
+async def login_request(username: str = Form(...), password: str = Form(...)):
+    user = verify_user_credentials(username, password)
+    if not user:
+        return {"status": "error", "message": "Invalid username or password."}
+    email = get_user_email(username)
+    if not email:
+        return {"status": "error", "message": "No email associated with this account."}
+    code = create_login_code(username)
+    if not code:
+        return {"status": "error", "message": "Unable to create a login code. Please try again."}
+    sent, mail_message = send_verification_email(email, code, username)
+    if not sent:
+        return {"status": "error", "message": mail_message}
+    return {"status": "otp_required", "message": f"Login code sent to {email}."}
+
+@app.post("/login/verify")
+async def login_verify(response: Response, username: str = Form(...), code: str = Form(...)):
+    success, result = verify_login_code(username, code)
+    if not success:
+        return {"status": "error", "message": result}
+    user = result
+    return issue_session_cookie(response, user["id"], user["username"], user["is_admin"])
+
+@app.get("/")
+async def home():
+    return FileResponse("web/index.html")
+
+@app.post("/session/logout")
+async def session_logout(response: Response, session_token: str = Cookie(default=None)):
+    delete_session(session_token)
+    response.delete_cookie("session_token", path="/", secure=IS_PRODUCTION, httponly=True, samesite="lax")
+    return {"status": "ok"}
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok", "service": "kiemaen-ai"}
+
+
+@app.get("/me")
+async def me(session_token: str = Cookie(default=None)):
+    user = get_session_user(session_token)
+    if not user:
+        return {"status": "ok", "username": "Guest", "is_admin": False}
+    return {"status": "ok", "username": user["username"], "is_admin": user["is_admin"]}
+
+@app.get("/capabilities")
+async def capabilities():
+    return {
+        "status": "ok",
+        "runtime_entrypoint": "app.main:app -> main.app",
+        "ai_provider": "Groq",
+        "active_capabilities": [
+            "Quick and Deep response modes with automatic mode selection",
+            "Text conversation through the Groq chat API",
+            "JPEG, PNG and WebP image input with bounded upload size",
+            "PDF, DOCX and UTF-8 text document extraction with upload limits",
+            "Email verification and login codes",
+            "Argon2id password hashing",
+            "Browser sessions with hashed token storage",
+            "User-scoped task commands: TASK:, SHOW_TASKS and DONE_TASK",
+            "Admin-gated evolution authorization; no autonomous code changes"
+        ],
+        "not_yet_integrated": [
+            "Persistent conversational memory in normal chat",
+            "Aiven/PostgreSQL-backed browser accounts and tasks",
+            "Web research with source citations",
+            "A real OS-isolated code execution sandbox",
+            "Multi-provider AI routing",
+            "Autonomous device actions",
+            "Automated outcome-based learning"
+        ],
+        "database_status": {
+            "browser_accounts_tasks_sessions": "SQLite kiemaen.db",
+            "separate_api_auth": "SQLite auth.db",
+            "configured_aiven_database_url_used_by_active_app": False
+        }
+    }
+
+@app.post("/chat")
+async def chat(
+    prompt: str = Form(default=""),
+    msg: str = Form(default=""),
+    file: UploadFile = File(default=None),
+    image: UploadFile = File(default=None),
+    mode: str = Form(default="auto"),
+    session_token: str = Cookie(default=None)
+):
+    user = get_session_user(session_token) or {"id": 0, "username": "Guest", "is_admin": False}
+    user_key = f"user_{user['id']}" if user["id"] else "guest"
+    is_admin = user["is_admin"]
+
+    try:
+        text = prompt or msg
+        image_bytes = await read_limited_upload(image, MAX_IMAGE_BYTES, "Image") if image else None
+        image_mime = validate_image_bytes(image_bytes, image.content_type) if image_bytes else "image/jpeg"
+    
+        doc_text = None
+        if file:
+            file_bytes = await read_limited_upload(file, MAX_DOCUMENT_BYTES, "Document")
+            file_extension = validate_document_upload(file.filename or "", file.content_type or "", file_bytes)
+            try:
+                if file_extension == ".pdf":
+                    from io import BytesIO
+                    from pypdf import PdfReader
+                    reader = PdfReader(BytesIO(file_bytes))
+                    if len(reader.pages) > 100:
+                        raise HTTPException(status_code=413, detail="PDFs are limited to 100 pages.")
+                    doc_text = "\\n".join(page.extract_text() or "" for page in reader.pages)
+                elif file_extension == ".docx":
+                    from io import BytesIO
+                    from docx import Document
+                    document = Document(BytesIO(file_bytes))
+                    doc_text = "\\n".join(paragraph.text for paragraph in document.paragraphs)
+                else:
+                    doc_text = file_bytes.decode("utf-8", errors="strict")
+            except HTTPException:
+                raise
+            except Exception:
+                doc_text = f"[Could not extract text from {file.filename}. Please upload a valid text-based PDF, DOCX, TXT, Markdown, CSV, JSON, Python, or JavaScript file.]"
+    
+    except UploadValidationError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail)
+
+    try:
+        stripped_cmd = text.strip()
+
+        if stripped_cmd.upper().startswith("AUTHORIZE_EVOLUTION"):
+            if not is_admin:
+                return {"status": "ok", "response": "⛔ **Access Denied**: Auto-evolution features are restricted to administrators.", "category": "meta"}
+            parts = stripped_cmd.split()
+            if len(parts) >= 2 and verify_evolution_token(parts[1]):
+                return {"status": "ok", "response": "🧬 **Evolution Authorized Successfully**: Background patch pipeline unlocked.", "category": "meta"}
+            return {"status": "ok", "response": "❌ Invalid or expired evolution authorization token.", "category": "meta"}
+
+        if stripped_cmd.upper() == "LOGOUT_ALL_DEVICES":
+            revoke_all_sessions(user["id"])
+            return {"status": "ok", "response": "All your active sessions have been revoked.", "category": "meta"}
+
+        if stripped_cmd.upper().startswith("TASK:"):
+            task_title = stripped_cmd[5:].strip()
+            if task_title and user["id"]:
+                add_task(user["id"], task_title)
+                return {"status": "ok", "response": f"Task added to your Daily Planner: \"{task_title}\"", "category": "meta"}
+
+        if stripped_cmd.upper() == "SHOW_TASKS":
+            if not user["id"]:
+                return {"status": "ok", "response": "Please log in to manage tasks.", "category": "meta"}
+            tasks = get_tasks(user["id"])
+            if not tasks:
+                return {"status": "ok", "response": "No tasks in your daily planner.", "category": "meta"}
+            lines = [f"[{t['id']}] ({t['status']}) {t['title']}" for t in tasks]
+            return {"status": "ok", "response": "**Your Daily Tasks:**\n\n" + "\n".join(lines), "category": "meta"}
+
+        if stripped_cmd.upper().startswith("DONE_TASK"):
+            parts = stripped_cmd.split()
+            if len(parts) >= 2 and parts[1].isdigit() and user["id"]:
+                complete_task(user["id"], int(parts[1]))
+                return {"status": "ok", "response": f"Task {parts[1]} marked as completed.", "category": "meta"}
+
+        reply, category = await ask_kiemaen(text, image_bytes, doc_text=doc_text, user_key=user_key, is_admin=is_admin, user_id=user["id"], mode=mode, image_mime=image_mime)
+        return {"status": "ok", "response": reply, "category": category}
+
+    except Exception as e:
+        return JSONResponse(status_code=200, content={"status": "error", "message": f"[ERROR] {str(e)}"})
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8081, reload=True)
+
+
+# --- VIBE CODE FIXES: 404 & SITEMAP ---
+from fastapi.responses import JSONResponse, Response
+
+@app.exception_handler(404)
+async def custom_404_handler(request, exc):
+    return JSONResponse(
+        status_code=404,
+        content={"status": "error", "message": "404: Route not found. The AI mainframe cannot locate this path."}
+    )
+
+@app.get("/sitemap.xml")
+async def sitemap():
+    xml_content = '''<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://kiemaen-ai.onrender.com/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>'''
+    return Response(content=xml_content, media_type="application/xml")
