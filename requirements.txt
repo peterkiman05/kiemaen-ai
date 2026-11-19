@@ -18,3 +18,4 @@ groq
 pandas
 pypdf
 python-docx
+asyncpg

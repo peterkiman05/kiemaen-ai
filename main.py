@@ -47,7 +47,11 @@ async def lifespan(app):
     init_db()
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
-    yield
+    await init_memory_store()
+    try:
+        yield
+    finally:
+        await close_memory_store()
 
 import os
 import difflib
@@ -57,6 +61,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dotenv import load_dotenv
 
 from core.brain import ask_kiemaen
+from core.memory_store import (
+    init_memory_store, close_memory_store, memory_store_status,
+    memory_store_configured, clear_conversation_history,
+)
 from core.upload_safety import (
     MAX_DOCUMENT_BYTES, MAX_IMAGE_BYTES, read_limited_upload,
     UploadValidationError, validate_document_upload, validate_image_bytes,
@@ -200,7 +208,11 @@ async def session_logout(response: Response, session_token: str = Cookie(default
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "kiemaen-ai"}
+    return {
+        "status": "ok",
+        "service": "kiemaen-ai",
+        "conversation_memory": memory_store_status(),
+    }
 
 
 @app.get("/me")
@@ -212,34 +224,44 @@ async def me(session_token: str = Cookie(default=None)):
 
 @app.get("/capabilities")
 async def capabilities():
+    active_capabilities = [
+        "Quick and Deep response modes with automatic mode selection",
+        "Text conversation through the Groq chat API",
+        "JPEG, PNG and WebP image input with bounded upload size",
+        "PDF, DOCX and UTF-8 text document extraction with upload limits",
+        "Email verification and login codes",
+        "Argon2id password hashing",
+        "Browser sessions with hashed token storage",
+        "User-scoped task commands: TASK:, SHOW_TASKS and DONE_TASK",
+        "Admin-gated evolution authorization; no autonomous code changes"
+    ]
+    if memory_store_status() == "connected":
+        active_capabilities.append("Per-account rolling conversation history in the configured PostgreSQL database")
+
+    not_yet_integrated = [
+        "Aiven/PostgreSQL-backed browser accounts and tasks",
+        "Web research with source citations",
+        "A real OS-isolated code execution sandbox",
+        "Multi-provider AI routing",
+        "Autonomous device actions",
+        "Automated outcome-based learning"
+    ]
+    if memory_store_status() != "connected":
+        not_yet_integrated.append("Persistent per-account conversational memory (memory database not connected)")
+
     return {
         "status": "ok",
         "runtime_entrypoint": "app.main:app -> main.app",
         "ai_provider": "Groq",
-        "active_capabilities": [
-            "Quick and Deep response modes with automatic mode selection",
-            "Text conversation through the Groq chat API",
-            "JPEG, PNG and WebP image input with bounded upload size",
-            "PDF, DOCX and UTF-8 text document extraction with upload limits",
-            "Email verification and login codes",
-            "Argon2id password hashing",
-            "Browser sessions with hashed token storage",
-            "User-scoped task commands: TASK:, SHOW_TASKS and DONE_TASK",
-            "Admin-gated evolution authorization; no autonomous code changes"
-        ],
-        "not_yet_integrated": [
-            "Persistent conversational memory in normal chat",
-            "Aiven/PostgreSQL-backed browser accounts and tasks",
-            "Web research with source citations",
-            "A real OS-isolated code execution sandbox",
-            "Multi-provider AI routing",
-            "Autonomous device actions",
-            "Automated outcome-based learning"
-        ],
+        "active_capabilities": active_capabilities,
+        "not_yet_integrated": not_yet_integrated,
         "database_status": {
-            "browser_accounts_tasks_sessions": "SQLite kiemaen.db",
-            "separate_api_auth": "SQLite auth.db",
-            "configured_aiven_database_url_used_by_active_app": False
+            "conversation_memory": memory_store_status(),
+            "browser_accounts_tasks_sessions": "SQLite kiemaen.db (unchanged)",
+            "separate_api_auth": "SQLite auth.db (unchanged)",
+            "configured_aiven_database_url_used_by_active_app": (
+                memory_store_configured() and memory_store_status() == "connected"
+            )
         }
     }
 
@@ -253,7 +275,7 @@ async def chat(
     session_token: str = Cookie(default=None)
 ):
     user = get_session_user(session_token) or {"id": 0, "username": "Guest", "is_admin": False}
-    user_key = f"user_{user['id']}" if user["id"] else "guest"
+    user_key = f"account:{user['username'].strip().casefold()}" if user["id"] else "guest"
     is_admin = user["is_admin"]
 
     try:
@@ -302,6 +324,14 @@ async def chat(
         if stripped_cmd.upper() == "LOGOUT_ALL_DEVICES":
             revoke_all_sessions(user["id"])
             return {"status": "ok", "response": "All your active sessions have been revoked.", "category": "meta"}
+
+        if stripped_cmd.upper() == "CLEAR_MEMORY":
+            if not user["id"]:
+                return {"status": "ok", "response": "Please log in before clearing saved conversation history.", "category": "meta"}
+            if memory_store_status() != "connected":
+                return {"status": "error", "message": "The conversation memory database is not connected, so no history was changed."}
+            await clear_conversation_history(user_key)
+            return {"status": "ok", "response": "Your saved conversation history has been cleared. New chats will start with a clean context.", "category": "meta"}
 
         if stripped_cmd.upper().startswith("TASK:"):
             task_title = stripped_cmd[5:].strip()
