@@ -272,6 +272,7 @@ async def chat(
     file: UploadFile = File(default=None),
     image: UploadFile = File(default=None),
     mode: str = Form(default="auto"),
+    client: str = Form(default="web"),
     session_token: str = Cookie(default=None)
 ):
     user = get_session_user(session_token) or {"id": 0, "username": "Guest", "is_admin": False}
@@ -354,7 +355,7 @@ async def chat(
                 complete_task(user["id"], int(parts[1]))
                 return {"status": "ok", "response": f"Task {parts[1]} marked as completed.", "category": "meta"}
 
-        reply, category = await ask_kiemaen(text, image_bytes, doc_text=doc_text, user_key=user_key, is_admin=is_admin, user_id=user["id"], mode=mode, image_mime=image_mime)
+        reply, category = await ask_kiemaen(text, image_bytes, doc_text=doc_text, user_key=user_key, is_admin=is_admin, user_id=user["id"], mode=mode, image_mime=image_mime, voice_mode=(client == "android_voice"))
         return {"status": "ok", "response": reply, "category": category}
 
     except Exception as e:
