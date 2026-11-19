@@ -259,6 +259,9 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
                     append("\r\n--$boundary\r\n")
                     append("Content-Disposition: form-data; name=\"mode\"\r\n\r\n")
                     append("auto")
+                    append("\r\n--$boundary\r\n")
+                    append("Content-Disposition: form-data; name=\"client\"\r\n\r\n")
+                    append("android_voice")
                     append("\r\n--$boundary--\r\n")
                 }
                 connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
@@ -278,11 +281,33 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
                 connection?.disconnect()
             }
 
+            val alarm = Regex("\\[ALARM:(\\d{2}):(\\d{2})\\]", RegexOption.IGNORE_CASE).find(reply)
             val clean = reply
+                .replace(Regex("\\[ALARM:\\d{2}:\\d{2}\\]", RegexOption.IGNORE_CASE), " ")
                 .replace(Regex("[*_#>]"), " ")
                 .replace(Regex("\\s+"), " ")
                 .take(1800)
-            mainHandler.post { speakAndResume(clean) }
+            mainHandler.post {
+                if (alarm != null) {
+                    val hour = alarm.groupValues[1].toIntOrNull()
+                    val minute = alarm.groupValues[2].toIntOrNull()
+                    if (hour != null && minute != null && hour in 0..23 && minute in 0..59) {
+                        try {
+                            val alarmIntent = Intent(android.provider.AlarmClock.ACTION_SET_ALARM).apply {
+                                putExtra(android.provider.AlarmClock.EXTRA_HOUR, hour)
+                                putExtra(android.provider.AlarmClock.EXTRA_MINUTES, minute)
+                                putExtra(android.provider.AlarmClock.EXTRA_MESSAGE, "Kiemaen alarm")
+                                putExtra(android.provider.AlarmClock.EXTRA_SKIP_UI, false)
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            startActivity(alarmIntent)
+                            speakAndResume("$clean. I've opened your Clock app so you can confirm the alarm.")
+                        } catch (_: Exception) {
+                            speakAndResume("$clean. I couldn't open the Clock app to set the alarm.")
+                        }
+                    } else speakAndResume(clean)
+                } else speakAndResume(clean)
+            }
         }
     }
 
