@@ -68,6 +68,7 @@ async def ask_kiemaen(
     user_id: int = 0,
     mode: str = "auto",
     image_mime: str = "image/jpeg",
+    voice_mode: bool = False,
 ) -> tuple[str, str]:
     """Return (assistant response, response category) for the FastAPI route."""
     del is_admin  # Role checks remain in the authenticated API route.
@@ -98,6 +99,12 @@ async def ask_kiemaen(
         "openai/gpt-oss-120b" if selected_mode == "quick" else "openai/gpt-oss-20b",
     ]))
     system_prompt = DEEP_SYSTEM if selected_mode == "deep" else QUICK_SYSTEM
+    if voice_mode:
+        system_prompt += ("\\n\\nVoice-device action policy: when the user explicitly asks to set an alarm, "
+            "include exactly one machine-readable tag [ALARM:HH:MM] using 24-hour local time "
+            "in your response, alongside a short confirmation. Do not include this tag for "
+            "ordinary reminders, tasks, or questions. Never claim the alarm is set; the phone "
+            "will open its Clock app for the user to confirm it.")
     if history:
         system_prompt += (
             "\n\nConversation continuity policy: the prior messages below are context "
