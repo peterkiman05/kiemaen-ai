@@ -252,13 +252,13 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
                 }
 
                 val body = buildString {
-                    append("--$boundary\\r\\n")
-                    append("Content-Disposition: form-data; name=\\"prompt\\"\\r\\n\\r\\n")
+                    append("--$boundary\r\n")
+                    append("Content-Disposition: form-data; name=\"prompt\"\r\n\r\n")
                     append(spoken)
-                    append("\\r\\n--$boundary\\r\\n")
-                    append("Content-Disposition: form-data; name=\\"mode\\"\\r\\n\\r\\n")
+                    append("\r\n--$boundary\r\n")
+                    append("Content-Disposition: form-data; name=\"mode\"\r\n\r\n")
                     append("auto")
-                    append("\\r\\n--$boundary--\\r\\n")
+                    append("\r\n--$boundary--\r\n")
                 }
                 connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
 
