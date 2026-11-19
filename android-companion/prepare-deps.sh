@@ -28,14 +28,20 @@ test -s "$MODEL_DIR/joiner-epoch-12-avg-2-chunk-16-left-64.int8.onnx"
 test -s "$MODEL_DIR/tokens.txt"
 test -s "$MODEL_DIR/bpe.model"
 
-python3 -m pip install --disable-pip-version-check --no-cache-dir "sherpa-onnx==2.0.2" click sentencepiece
-printf 'HEY KIEMAEN\n' > "$TMP/keywords_raw.txt"
-sherpa-onnx-cli text2token \
-  --tokens "$MODEL_DIR/tokens.txt" \
-  --tokens-type bpe \
-  --bpe-model "$MODEL_DIR/bpe.model" \
-  "$TMP/keywords_raw.txt" \
-  "$MODEL_DIR/keywords.txt"
+python3 -m pip install --disable-pip-version-check --no-cache-dir "sentencepiece==0.2.3"
+python3 - "$MODEL_DIR" <<'PY'
+import pathlib
+import sys
+import sentencepiece as spm
+
+model_dir = pathlib.Path(sys.argv[1])
+processor = spm.SentencePieceProcessor(model_file=str(model_dir / "bpe.model"))
+tokens = processor.encode("HEY KIEMAEN", out_type=str)
+if not tokens:
+    raise SystemExit("SentencePiece returned no tokens for the wake phrase")
+(model_dir / "keywords.txt").write_text(" ".join(tokens) + "\n", encoding="utf-8")
+print("Encoded Hey Kiemaen wake phrase:", " ".join(tokens))
+PY
 
 test -s "$MODEL_DIR/keywords.txt"
 echo "Prepared verified Sherpa-ONNX runtime and Hey Kiemaen keyword model."
