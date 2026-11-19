@@ -6,6 +6,9 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.MediaRecorder
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -14,10 +17,14 @@ import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
+import android.webkit.CookieManager
 import androidx.core.app.NotificationCompat
-import ai.picovoice.porcupine.Porcupine
-import ai.picovoice.porcupine.PorcupineException
-import ai.picovoice.porcupine.PorcupineManager
+import com.k2fsa.sherpa.onnx.FeatureConfig
+import com.k2fsa.sherpa.onnx.KeywordSpotter
+import com.k2fsa.sherpa.onnx.KeywordSpotterConfig
+import com.k2fsa.sherpa.onnx.OnlineModelConfig
+import com.k2fsa.sherpa.onnx.OnlineTransducerModelConfig
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -27,18 +34,35 @@ import java.util.concurrent.Executors
 
 class WakeWordService : Service(), TextToSpeech.OnInitListener {
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val network = Executors.newSingleThreadExecutor()
-    private var porcupine: PorcupineManager? = null
+    private val engineExecutor = Executors.newSingleThreadExecutor()
+    private val networkExecutor = Executors.newSingleThreadExecutor()
+
+    @Volatile private var listening = false
+    @Volatile private var busy = false
+    @Volatile private var audioRecord: AudioRecord? = null
+
+    private var spotter: KeywordSpotter? = null
     private var speech: SpeechRecognizer? = null
     private var tts: TextToSpeech? = null
     private var ttsReady = false
-    private var busy = false
-    private var restarting = false
 
     override fun onCreate() {
         super.onCreate()
         createChannel()
         tts = TextToSpeech(this, this)
+        tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+            override fun onStart(utteranceId: String?) {}
+            override fun onDone(utteranceId: String?) {
+                mainHandler.post { finishReplyAndResume() }
+            }
+            @Deprecated("Deprecated by Android")
+            override fun onError(utteranceId: String?) {
+                mainHandler.post { finishReplyAndResume() }
+            }
+            override fun onError(utteranceId: String?, errorCode: Int) {
+                mainHandler.post { finishReplyAndResume() }
+            }
+        })
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -47,105 +71,208 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
             stopSelf()
             return START_NOT_STICKY
         }
-        startForeground(NOTIFICATION_ID, notification("Waiting for wake phrase"))
+        startForeground(NOTIFICATION_ID, notification("Preparing local wake-word engine"))
         startWakeEngine()
         return START_STICKY
     }
 
     private fun startWakeEngine() {
-        if (porcupine != null || busy) return
-        val key = getSharedPreferences("voice_settings", MODE_PRIVATE).getString("access_key", "").orEmpty()
-        if (key.isBlank()) {
-            updateNotification("Open Kiemaen Voice and add your AccessKey")
-            stopSelf()
-            return
+        if (listening || busy) return
+        listening = true
+        updateNotification("Loading local Hey Kiemaen detector…")
+
+        engineExecutor.execute {
+            try {
+                if (spotter == null) spotter = createSpotter()
+                runKeywordLoop()
+            } catch (e: Exception) {
+                listening = false
+                mainHandler.post {
+                    updateNotification("Wake-word engine error: " + (e.message ?: "unknown error"))
+                }
+            }
         }
+    }
+
+    private fun createSpotter(): KeywordSpotter {
+        val modelDir = "sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01-mobile"
+        val model = OnlineModelConfig(
+            transducer = OnlineTransducerModelConfig(
+                encoder = "$modelDir/encoder-epoch-12-avg-2-chunk-16-left-64.int8.onnx",
+                decoder = "$modelDir/decoder-epoch-12-avg-2-chunk-16-left-64.onnx",
+                joiner = "$modelDir/joiner-epoch-12-avg-2-chunk-16-left-64.int8.onnx"
+            ),
+            tokens = "$modelDir/tokens.txt",
+            numThreads = 2,
+            provider = "cpu",
+            modelType = "zipformer2",
+            modelingUnit = "bpe",
+            bpeVocab = "$modelDir/bpe.model"
+        )
+        val config = KeywordSpotterConfig(
+            featConfig = FeatureConfig(sampleRate = SAMPLE_RATE, featureDim = 80),
+            modelConfig = model,
+            keywordsFile = "$modelDir/keywords.txt",
+            keywordsScore = 2.0f,
+            keywordsThreshold = 0.25f
+        )
+        return KeywordSpotter(assetManager = assets, config = config)
+    }
+
+    private fun runKeywordLoop() {
+        val detector = spotter ?: throw IllegalStateException("Wake-word model is not loaded")
+        val stream = detector.createStream()
+        val minimum = AudioRecord.getMinBufferSize(
+            SAMPLE_RATE,
+            AudioFormat.CHANNEL_IN_MONO,
+            AudioFormat.ENCODING_PCM_16BIT
+        )
+        if (minimum <= 0) {
+            stream.release()
+            throw IllegalStateException("This device does not support the required microphone format")
+        }
+
+        val recorder = AudioRecord(
+            MediaRecorder.AudioSource.MIC,
+            SAMPLE_RATE,
+            AudioFormat.CHANNEL_IN_MONO,
+            AudioFormat.ENCODING_PCM_16BIT,
+            maxOf(minimum * 2, SAMPLE_RATE / 2)
+        )
+        if (recorder.state != AudioRecord.STATE_INITIALIZED) {
+            recorder.release()
+            stream.release()
+            throw IllegalStateException("Could not initialise the microphone")
+        }
+
+        audioRecord = recorder
+        var detected = false
         try {
-            val custom = java.io.File(filesDir, "kiemaen.ppn")
-            val builder = PorcupineManager.Builder().setAccessKey(key).setSensitivity(0.58f)
-            if (custom.exists() && custom.length() > 0) builder.setKeywordPath(custom.absolutePath)
-            else builder.setKeyword(Porcupine.BuiltInKeyword.COMPUTER)
-            porcupine = builder.build(this) { mainHandler.post { onWakeWordDetected() } }
-            porcupine?.start()
-            updateNotification(if (custom.exists()) "Listening for custom Kiemaen phrase" else "Listening for Computer; import your custom phrase")
-        } catch (e: PorcupineException) {
-            updateNotification("Wake-word setup error: " + (e.message ?: "check AccessKey"))
-            stopSelf()
-        } catch (e: Exception) {
-            updateNotification("Could not start microphone: " + (e.message ?: "unknown error"))
-            stopSelf()
+            recorder.startRecording()
+            mainHandler.post { updateNotification("Listening locally for Hey Kiemaen") }
+            val buffer = ShortArray(1600)
+            while (listening) {
+                val count = recorder.read(buffer, 0, buffer.size)
+                if (count <= 0) continue
+
+                val samples = FloatArray(count) { buffer[it] / 32768.0f }
+                stream.acceptWaveform(samples, sampleRate = SAMPLE_RATE)
+
+                while (detector.isReady(stream)) {
+                    detector.decode(stream)
+                    val result = detector.getResult(stream)
+                    if (result.keyword.isNotBlank()) {
+                        detector.reset(stream)
+                        detected = true
+                        listening = false
+                        break
+                    }
+                }
+                if (detected) break
+            }
+        } finally {
+            try {
+                if (recorder.recordingState == AudioRecord.RECORDSTATE_RECORDING) recorder.stop()
+            } catch (_: Exception) {}
+            recorder.release()
+            audioRecord = null
+            stream.release()
         }
+
+        if (detected) mainHandler.post { onWakeWordDetected() }
     }
 
     private fun onWakeWordDetected() {
         if (busy) return
         busy = true
-        updateNotification("Kiemaen activated • speak now")
-        try { porcupine?.stop() } catch (_: Exception) {}
-        porcupine?.delete()
-        porcupine = null
+        updateNotification("Kiemaen activated — speak your request")
         beginSpeechRecognition()
     }
 
     private fun beginSpeechRecognition() {
         if (!SpeechRecognizer.isRecognitionAvailable(this)) {
-            speakAndResume("Speech recognition is unavailable. Check your phone's speech services.")
+            speakAndResume("Speech recognition is unavailable on this phone. Check its speech services.")
             return
         }
-        mainHandler.post {
-            try {
-                speech?.destroy()
-                speech = SpeechRecognizer.createSpeechRecognizer(applicationContext)
-                speech?.setRecognitionListener(object : RecognitionListener {
-                    override fun onReadyForSpeech(params: android.os.Bundle?) { updateNotification("Speak now • Kiemaen is listening") }
-                    override fun onBeginningOfSpeech() {}
-                    override fun onRmsChanged(rmsdB: Float) {}
-                    override fun onBufferReceived(buffer: ByteArray?) {}
-                    override fun onEndOfSpeech() { updateNotification("Processing your request…") }
-                    override fun onError(error: Int) { speakAndResume("I didn't catch that. Say the wake phrase again when ready.") }
-                    override fun onResults(results: android.os.Bundle?) {
-                        val spoken = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
-                        if (spoken.isBlank()) speakAndResume("I didn't catch that. Please try again.")
-                        else sendToKiemaen(spoken)
-                    }
-                    override fun onPartialResults(partialResults: android.os.Bundle?) {}
-                    override fun onEvent(eventType: Int, params: android.os.Bundle?) {}
-                })
-                val request = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-                    putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
-                    putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-                    putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, false)
+        try {
+            speech?.destroy()
+            speech = SpeechRecognizer.createSpeechRecognizer(applicationContext)
+            speech?.setRecognitionListener(object : RecognitionListener {
+                override fun onReadyForSpeech(params: android.os.Bundle?) {
+                    updateNotification("Speak now — Kiemaen is listening")
                 }
-                speech?.startListening(request)
-            } catch (_: Exception) {
-                speakAndResume("Voice recognition could not start. Check your phone's speech services.")
+                override fun onBeginningOfSpeech() {}
+                override fun onRmsChanged(rmsdB: Float) {}
+                override fun onBufferReceived(buffer: ByteArray?) {}
+                override fun onEndOfSpeech() { updateNotification("Processing your request…") }
+                override fun onError(error: Int) {
+                    speakAndResume("I didn't catch that. Say Hey Kiemaen again when ready.")
+                }
+                override fun onResults(results: android.os.Bundle?) {
+                    val spoken = results
+                        ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        ?.firstOrNull()
+                        .orEmpty()
+                    if (spoken.isBlank()) speakAndResume("I didn't catch that. Please try again.")
+                    else sendToKiemaen(spoken)
+                }
+                override fun onPartialResults(partialResults: android.os.Bundle?) {}
+                override fun onEvent(eventType: Int, params: android.os.Bundle?) {}
+            })
+
+            val request = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
+                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+                putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, false)
             }
+            speech?.startListening(request)
+        } catch (_: Exception) {
+            speakAndResume("Voice recognition could not start. Check your phone's speech services.")
         }
     }
 
     private fun sendToKiemaen(spoken: String) {
-        updateNotification("Sending request securely to Kiemaen…")
-        network.execute {
-            var reply = "I couldn't reach Kiemaen. Check your internet connection."
+        updateNotification("Sending your request securely to Kiemaen…")
+        networkExecutor.execute {
+            var reply = "I couldn't reach Kiemaen. Check your internet connection and try again."
+            var connection: HttpURLConnection? = null
             try {
-                val connection = URL("https://kiemaen-ai.onrender.com/chat").openConnection() as HttpURLConnection
+                connection = URL("$BASE_URL/chat").openConnection() as HttpURLConnection
                 connection.requestMethod = "POST"
                 connection.connectTimeout = 15000
                 connection.readTimeout = 60000
                 connection.doOutput = true
                 connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+
+                val cookie = CookieManager.getInstance().getCookie(BASE_URL).orEmpty()
+                if (cookie.contains("session_token=")) {
+                    connection.setRequestProperty("Cookie", cookie)
+                }
+
                 val body = "prompt=" + URLEncoder.encode(spoken, "UTF-8") + "&mode=auto"
                 connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+
                 val code = connection.responseCode
-                val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-                val response = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                val responseStream = if (code in 200..299) connection.inputStream else connection.errorStream
+                val response = responseStream?.bufferedReader()?.use { it.readText() }.orEmpty()
                 val json = JSONObject(response)
-                reply = if (json.optString("status") == "ok") json.optString("response", "I received your request.") else "Kiemaen returned an error. Please try again."
-                connection.disconnect()
-            } catch (_: Exception) {}
-            val clean = reply.replace(Regex("[*_#]"), " ").replace(Regex("\\s+"), " ").take(1800)
+                reply = if (json.optString("status") == "ok") {
+                    json.optString("response").ifBlank { "I received your request." }
+                } else {
+                    json.optString("message").ifBlank { "Kiemaen returned an error. Please try again." }
+                }
+            } catch (e: Exception) {
+                reply = "I couldn't complete that request: " + (e.message ?: "connection error")
+            } finally {
+                connection?.disconnect()
+            }
+
+            val clean = reply
+                .replace(Regex("[*_#>]"), " ")
+                .replace(Regex("\\s+"), " ")
+                .take(1800)
             mainHandler.post { speakAndResume(clean) }
         }
     }
@@ -154,29 +281,32 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
         updateNotification("Kiemaen is responding…")
         if (!ttsReady || tts == null) {
             updateNotification(message.take(120))
-            busy = false
-            scheduleRestart()
+            finishReplyAndResume()
             return
         }
-        tts?.speak(message, TextToSpeech.QUEUE_FLUSH, null, "kiemaen_reply")
-        mainHandler.postDelayed({
-            busy = false
-            scheduleRestart()
-        }, (message.length * 65L).coerceIn(1800L, 18000L))
+        val result = tts?.speak(message, TextToSpeech.QUEUE_FLUSH, null, UTTERANCE_ID)
+        if (result == TextToSpeech.ERROR) finishReplyAndResume()
     }
 
-    private fun scheduleRestart() {
-        if (restarting) return
-        restarting = true
+    private fun finishReplyAndResume() {
+        if (!busy) return
+        speech?.cancel()
+        speech?.destroy()
+        speech = null
+        busy = false
         mainHandler.postDelayed({
-            restarting = false
-            if (!busy && porcupine == null) startWakeEngine()
+            if (!busy && !listening) startWakeEngine()
         }, 700L)
     }
 
     override fun onInit(status: Int) {
         ttsReady = status == TextToSpeech.SUCCESS
-        tts?.language = Locale.getDefault()
+        if (ttsReady) {
+            val result = tts?.setLanguage(Locale.getDefault())
+            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                tts?.setLanguage(Locale.US)
+            }
+        }
     }
 
     private fun createChannel() {
@@ -187,8 +317,14 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
     }
 
     private fun notification(message: String): Notification {
-        val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val stop = PendingIntent.getService(this, 1, Intent(this, WakeWordService::class.java).setAction(ACTION_STOP), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val open = PendingIntent.getActivity(
+            this, 0, Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val stop = PendingIntent.getService(
+            this, 1, Intent(this, WakeWordService::class.java).setAction(ACTION_STOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setContentTitle("Kiemaen Voice")
@@ -204,21 +340,26 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
     }
 
     private fun stopListening() {
-        try { porcupine?.stop() } catch (_: Exception) {}
-        porcupine?.delete()
-        porcupine = null
+        listening = false
+        try {
+            audioRecord?.let {
+                if (it.recordingState == AudioRecord.RECORDSTATE_RECORDING) it.stop()
+            }
+        } catch (_: Exception) {}
         speech?.cancel()
         speech?.destroy()
         speech = null
         tts?.stop()
-        busy = false
         stopForeground(STOP_FOREGROUND_REMOVE)
     }
 
     override fun onDestroy() {
         stopListening()
+        engineExecutor.shutdownNow()
+        networkExecutor.shutdownNow()
+        try { spotter?.release() } catch (_: Exception) {}
+        spotter = null
         tts?.shutdown()
-        network.shutdownNow()
         super.onDestroy()
     }
 
@@ -227,7 +368,10 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
     companion object {
         const val ACTION_START = "ai.kiemaen.voice.START"
         const val ACTION_STOP = "ai.kiemaen.voice.STOP"
+        private const val BASE_URL = "https://kiemaen-ai.onrender.com"
+        private const val SAMPLE_RATE = 16000
         private const val CHANNEL_ID = "kiemaen_voice"
         private const val NOTIFICATION_ID = 712
+        private const val UTTERANCE_ID = "kiemaen_reply"
     }
 }

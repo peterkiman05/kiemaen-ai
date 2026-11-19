@@ -1,0 +1,5 @@
+app/libs/*.aar
+app/src/main/assets/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01-mobile/
+app/build/
+.gradle/
+local.properties

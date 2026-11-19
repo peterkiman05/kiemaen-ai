@@ -1,26 +1,39 @@
 # Kiemaen Voice for Android
 
-Separate Android companion for the Kiemaen AI service. Wake-word detection runs locally using Picovoice Porcupine. After activation, Android SpeechRecognizer transcribes one utterance, recognized text is sent to Kiemaen over HTTPS, and Android TextToSpeech speaks the reply.
+A native Android companion for the Kiemaen AI service.
+
+- Local wake-word detection using Sherpa-ONNX; no Picovoice account, AccessKey, or paid wake-word service.
+- Built-in wake phrase: **Hey Kiemaen**.
+- Wake-word model and runtime are packaged into the debug APK by the build workflow.
+- After activation, Android SpeechRecognizer transcribes one request; recognised text is sent to Kiemaen over HTTPS.
+- Android TextToSpeech reads the reply aloud and the wake-word detector restarts after the reply.
+- Optional in-app Kiemaen account linking lets the companion reuse the site's HttpOnly session cookie. Without linking, guest chat remains available.
 
 ## Build
-Open this folder in Android Studio, or run gradle :app:assembleDebug with JDK 17 and Android SDK 35. The APK is at app/build/outputs/apk/debug/app-debug.apk. GitHub Actions also builds and publishes a debug APK artifact.
 
-## First-time setup
-1. Install the APK on Android.
-2. Create a Picovoice account at https://console.picovoice.ai/ and copy your AccessKey.
-3. Enter the AccessKey in Kiemaen Voice and save it locally.
-4. For an initial smoke test, start listening for the built-in Computer wake phrase.
-5. For Hey Kiemaen, create an Android .ppn custom wake-word model in Picovoice Console, download it, and import it in the app. The private model file is not stored in Git.
-6. Grant microphone and notification permissions. Start listening while the app is visible. The ongoing notification provides a stop control.
-7. On Huawei devices, allow auto-launch, background activity and background battery use in device settings.
+Requires JDK 17, Android SDK 35, and Python 3.11.
 
-## Platform and privacy limits
-- Android requires microphone foreground services to be started while the app is visible and microphone permission is granted. Start listening manually after reboot; the app does not silently restart microphone capture on boot.
-- Huawei battery management may still stop long-running services. A persistent notification indicates the service state but cannot guarantee 24/7 operation.
-- Wake-word matching is local. After activation, Android SpeechRecognizer uses the configured recognition service and may send speech to that provider. Recognized text is sent to the public Kiemaen chat guest endpoint over HTTPS. Do not speak passwords, payment details or other secrets.
-- The companion currently uses guest chat. Authenticated account context and persistent personal conversation memory are not connected yet.
-- The Picovoice AccessKey is stored in app-private preferences. Android app backup is disabled.
-- This is an initial integration; test on the target Huawei phone before relying on it.
+    cd android-companion
+    bash ./prepare-deps.sh
+    gradle --no-daemon :app:assembleDebug
 
-## Safety
-The app sends recognized text to the existing chat endpoint. It does not execute shell commands, set alarms, send messages or perform other device actions.
+The preparation script downloads the official Sherpa-ONNX 2.0.2 Android AAR and the English GigaSpeech keyword-spotting model, verifies the AAR checksum, and generates the custom Hey Kiemaen keyword tokens. These downloaded binaries and model files are intentionally not committed to this repository. GitHub Actions runs the same preparation step and publishes a debug APK artifact named kiemaen-voice-debug-apk.
+
+## First-time phone setup
+
+1. Install the APK on the Android phone.
+2. Open Kiemaen Voice and choose Connect Kiemaen Account if you want signed-in tasks and account-scoped access. Complete the normal Kiemaen website login and email-code verification inside the in-app browser, then tap Done.
+3. Grant microphone and notification permissions.
+4. Tap Start Hey Kiemaen Listening while the app is open.
+5. Wait for the notification to say it is listening locally.
+6. Say Hey Kiemaen, pause briefly, then speak your request.
+7. Kiemaen's reply is spoken aloud. Say the wake phrase again for another request.
+8. Use Stop in the app or the persistent notification to stop microphone access.
+
+## Privacy and platform limits
+
+Wake-word matching is performed locally on the phone. The app does not upload continuous microphone audio. After the wake phrase, Android's configured speech-recognition provider receives the active utterance for transcription; the recognised text is then sent to Kiemaen over HTTPS. The local wake detector does not require internet after installation, but the Kiemaen response requires internet.
+
+Android and Huawei battery-management policies can stop background microphone services. Start listening from the visible app, keep its foreground notification, and allow background activity/battery use for Kiemaen Voice if you want it to remain available with the screen off. No Android app can promise uninterrupted microphone access if the operating system force-stops it.
+
+The companion currently uses Kiemaen's /chat endpoint. The app can pass the site's signed-in session cookie when linked; the backend does not yet provide persistent conversational memory across independent requests, so account linking should not be mistaken for long-term chat memory.
