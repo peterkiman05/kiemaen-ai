@@ -66,6 +66,11 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_TEST_TTS) {
+            startForeground(NOTIFICATION_ID, notification("Testing speech output…"))
+            speakAndResume("Kiemaen voice output is working.")
+            return START_NOT_STICKY
+        }
         if (intent?.action == ACTION_STOP) {
             stopListening()
             stopSelf()
@@ -418,6 +423,7 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
     companion object {
         const val ACTION_START = "ai.kiemaen.voice.START"
         const val ACTION_STOP = "ai.kiemaen.voice.STOP"
+        const val ACTION_TEST_TTS = "ai.kiemaen.voice.TEST_TTS"
         private const val BASE_URL = "https://kiemaen-ai.onrender.com"
         private const val SAMPLE_RATE = 16000
         private const val CHANNEL_ID = "kiemaen_voice"
