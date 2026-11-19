@@ -44,6 +44,7 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
     private var speech: SpeechRecognizer? = null
     private var tts: TextToSpeech? = null
     private var ttsReady = false
+    @Volatile private var pendingSpeech: String? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -112,8 +113,8 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
             featConfig = FeatureConfig(sampleRate = SAMPLE_RATE, featureDim = 80),
             modelConfig = model,
             keywordsFile = "$modelDir/keywords.txt",
-            keywordsScore = 2.0f,
-            keywordsThreshold = 0.25f
+            keywordsScore = 3.0f,
+            keywordsThreshold = 0.10f
         )
         return KeywordSpotter(assetManager = assets, config = config)
     }
@@ -286,14 +287,18 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
     }
 
     private fun speakAndResume(message: String) {
-        updateNotification("Kiemaen is responding…")
         if (!ttsReady || tts == null) {
-            updateNotification(message.take(120))
-            finishReplyAndResume()
+            pendingSpeech = message
+            updateNotification("Preparing speech output…")
             return
         }
+        updateNotification("Kiemaen is speaking…")
         val result = tts?.speak(message, TextToSpeech.QUEUE_FLUSH, null, UTTERANCE_ID)
-        if (result == TextToSpeech.ERROR) finishReplyAndResume()
+        if (result == TextToSpeech.ERROR) {
+            pendingSpeech = null
+            updateNotification("Speech output failed. Check Android Text-to-speech settings.")
+            finishReplyAndResume()
+        }
     }
 
     private fun finishReplyAndResume() {
@@ -310,10 +315,22 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
     override fun onInit(status: Int) {
         ttsReady = status == TextToSpeech.SUCCESS
         if (ttsReady) {
-            val result = tts?.setLanguage(Locale.getDefault())
+            var result = tts?.setLanguage(Locale.getDefault()) ?: TextToSpeech.LANG_NOT_SUPPORTED
             if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                tts?.setLanguage(Locale.US)
+                result = tts?.setLanguage(Locale.US) ?: TextToSpeech.LANG_NOT_SUPPORTED
             }
+            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                updateNotification("No supported speech voice is installed on this phone.")
+                return
+            }
+            val queued = pendingSpeech
+            if (!queued.isNullOrBlank()) {
+                pendingSpeech = null
+                mainHandler.post { speakAndResume(queued) }
+            }
+        } else {
+            updateNotification("Android Text-to-speech failed to initialise.")
+            if (busy) finishReplyAndResume()
         }
     }
 
