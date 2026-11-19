@@ -28,7 +28,6 @@ import com.k2fsa.sherpa.onnx.OnlineTransducerModelConfig
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
-import java.net.URLEncoder
 import java.util.Locale
 import java.util.concurrent.Executors
 
@@ -244,14 +243,23 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
                 connection.connectTimeout = 15000
                 connection.readTimeout = 60000
                 connection.doOutput = true
-                connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+                val boundary = "----KiemaenVoice${System.currentTimeMillis()}"
+                connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
 
                 val cookie = CookieManager.getInstance().getCookie(BASE_URL).orEmpty()
                 if (cookie.contains("session_token=")) {
                     connection.setRequestProperty("Cookie", cookie)
                 }
 
-                val body = "prompt=" + URLEncoder.encode(spoken, "UTF-8") + "&mode=auto"
+                val body = buildString {
+                    append("--$boundary\\r\\n")
+                    append("Content-Disposition: form-data; name=\\"prompt\\"\\r\\n\\r\\n")
+                    append(spoken)
+                    append("\\r\\n--$boundary\\r\\n")
+                    append("Content-Disposition: form-data; name=\\"mode\\"\\r\\n\\r\\n")
+                    append("auto")
+                    append("\\r\\n--$boundary--\\r\\n")
+                }
                 connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
 
                 val code = connection.responseCode
