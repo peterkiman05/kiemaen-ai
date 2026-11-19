@@ -28,7 +28,7 @@ test -s "$MODEL_DIR/joiner-epoch-12-avg-2-chunk-16-left-64.int8.onnx"
 test -s "$MODEL_DIR/tokens.txt"
 test -s "$MODEL_DIR/bpe.model"
 
-python3 -m pip install --disable-pip-version-check --no-cache-dir "sherpa-onnx==2.0.2" click
+python3 -m pip install --disable-pip-version-check --no-cache-dir "sherpa-onnx==2.0.2" click sentencepiece
 printf 'HEY KIEMAEN\n' > "$TMP/keywords_raw.txt"
 sherpa-onnx-cli text2token \
   --tokens "$MODEL_DIR/tokens.txt" \
