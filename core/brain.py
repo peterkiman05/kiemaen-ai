@@ -100,7 +100,7 @@ async def ask_kiemaen(
     ]))
     system_prompt = DEEP_SYSTEM if selected_mode == "deep" else QUICK_SYSTEM
     if voice_mode:
-        system_prompt += ("\\n\\nVoice-device action policy: when the user explicitly asks to set an alarm, "
+        system_prompt += ("\n\nVoice-device action policy: when the user explicitly asks to set an alarm, "
             "include exactly one machine-readable tag [ALARM:HH:MM] using 24-hour local time "
             "in your response, alongside a short confirmation. Do not include this tag for "
             "ordinary reminders, tasks, or questions. Never claim the alarm is set; the phone "
