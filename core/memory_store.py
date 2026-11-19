@@ -70,13 +70,18 @@ def normalise_database_url(raw_url: str) -> tuple[str, dict]:
         elif sslrootcert:
             connect_args["ssl"] = ssl.create_default_context(cafile=sslrootcert)
 
-    normalised = urlunsplit((
-        scheme,
-        parsed.netloc,
-        parsed.path,
-        urlencode(retained),
-        parsed.fragment,
-    ))
+    if scheme.startswith("sqlite"):
+        normalised = f"{scheme}://{parsed.path}"
+        if retained:
+            normalised += "?" + urlencode(retained)
+    else:
+        normalised = urlunsplit((
+            scheme,
+            parsed.netloc,
+            parsed.path,
+            urlencode(retained),
+            parsed.fragment,
+        ))
     return normalised, connect_args
 
 

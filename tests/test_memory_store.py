@@ -31,6 +31,10 @@ class ConversationMemoryStoreTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.store.get_recent_history("account:alice"), [])
         self.assertEqual(len(await self.store.get_recent_history("account:bob")), 2)
 
+    def test_sqlite_memory_url_keeps_three_slash_form(self):
+        url, _ = normalise_database_url("sqlite+aiosqlite:///:memory:")
+        self.assertEqual(url, "sqlite+aiosqlite:///:memory:")
+
     def test_aiven_ssl_url_is_normalised_for_asyncpg(self):
         url, connect_args = normalise_database_url(
             "postgres://user:secret@db.example:1234/kiemaen?sslmode=require"
