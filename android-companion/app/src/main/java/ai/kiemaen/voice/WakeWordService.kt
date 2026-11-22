@@ -391,7 +391,7 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
             .replace(Regex("[*_~#>]"), " ")
             .replace(Regex("\\$\\$[\\s\\S]+?\\$\\$"), " mathematical expression ")
             .replace(Regex("\\$[^$]+\\$"), " mathematical expression ")
-            .replace("\\\\", " ")
+            .replace("\\", " ")
             .replace(Regex("\\s+"), " ")
             .trim()
     }
@@ -481,9 +481,12 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
                 availability != TextToSpeech.LANG_MISSING_DATA &&
                     availability != TextToSpeech.LANG_NOT_SUPPORTED
             }
-            if (selectedLocale == null ||
-                tts?.setLanguage(selectedLocale) == TextToSpeech.LANG_NOT_SUPPORTED ||
-                tts?.setLanguage(selectedLocale) == TextToSpeech.LANG_MISSING_DATA
+            val languageResult = selectedLocale?.let { tts?.setLanguage(it) }
+                ?: TextToSpeech.LANG_NOT_SUPPORTED
+            if (
+                selectedLocale == null ||
+                languageResult == TextToSpeech.LANG_NOT_SUPPORTED ||
+                languageResult == TextToSpeech.LANG_MISSING_DATA
             ) {
                 ttsReady = false
                 pendingSpeech = null
