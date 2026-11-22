@@ -207,19 +207,33 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
 
     private fun onWakeWordDetected() {
         if (busy) return
+        conversationActive = true
+        expectingFollowUp = false
+        recognitionFallbackAttempted = false
         busy = true
         updateNotification("Kiemaen activated — speak your request")
         beginSpeechRecognition()
     }
 
-    private fun beginSpeechRecognition() {
+    private fun beginSpeechRecognition(forceSystemRecognizer: Boolean = false) {
         if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            expectingFollowUp = false
             speakAndResume("Speech recognition is unavailable on this phone. Check its speech services.")
             return
         }
         try {
             speech?.destroy()
-            speech = SpeechRecognizer.createSpeechRecognizer(applicationContext)
+            usingOnDeviceRecognition = false
+            speech = if (
+                !forceSystemRecognizer &&
+                Build.VERSION.SDK_INT >= 31 &&
+                SpeechRecognizer.isOnDeviceRecognitionAvailable(this)
+            ) {
+                usingOnDeviceRecognition = true
+                SpeechRecognizer.createOnDeviceSpeechRecognizer(applicationContext)
+            } else {
+                SpeechRecognizer.createSpeechRecognizer(applicationContext)
+            }
             speech?.setRecognitionListener(object : RecognitionListener {
                 override fun onReadyForSpeech(params: android.os.Bundle?) {
                     updateNotification("Speak now — Kiemaen is listening")
