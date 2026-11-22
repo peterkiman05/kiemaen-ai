@@ -353,11 +353,9 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
             }
 
             val alarm = Regex("\\[ALARM:(\\d{2}):(\\d{2})\\]", RegexOption.IGNORE_CASE).find(reply)
-            val clean = reply
-                .replace(Regex("\\[ALARM:\\d{2}:\\d{2}\\]", RegexOption.IGNORE_CASE), " ")
-                .replace(Regex("[*_#>]"), " ")
-                .replace(Regex("\\s+"), " ")
-                .take(1800)
+            val clean = prepareSpokenReply(
+                reply.replace(Regex("\\[ALARM:\\d{2}:\\d{2}\\]", RegexOption.IGNORE_CASE), " ")
+            ).take(1800)
             mainHandler.post {
                 if (alarm != null) {
                     val hour = alarm.groupValues[1].toIntOrNull()
@@ -380,6 +378,23 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
                 } else speakAndResume(clean)
             }
         }
+    }
+
+    private fun prepareSpokenReply(source: String): String {
+        return source
+            .replace(Regex("(?s)```.*?```"), "I've included code in the chat.")
+            .replace(Regex("!\\[([^\\]]*)\\]\\([^)]+\\)"), "$1")
+            .replace(Regex("\\[([^\\]]+)\\]\\(https?://[^)]+\\)"), "$1")
+            .replace(Regex("https?://\\S+"), "")
+            .replace(Regex("(?m)^\\s{0,3}#{1,6}\\s*"), "")
+            .replace(Regex("(?m)^\\s*[-*+]\\s+"), "")
+            .replace(Regex("[*_~#>]"), " ")
+            .replace(Regex("\\$\\$[\\s\\S]+?\\$\\$"), " mathematical expression ")
+            .replace(Regex("\\$[^$]+\\$"), " mathematical expression ")
+            .replace(Regex("\\\\[([\\s\\S]*?)\\\\]"), " mathematical expression ")
+            .replace(Regex("\\\\((.*?)\\\\)"), " mathematical expression ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
     }
 
     private fun recognitionErrorMessage(error: Int): String = when (error) {
@@ -409,6 +424,7 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
     private fun endConversationAndResumeWake() {
         conversationActive = false
         expectingFollowUp = false
+        busy = false
         speech?.cancel()
         speech?.destroy()
         speech = null
