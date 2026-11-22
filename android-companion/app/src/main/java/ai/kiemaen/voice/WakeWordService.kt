@@ -243,15 +243,49 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
                 override fun onBufferReceived(buffer: ByteArray?) {}
                 override fun onEndOfSpeech() { updateNotification("Processing your request…") }
                 override fun onError(error: Int) {
-                    speakAndResume("I didn't catch that. Say Hey Kiemaen again when ready.")
+                    if (
+                        usingOnDeviceRecognition &&
+                        !recognitionFallbackAttempted &&
+                        error != SpeechRecognizer.ERROR_NO_MATCH &&
+                        error != SpeechRecognizer.ERROR_SPEECH_TIMEOUT
+                    ) {
+                        recognitionFallbackAttempted = true
+                        speech?.destroy()
+                        speech = null
+                        updateNotification("Trying the phone's standard speech service…")
+                        beginSpeechRecognition(forceSystemRecognizer = true)
+                        return
+                    }
+                    if (expectingFollowUp) {
+                        endConversationAndResumeWake()
+                    } else {
+                        conversationActive = false
+                        expectingFollowUp = false
+                        speakAndResume(recognitionErrorMessage(error))
+                    }
                 }
                 override fun onResults(results: android.os.Bundle?) {
                     val spoken = results
                         ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                         ?.firstOrNull()
                         .orEmpty()
-                    if (spoken.isBlank()) speakAndResume("I didn't catch that. Please try again.")
-                    else sendToKiemaen(spoken)
+                    if (spoken.isBlank()) {
+                        if (expectingFollowUp) endConversationAndResumeWake()
+                        else {
+                            conversationActive = false
+                            speakAndResume("I didn't catch that. Please try again.")
+                        }
+                    } else {
+                        recognitionFallbackAttempted = false
+                        if (isEndConversationCommand(spoken)) {
+                            conversationActive = false
+                            expectingFollowUp = false
+                            speakAndResume("Okay. I'll stop this conversation and wait for Hey Kiemaen.")
+                        } else {
+                            expectingFollowUp = true
+                            sendToKiemaen(spoken)
+                        }
+                    }
                 }
                 override fun onPartialResults(partialResults: android.os.Bundle?) {}
                 override fun onEvent(eventType: Int, params: android.os.Bundle?) {}
@@ -259,10 +293,10 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
 
             val request = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
                 putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
                 putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-                putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, false)
+                putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, usingOnDeviceRecognition)
             }
             speech?.startListening(request)
         } catch (_: Exception) {
