@@ -391,8 +391,7 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
             .replace(Regex("[*_~#>]"), " ")
             .replace(Regex("\\$\\$[\\s\\S]+?\\$\\$"), " mathematical expression ")
             .replace(Regex("\\$[^$]+\\$"), " mathematical expression ")
-            .replace(Regex("\\\\[([\\s\\S]*?)\\\\]"), " mathematical expression ")
-            .replace(Regex("\\\\((.*?)\\\\)"), " mathematical expression ")
+            .replace("\\\\", " ")
             .replace(Regex("\\s+"), " ")
             .trim()
     }
@@ -428,7 +427,6 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
         speech?.cancel()
         speech?.destroy()
         speech = null
-        busy = false
         updateNotification("Conversation ended. Listening locally for Hey Kiemaen.")
         mainHandler.postDelayed({
             if (!busy && !listening) startWakeEngine()
@@ -489,6 +487,8 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
             ) {
                 ttsReady = false
                 pendingSpeech = null
+                conversationActive = false
+                expectingFollowUp = false
                 updateNotification("No supported speech voice is installed. Install an English voice in Android Text-to-speech settings.")
                 if (busy) finishReplyAndResume()
                 return
@@ -500,6 +500,8 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
             }
         } else {
             pendingSpeech = null
+            conversationActive = false
+            expectingFollowUp = false
             updateNotification("Android Text-to-speech failed to initialise.")
             if (busy) finishReplyAndResume()
         }
@@ -537,6 +539,7 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
 
     private fun stopListening() {
         listening = false
+        busy = false
         conversationActive = false
         expectingFollowUp = false
         try {
