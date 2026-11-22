@@ -45,6 +45,10 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
     private var tts: TextToSpeech? = null
     private var ttsReady = false
     @Volatile private var pendingSpeech: String? = null
+    @Volatile private var conversationActive = false
+    @Volatile private var expectingFollowUp = false
+    @Volatile private var usingOnDeviceRecognition = false
+    @Volatile private var recognitionFallbackAttempted = false
 
     override fun onCreate() {
         super.onCreate()
