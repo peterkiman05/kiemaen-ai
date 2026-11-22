@@ -382,6 +382,43 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
         }
     }
 
+    private fun recognitionErrorMessage(error: Int): String = when (error) {
+        SpeechRecognizer.ERROR_AUDIO -> "I couldn't access the microphone. Check microphone access and try again."
+        SpeechRecognizer.ERROR_CLIENT -> "The speech service stopped unexpectedly. Please try again."
+        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Microphone permission is missing. Enable it in Android settings."
+        SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT ->
+            "The phone's speech service needs a network connection. Please check your connection."
+        SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "The phone's speech service is busy. Please try again."
+        SpeechRecognizer.ERROR_SERVER -> "The phone's speech service returned an error. Please try again."
+        SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT ->
+            "I didn't catch that. Say Hey Kiemaen when you're ready to try again."
+        else -> "Speech recognition failed (error $error). Check the phone's speech services."
+    }
+
+    private fun isEndConversationCommand(spoken: String): Boolean {
+        val command = spoken.trim().lowercase(Locale.ROOT)
+            .replace(Regex("[^a-z0-9 ]"), " ")
+            .replace(Regex("\\s+"), " ")
+        return command in setOf(
+            "stop listening", "stop listening kiemaen", "end conversation",
+            "end this conversation", "goodbye kiemaen", "bye kiemaen",
+            "that's all kiemaen", "thats all kiemaen"
+        )
+    }
+
+    private fun endConversationAndResumeWake() {
+        conversationActive = false
+        expectingFollowUp = false
+        speech?.cancel()
+        speech?.destroy()
+        speech = null
+        busy = false
+        updateNotification("Conversation ended. Listening locally for Hey Kiemaen.")
+        mainHandler.postDelayed({
+            if (!busy && !listening) startWakeEngine()
+        }, 500L)
+    }
+
     private fun speakAndResume(message: String) {
         if (!ttsReady || tts == null) {
             pendingSpeech = message
