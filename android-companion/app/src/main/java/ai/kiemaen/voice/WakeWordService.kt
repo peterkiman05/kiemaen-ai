@@ -441,19 +441,40 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
         speech = null
         busy = false
         mainHandler.postDelayed({
-            if (!busy && !listening) startWakeEngine()
-        }, 700L)
+            if (conversationActive && expectingFollowUp && !busy && !listening) {
+                busy = true
+                updateNotification("Listening for your next request…")
+                beginSpeechRecognition()
+            } else if (!busy && !listening) {
+                conversationActive = false
+                expectingFollowUp = false
+                startWakeEngine()
+            }
+        }, 600L)
     }
 
     override fun onInit(status: Int) {
         ttsReady = status == TextToSpeech.SUCCESS
         if (ttsReady) {
-            var result = tts?.setLanguage(Locale.getDefault()) ?: TextToSpeech.LANG_NOT_SUPPORTED
-            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                result = tts?.setLanguage(Locale.US) ?: TextToSpeech.LANG_NOT_SUPPORTED
+            val preferredLocales = listOf(
+                Locale.getDefault(),
+                Locale("en", "ZA"),
+                Locale.UK,
+                Locale.US
+            ).distinct()
+            val selectedLocale = preferredLocales.firstOrNull { locale ->
+                val availability = tts?.isLanguageAvailable(locale) ?: TextToSpeech.LANG_NOT_SUPPORTED
+                availability != TextToSpeech.LANG_MISSING_DATA &&
+                    availability != TextToSpeech.LANG_NOT_SUPPORTED
             }
-            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                updateNotification("No supported speech voice is installed on this phone.")
+            if (selectedLocale == null ||
+                tts?.setLanguage(selectedLocale) == TextToSpeech.LANG_NOT_SUPPORTED ||
+                tts?.setLanguage(selectedLocale) == TextToSpeech.LANG_MISSING_DATA
+            ) {
+                ttsReady = false
+                pendingSpeech = null
+                updateNotification("No supported speech voice is installed. Install an English voice in Android Text-to-speech settings.")
+                if (busy) finishReplyAndResume()
                 return
             }
             val queued = pendingSpeech
@@ -462,6 +483,7 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
                 mainHandler.post { speakAndResume(queued) }
             }
         } else {
+            pendingSpeech = null
             updateNotification("Android Text-to-speech failed to initialise.")
             if (busy) finishReplyAndResume()
         }
@@ -499,6 +521,8 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
 
     private fun stopListening() {
         listening = false
+        conversationActive = false
+        expectingFollowUp = false
         try {
             audioRecord?.let {
                 if (it.recordingState == AudioRecord.RECORDSTATE_RECORDING) it.stop()
