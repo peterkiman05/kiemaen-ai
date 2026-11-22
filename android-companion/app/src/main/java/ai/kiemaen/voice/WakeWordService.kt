@@ -55,16 +55,30 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
         createChannel()
         tts = TextToSpeech(this, this)
         tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-            override fun onStart(utteranceId: String?) {}
+            override fun onStart(utteranceId: String?) {
+                mainHandler.post { updateNotification("Kiemaen is speaking…") }
+            }
             override fun onDone(utteranceId: String?) {
-                mainHandler.post { finishReplyAndResume() }
+                mainHandler.post {
+                    if (busy) finishReplyAndResume()
+                    else updateNotification("Speech output test completed.")
+                }
             }
             @Deprecated("Deprecated by Android")
             override fun onError(utteranceId: String?) {
-                mainHandler.post { finishReplyAndResume() }
+                mainHandler.post {
+                    updateNotification("Speech output failed. Check Android Text-to-speech settings.")
+                    if (busy) finishReplyAndResume()
+                }
             }
             override fun onError(utteranceId: String?, errorCode: Int) {
-                mainHandler.post { finishReplyAndResume() }
+                mainHandler.post {
+                    updateNotification("Speech output failed (error $errorCode). Check Android Text-to-speech settings.")
+                    if (busy) finishReplyAndResume()
+                }
+            }
+            override fun onStop(utteranceId: String?, interrupted: Boolean) {
+                mainHandler.post { if (busy) finishReplyAndResume() }
             }
         })
     }
