@@ -1,63 +1,70 @@
 # Kiemaen AI for Android
 
-The Android launcher icon, Android 12+ opening splash, and app home screen use the five-leaf Kiemaen clover mark with the dark navy and blue brand palette.
+The Android launcher icon, splash screen and home screen use the Kiemaen five-leaf clover mark and dark navy/blue brand palette.
 
-A native Android companion for the Kiemaen AI service. The current device-agent foundation is deliberately permission-first: **every app-opening action requires an on-screen confirmation**.
+A native Android companion for the Kiemaen AI service.
 
 ## Current capabilities
 
-- Local wake-word detection using Sherpa-ONNX; no Picovoice account, AccessKey, or paid wake-word service.
-- Built-in wake phrase: **Hey Kiemaen**.
+- Local **Hey Kiemaen** wake-word detection using Sherpa-ONNX; no paid wake-word account or API key.
 - Wake-word model and runtime are packaged into the Android build by CI.
-- After activation, Android SpeechRecognizer transcribes a request; recognised text is sent to Kiemaen over HTTPS.
-- Android TextToSpeech reads the reply aloud and the wake-word detector restarts after the reply.
-- Optional in-app Kiemaen account linking reuses the site's signed-in session cookie.
-- Local launcher-app discovery shows apps Android exposes through the launcher intent. The list is not uploaded.
-- Selecting an app opens a confirmation dialog; the app launches only after the user taps **Open**.
-- User-confirmed device pairing to the signed-in Kiemaen account.
-- Device bearer token encrypted at rest with an Android Keystore AES-GCM key.
-- A narrowly scoped heartbeat endpoint and account-owned revocation. The token does not grant phone-control permissions.
+- After activation, Android SpeechRecognizer transcribes the request and sends recognised text to Kiemaen over HTTPS.
+- Android TextToSpeech reads replies aloud and the wake-word detector restarts after the reply.
+- Optional Kiemaen account linking reuses the site's signed-in session cookie.
+- Local launcher-app discovery uses Android launcher activities. The app list stays on the phone.
+- Tapping an app in the local app list launches it directly.
+- Secure pairing issues separate heartbeat and command tokens. The raw tokens are encrypted together at rest with an Android Keystore AES-GCM key; the server stores only token hashes.
+- While the foreground listening service is running, it polls the authenticated command queue and can execute these supported actions without a second per-command approval:
+  - **Set an alarm** through Android's `AlarmClock.ACTION_SET_ALARM` with `EXTRA_SKIP_UI=true`.
+  - **Open an installed app** by matching the requested app name to an Android launcher activity.
+- Command requests are account/device scoped, limited to an explicit action allowlist, expire quickly, are claimed once, and report success/failure.
+- Revoking a paired device disables both tokens and cancels its queued commands.
+
+## Important boundaries
+
+Pairing is the one-time opt-in that enables the two supported remote actions. Routine requests for alarms and app launches do not show another approval prompt.
+
+This is not unrestricted phone control. It cannot read notifications or messages, capture the screen, send messages, make calls, make purchases/payments, change security settings, delete files, execute shell commands, or automate taps inside other apps. Unsupported requests must be handled conversationally rather than being translated into arbitrary Android intents or code.
+
+The phone must be paired to the same signed-in Kiemaen account. Keep **Start Hey Kiemaen Listening** active for the foreground service to poll commands from the website. Polling is approximately every 10 seconds. If the service is stopped, the phone is offline, or Android/Huawei battery controls stop the service, website commands will wait only until their short expiry and then be discarded.
+
+Android may restrict launching an activity while the app is backgrounded, depending on OS version, OEM policy and app state. The command handler reports failures; actual background execution needs on-device testing on the target phone.
+
+Existing devices paired before command tokens were introduced must be paired again once in the updated app. This rotates in fresh heartbeat and command credentials. Revoking the old device entry from **/devices** is recommended after successful re-pairing.
 
 ## Build outputs
 
-The GitHub Actions workflow builds two distribution artifacts:
+The GitHub Actions workflow builds:
 
 - **Debug APK** for direct sideload testing.
-- **Release Android App Bundle (AAB)** as a Google Play packaging preview.
+- **Android App Bundle (AAB)** as a Google Play packaging preview.
 
-The AAB is not yet signed with a release/upload key and is not published to Google Play. Play release signing, store listing, policy declarations and review are separate steps. No signing key or store credential is committed to this repository.
+The AAB is not yet release-signed with a Play upload key and is not published to Google Play. Store signing, listing, policy declarations and review are separate steps. No signing key or store credential is committed to this repository.
+
+## First-time phone setup
+
+1. Install the APK on the Android phone.
+2. Open Kiemaen Voice and choose **Connect Kiemaen Account**.
+3. Sign in to the same Kiemaen account used on the website.
+4. Open **Secure Device Pairing** and tap **PAIR THIS PHONE** once.
+5. Grant microphone and notification permissions.
+6. Tap **Start Hey Kiemaen Listening** and keep its foreground notification active for hands-free voice and website-to-phone commands.
+7. From the website or voice assistant, try **“open WhatsApp”** or **“set an alarm for 6:30 am”**.
+8. To stop microphone access and command polling, use Stop in the app or persistent notification. Revoking the device on **/devices** disables its tokens server-side.
+
+## Privacy
+
+Wake-word matching is performed locally. Continuous microphone audio is not uploaded. After the wake phrase, Android's configured speech-recognition provider receives the active utterance for transcription; recognised text is then sent to Kiemaen over HTTPS.
+
+Installed-app discovery stays on-device and uses launcher intent visibility; the app does not request the sensitive `QUERY_ALL_PACKAGES` permission. Device tokens are encrypted using Android Keystore and command payloads are constrained by server-side validation.
 
 ## Build locally
 
-Requires JDK 17, Android SDK 35, and Python 3.11.
+Requires JDK 17, Android SDK 35 and Python 3.11.
 
     cd android-companion
     bash ./prepare-deps.sh
     gradle --no-daemon :app:assembleDebug
     gradle --no-daemon :app:bundleRelease
 
-The preparation script downloads the official Sherpa-ONNX 2.0.2 Android AAR and the English GigaSpeech keyword-spotting model, verifies the AAR checksum, and generates the custom Hey Kiemaen keyword tokens. Downloaded binaries and model files are intentionally not committed.
-
-## First-time phone setup
-
-1. Install the APK on the Android phone.
-2. Open Kiemaen Voice and choose **Connect Kiemaen Account** if signed-in access is wanted.
-3. Grant microphone and notification permissions.
-4. Tap **Start Hey Kiemaen Listening** while the app is visible.
-5. Say **Hey Kiemaen**, pause briefly, then speak your request.
-6. Use **View and Open Device Apps** to inspect locally available launcher apps. Every app launch requires confirmation.
-7. Use Stop in the app or persistent notification to stop microphone access.
-
-## Privacy and platform limits
-
-Wake-word matching is performed locally. Continuous microphone audio is not uploaded. After the wake phrase, Android's configured speech-recognition provider receives the active utterance for transcription; recognised text is then sent to Kiemaen over HTTPS.
-
-App discovery is restricted to apps Android exposes as launcher activities. It stays on-device and does not request broad package visibility. This avoids requesting the sensitive `QUERY_ALL_PACKAGES` permission. It does not read app-private data, bypass app security, or automate taps inside other apps.
-
-Android and Huawei battery-management policies can stop background microphone services. Start listening from the visible app, keep its foreground notification, and allow background activity/battery use for Kiemaen Voice if desired. Android may stop microphone access if the app is force-stopped.
-
-## Device-agent rollout boundary
-
-Secure enrollment and a heartbeat-only device token are implemented. Remote command delivery, notification reading, screen capture, and in-app workflows are **not enabled**. The paired token currently grants only device heartbeat/status access; it cannot open apps, read messages, or issue actions. Each additional capability requires a separate permission screen, a reviewed authenticated protocol, visible action previews, and explicit approval for every action. The selected autonomy setting is **confirm every phone action**; future features must preserve that rule.
-
-No phone installation or on-device test has been performed as part of this repository change.
+The preparation script downloads the official Sherpa-ONNX Android AAR and English keyword-spotting model, verifies the AAR checksum, and generates the custom wake-word keyword tokens. Downloaded binaries and model files are intentionally not committed.
