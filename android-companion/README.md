@@ -12,6 +12,9 @@ A native Android companion for the Kiemaen AI service. The current device-agent 
 - Optional in-app Kiemaen account linking reuses the site's signed-in session cookie.
 - Local launcher-app discovery shows apps Android exposes through the launcher intent. The list is not uploaded.
 - Selecting an app opens a confirmation dialog; the app launches only after the user taps **Open**.
+- User-confirmed device pairing to the signed-in Kiemaen account.
+- Device bearer token encrypted at rest with an Android Keystore AES-GCM key.
+- A narrowly scoped heartbeat endpoint and account-owned revocation. The token does not grant phone-control permissions.
 
 ## Build outputs
 
@@ -53,6 +56,6 @@ Android and Huawei battery-management policies can stop background microphone se
 
 ## Device-agent rollout boundary
 
-This is the first local capability only. Remote command delivery, notification reading, screen capture, and in-app workflows are **not enabled**. They require separate permission screens, an authenticated paired-device protocol, visible action previews, and explicit approval for every action. The selected autonomy setting is **confirm every phone action**; future features must preserve that rule.
+Secure enrollment and a heartbeat-only device token are implemented. Remote command delivery, notification reading, screen capture, and in-app workflows are **not enabled**. The paired token currently grants only device heartbeat/status access; it cannot open apps, read messages, or issue actions. Each additional capability requires a separate permission screen, a reviewed authenticated protocol, visible action previews, and explicit approval for every action. The selected autonomy setting is **confirm every phone action**; future features must preserve that rule.
 
 No phone installation or on-device test has been performed as part of this repository change.
