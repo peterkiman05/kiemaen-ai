@@ -93,6 +93,7 @@ from core.evolution import AUTHORIZE_EVOLUTION_TOKEN, verify_evolution_token
 from tools.coder import read_file, write_file, extract_code, run_script
 from tools.registry import register_custom_tool, list_custom_tools
 from sqlalchemy import select
+from core.device_agent import pair_device, list_devices, revoke_device, authenticate_device
 
 load_dotenv()
 
@@ -263,6 +264,60 @@ async def capabilities():
                 memory_store_configured() and memory_store_status() == "connected"
             )
         }
+    }
+
+
+# ==========================================
+# 3A. PAIRED ANDROID DEVICE FOUNDATION
+# ==========================================
+@app.post("/device/pair")
+async def device_pair(
+    device_name: str = Form(default="Android device"),
+    session_token: str = Cookie(default=None),
+):
+    user = get_session_user(session_token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Sign in to Kiemaen before pairing a device.")
+    paired = pair_device(user["id"], device_name)
+    # The raw token is returned exactly once. Only its SHA-256 hash is stored.
+    return {"status": "ok", **paired, "scope": ["device:heartbeat"]}
+
+
+@app.get("/device/list")
+async def device_list(session_token: str = Cookie(default=None)):
+    user = get_session_user(session_token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Sign in to view paired devices.")
+    return {"status": "ok", "devices": list_devices(user["id"])}
+
+
+@app.post("/device/revoke")
+async def device_revoke(
+    device_id: str = Form(...),
+    session_token: str = Cookie(default=None),
+):
+    user = get_session_user(session_token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Sign in to manage paired devices.")
+    if not revoke_device(user["id"], device_id):
+        raise HTTPException(status_code=404, detail="Active paired device not found.")
+    return {"status": "ok", "message": "Device access revoked."}
+
+
+@app.post("/device/heartbeat")
+async def device_heartbeat(authorization: str = Header(default="")):
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        raise HTTPException(status_code=401, detail="Device token required.")
+    device = authenticate_device(token)
+    if not device:
+        raise HTTPException(status_code=401, detail="Invalid or revoked device token.")
+    return {
+        "status": "ok",
+        "device_id": device["device_id"],
+        "device_name": device["device_name"],
+        "capabilities": ["device:heartbeat"],
+        "commands_enabled": False,
     }
 
 @app.post("/chat")
