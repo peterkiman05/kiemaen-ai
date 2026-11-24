@@ -20,8 +20,10 @@
     <uses-feature android:name="android.hardware.microphone" android:required="true" />
     <application
         android:allowBackup="false"
-        android:label="Kiemaen Voice"
-        android:theme="@android:style/Theme.Material.Light.NoActionBar"
+        android:label="Kiemaen AI"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:theme="@style/Theme.Kiemaen"
         android:usesCleartextTraffic="false">
         <activity android:name=".DeviceAppsActivity" android:exported="false" />
         <activity android:name=".DevicePairActivity" android:exported="false" />
