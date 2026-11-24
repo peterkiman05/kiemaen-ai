@@ -238,7 +238,8 @@ async def capabilities():
         "Argon2id password hashing",
         "Browser sessions with hashed token storage",
         "User-scoped task commands: TASK:, SHOW_TASKS and DONE_TASK",
-        "Admin-gated evolution authorization; no autonomous code changes"
+        "Admin-gated evolution authorization; no autonomous code changes",
+        "User-confirmed Android device pairing with revocable heartbeat-only tokens; remote commands disabled"
     ]
     if memory_store_status() == "connected":
         active_capabilities.append("Per-account rolling conversation history in the configured PostgreSQL database")
