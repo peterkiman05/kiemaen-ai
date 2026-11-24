@@ -283,3 +283,34 @@ def report_command(token: str, command_id: str, status: str, result: str = "") -
         return cur.rowcount == 1
     finally:
         conn.close()
+
+
+def parse_device_command(text: str) -> tuple[str, dict] | None:
+    """Parse only explicit, narrowly supported phone commands from user text."""
+    import re
+    source = (text or "").strip()
+    alarm = re.search(
+        r"\b(?:set|create)\s+(?:me\s+)?(?:an?\s+)?alarm(?:\s+(?:for|at))?\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b",
+        source, re.I,
+    )
+    if alarm:
+        hour = int(alarm.group(1))
+        minute = int(alarm.group(2) or 0)
+        meridiem = (alarm.group(3) or "").lower()
+        if minute > 59 or hour > 23 or (meridiem and not 1 <= hour <= 12):
+            return None
+        if meridiem == "pm" and hour != 12:
+            hour += 12
+        elif meridiem == "am" and hour == 12:
+            hour = 0
+        return ("set_alarm", {"hour": hour, "minute": minute})
+
+    app = re.match(
+        r"^(?:please\s+)?(?:open|launch|start)\s+(?:the\s+)?(.+?)\s*[.!?]*$",
+        source, re.I,
+    )
+    if app:
+        name = re.sub(r"^(?:my\s+)", "", app.group(1), flags=re.I).strip()
+        if name and len(name) <= 60 and name.lower() not in {"app", "application", "settings"}:
+            return ("open_app", {"app_name": name})
+    return None
