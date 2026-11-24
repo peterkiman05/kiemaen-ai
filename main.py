@@ -96,6 +96,7 @@ from sqlalchemy import select
 from core.device_agent import (
     pair_device, list_devices, revoke_device, authenticate_device,
     authenticate_command_device, claim_next_command, report_command, enqueue_command,
+    parse_device_command,
 )
 
 load_dotenv()
@@ -242,7 +243,7 @@ async def capabilities():
         "Browser sessions with hashed token storage",
         "User-scoped task commands: TASK:, SHOW_TASKS and DONE_TASK",
         "Admin-gated evolution authorization; no autonomous code changes",
-        "User-confirmed Android device pairing with revocable heartbeat-only tokens; remote commands disabled"
+        "Paired Android command channel: direct alarm creation and opening installed apps, with revocable scoped tokens and expiring one-time command delivery"
     ]
     if memory_store_status() == "connected":
         active_capabilities.append("Per-account rolling conversation history in the configured PostgreSQL database")
@@ -252,7 +253,7 @@ async def capabilities():
         "Web research with source citations",
         "A real OS-isolated code execution sandbox",
         "Multi-provider AI routing",
-        "Autonomous device actions",
+        "Arbitrary Android device actions (intentionally unsupported; only alarms and installed-app launching are allowed)",
         "Automated outcome-based learning"
     ]
     if memory_store_status() != "connected":
@@ -324,7 +325,7 @@ async def device_heartbeat(authorization: str = Header(default="")):
         "status": "ok",
         "device_id": device["device_id"],
         "device_name": device["device_name"],
-        "capabilities": ["device:heartbeat"],
+        "capabilities": ["device:heartbeat", "device:commands:poll", "device:commands:report", "set_alarm", "open_app"],
         "commands_enabled": True,
     }
 
@@ -357,28 +358,6 @@ async def device_command_result(
         raise HTTPException(status_code=404, detail="Command not found, already reported, or device revoked.")
     return {"status": "ok"}
 
-
-def _parse_device_command(text: str):
-    import re
-    source = (text or "").strip()
-    alarm = re.search(r"\b(?:set|create)\s+(?:me\s+)?(?:an?\s+)?alarm(?:\s+(?:for|at))?\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b", source, re.I)
-    if alarm:
-        hour = int(alarm.group(1))
-        minute = int(alarm.group(2) or 0)
-        meridiem = (alarm.group(3) or "").lower()
-        if minute > 59 or hour > 23 or (meridiem and not 1 <= hour <= 12):
-            return None
-        if meridiem == "pm" and hour != 12:
-            hour += 12
-        elif meridiem == "am" and hour == 12:
-            hour = 0
-        return ("set_alarm", {"hour": hour, "minute": minute})
-    app = re.match(r"^(?:please\s+)?(?:open|launch|start)\s+(?:the\s+)?(.+?)\s*[.!?]*$", source, re.I)
-    if app:
-        name = re.sub(r"^(?:my\s+)", "", app.group(1), flags=re.I).strip()
-        if name and len(name) <= 60 and name.lower() not in {"app", "application", "settings"}:
-            return ("open_app", {"app_name": name})
-    return None
 
 
 @app.post("/chat")
@@ -471,7 +450,7 @@ async def chat(
                 complete_task(user["id"], int(parts[1]))
                 return {"status": "ok", "response": f"Task {parts[1]} marked as completed.", "category": "meta"}
 
-        device_command = _parse_device_command(stripped_cmd) if not image_bytes and not doc_text else None
+        device_command = parse_device_command(stripped_cmd) if not image_bytes and not doc_text else None
         if device_command and user["id"]:
             action, payload = device_command
             queued = enqueue_command(user["id"], action, payload)
