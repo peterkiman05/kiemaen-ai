@@ -1,4 +1,6 @@
-# Kiemaen Voice for Android
+# Kiemaen AI for Android
+
+The Android launcher icon, Android 12+ opening splash, and app home screen use the five-leaf Kiemaen clover mark with the dark navy and blue brand palette.
 
 A native Android companion for the Kiemaen AI service. The current device-agent foundation is deliberately permission-first: **every app-opening action requires an on-screen confirmation**.
 
