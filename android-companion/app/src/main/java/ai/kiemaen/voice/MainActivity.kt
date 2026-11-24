@@ -60,6 +60,12 @@ class MainActivity : Activity() {
                 startActivity(Intent(this@MainActivity, DeviceAppsActivity::class.java))
             }
         })
+        root.addView(Button(this).apply {
+            text = "SECURE DEVICE PAIRING"
+            setOnClickListener {
+                startActivity(Intent(this@MainActivity, DevicePairActivity::class.java))
+            }
+        })
 
         status = TextView(this).apply {
             text = "Not listening."
