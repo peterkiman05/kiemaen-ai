@@ -49,6 +49,13 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
     @Volatile private var expectingFollowUp = false
     @Volatile private var usingOnDeviceRecognition = false
     @Volatile private var recognitionFallbackAttempted = false
+    @Volatile private var commandPollInFlight = false
+    private val commandPollRunnable = object : Runnable {
+        override fun run() {
+            pollDeviceCommands()
+            mainHandler.postDelayed(this, COMMAND_POLL_INTERVAL_MS)
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -96,7 +103,113 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
         }
         startForeground(NOTIFICATION_ID, notification("Preparing local wake-word engine"))
         startWakeEngine()
+        mainHandler.removeCallbacks(commandPollRunnable)
+        mainHandler.post(commandPollRunnable)
         return START_STICKY
+    }
+
+    private fun pollDeviceCommands() {
+        val commandToken = DeviceTokenStore.commandToken(this) ?: return
+        if (commandPollInFlight) return
+        commandPollInFlight = true
+        networkExecutor.execute {
+            var connection: HttpURLConnection? = null
+            try {
+                connection = URL("$BASE_URL/device/commands/next").openConnection() as HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.connectTimeout = 8000
+                connection.readTimeout = 10000
+                connection.setRequestProperty("Authorization", "Bearer $commandToken")
+                val code = connection.responseCode
+                val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+                val json = JSONObject(stream?.bufferedReader()?.use { it.readText() }.orEmpty())
+                if (code in 200..299 && json.optString("status") == "ok" && !json.isNull("command")) {
+                    val command = json.optJSONObject("command")
+                    if (command != null) mainHandler.post { executeDeviceCommand(command, commandToken) }
+                } else if (code == 401) {
+                    mainHandler.post { updateNotification("Kiemaen device access was revoked. Pair this phone again.") }
+                }
+            } catch (_: Exception) {
+                // A temporary network failure is retried on the next polling interval.
+            } finally {
+                connection?.disconnect()
+                commandPollInFlight = false
+            }
+        }
+    }
+
+    private fun executeDeviceCommand(command: JSONObject, commandToken: String) {
+        val commandId = command.optString("command_id")
+        val action = command.optString("action")
+        val payload = command.optJSONObject("payload") ?: JSONObject()
+        var success = false
+        var detail = "Unsupported command."
+        try {
+            when (action) {
+                "set_alarm" -> {
+                    val hour = payload.getInt("hour")
+                    val minute = payload.getInt("minute")
+                    require(hour in 0..23 && minute in 0..59) { "Invalid alarm time." }
+                    val alarmIntent = Intent(android.provider.AlarmClock.ACTION_SET_ALARM).apply {
+                        putExtra(android.provider.AlarmClock.EXTRA_HOUR, hour)
+                        putExtra(android.provider.AlarmClock.EXTRA_MINUTES, minute)
+                        putExtra(android.provider.AlarmClock.EXTRA_MESSAGE, payload.optString("label", "Kiemaen alarm"))
+                        putExtra(android.provider.AlarmClock.EXTRA_SKIP_UI, true)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    startActivity(alarmIntent)
+                    success = true
+                    detail = "Alarm request handed to Android Clock for %02d:%02d.".format(hour, minute)
+                }
+                "open_app" -> {
+                    val requested = payload.optString("app_name").trim()
+                    require(requested.isNotBlank() && requested.length <= 60) { "Invalid app name." }
+                    val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+                    val matches = packageManager.queryIntentActivities(launcher, 0)
+                    val match = matches.firstOrNull {
+                        it.loadLabel(packageManager).toString().equals(requested, ignoreCase = true)
+                    } ?: matches.firstOrNull {
+                        it.loadLabel(packageManager).toString().contains(requested, ignoreCase = true)
+                    }
+                    val packageName = match?.activityInfo?.packageName
+                        ?: throw IllegalStateException("I couldn't find an installed app named " + requested + ".")
+                    val launch = packageManager.getLaunchIntentForPackage(packageName)
+                        ?: throw IllegalStateException("Android does not provide a launcher for " + requested + ".")
+                    launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    startActivity(launch)
+                    success = true
+                    detail = "Opened " + match.loadLabel(packageManager) + "."
+                }
+            }
+        } catch (e: Exception) {
+            detail = e.message ?: "Android could not complete the command."
+        }
+        updateNotification(if (success) detail else "Phone command failed: $detail")
+        reportDeviceCommand(commandToken, commandId, if (success) "completed" else "failed", detail)
+    }
+
+    private fun reportDeviceCommand(token: String, commandId: String, status: String, detail: String) {
+        networkExecutor.execute {
+            var connection: HttpURLConnection? = null
+            try {
+                connection = URL("$BASE_URL/device/commands/result").openConnection() as HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.connectTimeout = 8000
+                connection.readTimeout = 10000
+                connection.doOutput = true
+                connection.setRequestProperty("Authorization", "Bearer $token")
+                connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+                val body = "command_id=" + java.net.URLEncoder.encode(commandId, "UTF-8") +
+                    "&result_status=" + java.net.URLEncoder.encode(status, "UTF-8") +
+                    "&result=" + java.net.URLEncoder.encode(detail, "UTF-8")
+                connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                connection.responseCode
+            } catch (_: Exception) {
+                // Result reporting is best-effort; commands are one-shot and are not replayed.
+            } finally {
+                connection?.disconnect()
+            }
+        }
     }
 
     private fun startWakeEngine() {
@@ -544,6 +657,7 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
     }
 
     private fun stopListening() {
+        mainHandler.removeCallbacks(commandPollRunnable)
         listening = false
         busy = false
         conversationActive = false
@@ -581,5 +695,6 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
         private const val CHANNEL_ID = "kiemaen_voice"
         private const val NOTIFICATION_ID = 712
         private const val UTTERANCE_ID = "kiemaen_reply"
+        private const val COMMAND_POLL_INTERVAL_MS = 10000L
     }
 }
