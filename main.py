@@ -93,7 +93,10 @@ from core.evolution import AUTHORIZE_EVOLUTION_TOKEN, verify_evolution_token
 from tools.coder import read_file, write_file, extract_code, run_script
 from tools.registry import register_custom_tool, list_custom_tools
 from sqlalchemy import select
-from core.device_agent import pair_device, list_devices, revoke_device, authenticate_device
+from core.device_agent import (
+    pair_device, list_devices, revoke_device, authenticate_device,
+    authenticate_command_device, claim_next_command, report_command, enqueue_command,
+)
 
 load_dotenv()
 
@@ -285,7 +288,7 @@ async def device_pair(
         raise HTTPException(status_code=401, detail="Sign in to Kiemaen before pairing a device.")
     paired = pair_device(user["id"], device_name)
     # The raw token is returned exactly once. Only its SHA-256 hash is stored.
-    return {"status": "ok", **paired, "scope": ["device:heartbeat"]}
+    return {"status": "ok", **paired, "scope": ["device:heartbeat", "device:commands:poll", "device:commands:report"]}
 
 
 @app.get("/device/list")
@@ -322,8 +325,61 @@ async def device_heartbeat(authorization: str = Header(default="")):
         "device_id": device["device_id"],
         "device_name": device["device_name"],
         "capabilities": ["device:heartbeat"],
-        "commands_enabled": False,
+        "commands_enabled": True,
     }
+
+
+@app.post("/device/commands/next")
+async def device_command_next(authorization: str = Header(default="")):
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        raise HTTPException(status_code=401, detail="Command token required.")
+    device = authenticate_command_device(token)
+    if not device:
+        raise HTTPException(status_code=401, detail="Invalid, disabled, or revoked command token.")
+    command = claim_next_command(token)
+    return {"status": "ok", "command": command}
+
+
+@app.post("/device/commands/result")
+async def device_command_result(
+    command_id: str = Form(...),
+    result_status: str = Form(...),
+    result: str = Form(default=""),
+    authorization: str = Header(default=""),
+):
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        raise HTTPException(status_code=401, detail="Command token required.")
+    if result_status not in {"completed", "failed"}:
+        raise HTTPException(status_code=400, detail="Invalid command result status.")
+    if not report_command(token, command_id, result_status, result):
+        raise HTTPException(status_code=404, detail="Command not found, already reported, or device revoked.")
+    return {"status": "ok"}
+
+
+def _parse_device_command(text: str):
+    import re
+    source = (text or "").strip()
+    alarm = re.search(r"\b(?:set|create)\s+(?:me\s+)?(?:an?\s+)?alarm(?:\s+(?:for|at))?\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b", source, re.I)
+    if alarm:
+        hour = int(alarm.group(1))
+        minute = int(alarm.group(2) or 0)
+        meridiem = (alarm.group(3) or "").lower()
+        if minute > 59 or hour > 23 or (meridiem and not 1 <= hour <= 12):
+            return None
+        if meridiem == "pm" and hour != 12:
+            hour += 12
+        elif meridiem == "am" and hour == 12:
+            hour = 0
+        return ("set_alarm", {"hour": hour, "minute": minute})
+    app = re.match(r"^(?:please\s+)?(?:open|launch|start)\s+(?:the\s+)?(.+?)\s*[.!?]*$", source, re.I)
+    if app:
+        name = re.sub(r"^(?:my\s+)", "", app.group(1), flags=re.I).strip()
+        if name and len(name) <= 60 and name.lower() not in {"app", "application", "settings"}:
+            return ("open_app", {"app_name": name})
+    return None
+
 
 @app.post("/chat")
 async def chat(
@@ -414,6 +470,21 @@ async def chat(
             if len(parts) >= 2 and parts[1].isdigit() and user["id"]:
                 complete_task(user["id"], int(parts[1]))
                 return {"status": "ok", "response": f"Task {parts[1]} marked as completed.", "category": "meta"}
+
+        device_command = _parse_device_command(stripped_cmd) if not image_bytes and not doc_text else None
+        if device_command and user["id"]:
+            action, payload = device_command
+            queued = enqueue_command(user["id"], action, payload)
+            if not queued:
+                return {"status": "ok", "response": "I can do that directly, but no command-enabled Android phone is paired. Open Kiemaen on your phone, sign in, and pair it under Device pairing first.", "category": "device"}
+            if action == "set_alarm":
+                time_label = f'{payload["hour"]:02d}:{payload["minute"]:02d}'
+                message = f'Alarm request sent to {queued["device_name"]}. Your Android Clock app will create the {time_label} alarm directly.'
+            else:
+                message = f'Opening {payload["app_name"]} on {queued["device_name"]}.'
+            return {"status": "ok", "response": message, "category": "device", "command_id": queued["command_id"]}
+        if device_command and not user["id"]:
+            return {"status": "ok", "response": "Sign in and pair your Android phone first. Then I can carry out supported phone commands directly.", "category": "device"}
 
         reply, category = await ask_kiemaen(text, image_bytes, doc_text=doc_text, user_key=user_key, is_admin=is_admin, user_id=user["id"], mode=mode, image_mime=image_mime, voice_mode=(client == "android_voice"))
         return {"status": "ok", "response": reply, "category": category}
