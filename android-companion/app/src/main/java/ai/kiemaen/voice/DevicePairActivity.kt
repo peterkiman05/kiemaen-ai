@@ -61,8 +61,10 @@ class DevicePairActivity : Activity() {
         val id = DeviceTokenStore.deviceId(this)
         status.text = if (id == null) {
             "This phone is not paired. Sign in using Connect Kiemaen Account first."
+        } else if (DeviceTokenStore.commandToken(this) == null) {
+            "This phone has an older heartbeat-only pairing. Tap PAIR THIS PHONE again to enable direct alarms and app launching."
         } else {
-            "Paired device ID: $id\nUse Check Connection to verify the secure link."
+            "Paired device ID: $id\nDirect alarm and app-launch commands are enabled. Use Check Connection to verify the secure link."
         }
     }
 
