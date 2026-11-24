@@ -28,7 +28,7 @@ class DevicePairActivity : Activity() {
             textSize = 23f
         })
         root.addView(TextView(this).apply {
-            text = "Pairing links this phone to your signed-in Kiemaen account. The device token is encrypted with Android Keystore. Pairing grants heartbeat/status access only; remote commands are not enabled."
+            text = "Pairing links this phone to your signed-in Kiemaen account. Secure command access is stored encrypted with Android Keystore. Kiemaen can directly set alarms and open installed apps when you request them. Other phone actions remain unavailable."
             textSize = 14f
             setPadding(0, 14, 0, 20)
         })
@@ -39,7 +39,7 @@ class DevicePairActivity : Activity() {
             setOnClickListener {
                 AlertDialog.Builder(this@DevicePairActivity)
                     .setTitle("Pair this phone with Kiemaen?")
-                    .setMessage("This will register this phone to your signed-in account. It will not allow Kiemaen to open apps, read messages, or control the phone.")
+                    .setMessage("This registers this phone and enables direct delivery of supported commands: set alarms and open installed apps. It does not grant access to messages, calls, files, payments, settings, or arbitrary phone control.")
                     .setNegativeButton("Cancel", null)
                     .setPositiveButton("Pair") { _, _ -> pair() }
                     .show()
@@ -91,9 +91,9 @@ class DevicePairActivity : Activity() {
                 if (code !in 200..299 || json.optString("status") != "ok") {
                     throw IllegalStateException(json.optString("detail", "Pairing failed. Sign in again and retry."))
                 }
-                DeviceTokenStore.save(this, json.getString("device_token"), json.getString("device_id"))
+                DeviceTokenStore.save(this, json.getString("device_token"), json.getString("command_token"), json.getString("device_id"))
                 runOnUiThread {
-                    status.text = "Phone paired successfully. Remote commands remain disabled."
+                    status.text = "Phone paired. Direct alarms and app-launch commands are enabled. Keep Kiemaen's listening service running to receive website commands."
                 }
             } catch (e: Exception) {
                 runOnUiThread { status.text = "Pairing failed: ${e.message ?: "connection error"}" }
@@ -123,7 +123,7 @@ class DevicePairActivity : Activity() {
                 val json = JSONObject(stream?.bufferedReader()?.use { it.readText() }.orEmpty())
                 if (code !in 200..299) throw IllegalStateException(json.optString("detail", "Device token rejected."))
                 runOnUiThread {
-                    status.text = "Connected securely. Device: ${json.optString("device_name")}\nCapabilities: heartbeat only. Commands enabled: ${json.optBoolean("commands_enabled")}"
+                    status.text = "Connected securely. Device: ${json.optString("device_name")}\nCapabilities: alarms and opening installed apps. Commands enabled: ${json.optBoolean("commands_enabled")}"
                 }
             } catch (e: Exception) {
                 runOnUiThread { status.text = "Connection check failed: ${e.message ?: "network error"}" }
