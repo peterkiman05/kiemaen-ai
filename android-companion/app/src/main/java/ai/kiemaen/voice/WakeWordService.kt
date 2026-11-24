@@ -366,13 +366,16 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
                                 putExtra(android.provider.AlarmClock.EXTRA_HOUR, hour)
                                 putExtra(android.provider.AlarmClock.EXTRA_MINUTES, minute)
                                 putExtra(android.provider.AlarmClock.EXTRA_MESSAGE, "Kiemaen alarm")
-                                putExtra(android.provider.AlarmClock.EXTRA_SKIP_UI, false)
+                                // The user explicitly requested this alarm in the conversation.
+                                // Ask Android's Clock app to create it directly rather than
+                                // presenting a second confirmation screen.
+                                putExtra(android.provider.AlarmClock.EXTRA_SKIP_UI, true)
                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             }
                             startActivity(alarmIntent)
-                            speakAndResume("$clean. I've opened your Clock app so you can confirm the alarm.")
+                            speakAndResume("$clean. Your alarm for %02d:%02d has been sent to your Clock app.".format(hour, minute))
                         } catch (_: Exception) {
-                            speakAndResume("$clean. I couldn't open the Clock app to set the alarm.")
+                            speakAndResume("$clean. Android could not create the alarm. Check that a Clock app is installed and supports direct alarm creation.")
                         }
                     } else speakAndResume(clean)
                 } else speakAndResume(clean)
