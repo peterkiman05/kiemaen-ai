@@ -55,7 +55,7 @@ async def lifespan(app):
 
 import os
 import difflib
-from fastapi import FastAPI, Form, File, UploadFile, Cookie, Response, Request, Depends, HTTPException
+from fastapi import FastAPI, Form, File, UploadFile, Cookie, Response, Request, Depends, HTTPException, Header
 from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from dotenv import load_dotenv
