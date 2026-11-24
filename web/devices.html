@@ -16,7 +16,7 @@ h1{font-size:1.6rem}#message{min-height:1.5em;color:#b9d7ff}
 <body>
 <p><a href="/">← Back to Kiemaen</a></p>
 <h1>Paired devices</h1>
-<p class="muted">Review phones linked to your account. Revoking a device immediately disables its device token. Device tokens currently permit heartbeat/status only, not phone control.</p>
+<p class="muted">Review phones linked to your account. A paired phone can receive direct alarm and installed-app launch requests while Kiemaen's listening service is running. Revoking a device immediately disables its command access.</p>
 <p id="message" role="status">Checking your account…</p>
 <section id="devices"></section>
 <script>
@@ -44,7 +44,8 @@ async function loadDevices(){
       const created=document.createElement("div");created.className="muted";created.textContent="Paired: "+formatDate(item.created_at);
       const seen=document.createElement("div");seen.className="muted";seen.textContent="Last connection: "+formatDate(item.last_seen_at);
       const state=document.createElement("div");state.className="muted";state.textContent=item.revoked_at?"Revoked: "+formatDate(item.revoked_at):"Status: active";
-      details.append(name,id,created,seen,state);row.append(details);
+      const commands=document.createElement("div");commands.className="muted";commands.textContent=item.revoked_at?"Phone commands: revoked":(item.commands_enabled?"Phone commands: alarms and opening installed apps":"Phone commands: disabled");
+      details.append(name,id,created,seen,state,commands);row.append(details);
       if(!item.revoked_at){
         const button=document.createElement("button");button.textContent="Revoke device";
         button.addEventListener("click",()=>revoke(item.device_id,button));row.append(button);
