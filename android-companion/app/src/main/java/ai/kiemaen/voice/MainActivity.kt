@@ -112,7 +112,7 @@ class MainActivity : Activity() {
             }
         })
         root.addView(TextView(this).apply {
-            text = "Wake-word detection runs locally on this phone. After activation, Android speech recognition transcribes your request. Only the recognised text is sent to Kiemaen over HTTPS. Device app discovery stays local; opening an app always requires your confirmation."
+            text = "Wake-word detection runs locally on this phone. After activation, Android speech recognition transcribes your request. Only the recognised text is sent to Kiemaen over HTTPS. Device app discovery stays local; tapping an app opens it immediately. Explicit alarm requests are sent directly to Android Clock when supported."
             textSize = 12f
             setPadding(0, 28, 0, 0)
         })
