@@ -171,14 +171,15 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
                     } ?: matches.firstOrNull {
                         it.loadLabel(packageManager).toString().contains(requested, ignoreCase = true)
                     }
-                    val packageName = match?.activityInfo?.packageName
+                    val resolved = match
                         ?: throw IllegalStateException("I couldn't find an installed app named " + requested + ".")
+                    val packageName = resolved.activityInfo.packageName
                     val launch = packageManager.getLaunchIntentForPackage(packageName)
                         ?: throw IllegalStateException("Android does not provide a launcher for " + requested + ".")
                     launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     startActivity(launch)
                     success = true
-                    detail = "Opened " + match.loadLabel(packageManager) + "."
+                    detail = "Opened " + resolved.loadLabel(packageManager) + "."
                 }
             }
         } catch (e: Exception) {
