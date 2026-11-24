@@ -200,6 +200,10 @@ async def login_verify(response: Response, username: str = Form(...), code: str 
 async def home():
     return FileResponse("web/index.html")
 
+@app.get("/devices")
+async def device_management_page():
+    return FileResponse("web/devices.html")
+
 @app.post("/session/logout")
 async def session_logout(response: Response, session_token: str = Cookie(default=None)):
     delete_session(session_token)
