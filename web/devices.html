@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kiemaen · Paired devices</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#10131a;color:#eef2f8}
+body{margin:0;padding:24px;max-width:760px;margin-inline:auto}
+a{color:#9cc8ff}.muted{color:#aab4c4}.card{background:#1b2230;border:1px solid #344054;border-radius:14px;padding:18px;margin:14px 0}
+button{border:1px solid #9a4b58;background:#40232a;color:#fff;border-radius:9px;padding:10px 14px;font-weight:600}
+button:disabled{opacity:.55}.device{display:flex;gap:14px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+h1{font-size:1.6rem}#message{min-height:1.5em;color:#b9d7ff}
+</style>
+</head>
+<body>
+<p><a href="/">← Back to Kiemaen</a></p>
+<h1>Paired devices</h1>
+<p class="muted">Review phones linked to your account. Revoking a device immediately disables its device token. Device tokens currently permit heartbeat/status only, not phone control.</p>
+<p id="message" role="status">Checking your account…</p>
+<section id="devices"></section>
+<script>
+const message=document.getElementById("message");
+const container=document.getElementById("devices");
+function showMessage(text){message.textContent=text;}
+function formatDate(value){if(!value)return "Never";const d=new Date(value);return Number.isNaN(d.getTime())?value:d.toLocaleString();}
+async function loadDevices(){
+  container.replaceChildren();
+  try{
+    const me=await fetch("/me",{credentials:"same-origin"}).then(r=>r.json());
+    if(!me.username||me.username==="Guest"){showMessage("Sign in to Kiemaen to manage paired devices.");return;}
+    const response=await fetch("/device/list",{credentials:"same-origin"});
+    const data=await response.json();
+    if(!response.ok)throw new Error(data.detail||"Could not load devices.");
+    const devices=data.devices||[];
+    if(!devices.length){showMessage("No paired devices are registered.");return;}
+    showMessage(devices.length+" registered device(s).");
+    for(const item of devices){
+      const card=document.createElement("article");card.className="card";
+      const row=document.createElement("div");row.className="device";
+      const details=document.createElement("div");
+      const name=document.createElement("strong");name.textContent=item.device_name||"Android device";
+      const id=document.createElement("div");id.className="muted";id.textContent="ID: "+item.device_id;
+      const created=document.createElement("div");created.className="muted";created.textContent="Paired: "+formatDate(item.created_at);
+      const seen=document.createElement("div");seen.className="muted";seen.textContent="Last connection: "+formatDate(item.last_seen_at);
+      const state=document.createElement("div");state.className="muted";state.textContent=item.revoked_at?"Revoked: "+formatDate(item.revoked_at):"Status: active";
+      details.append(name,id,created,seen,state);row.append(details);
+      if(!item.revoked_at){
+        const button=document.createElement("button");button.textContent="Revoke device";
+        button.addEventListener("click",()=>revoke(item.device_id,button));row.append(button);
+      }
+      card.append(row);container.append(card);
+    }
+  }catch(error){showMessage(error.message||"Unable to load paired devices.");}
+}
+async function revoke(deviceId,button){
+  if(!window.confirm("Revoke this phone's Kiemaen device access?"))return;
+  button.disabled=true;
+  try{
+    const body=new FormData();body.append("device_id",deviceId);
+    const response=await fetch("/device/revoke",{method:"POST",body,credentials:"same-origin"});
+    const data=await response.json();
+    if(!response.ok)throw new Error(data.detail||"Revocation failed.");
+    showMessage("Device access revoked.");await loadDevices();
+  }catch(error){showMessage(error.message||"Revocation failed.");button.disabled=false;}
+}
+loadDevices();
+</script>
+</body>
+</html>
