@@ -1,0 +1,27 @@
+name: Kiemaen Device Agent Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'main.py'
+      - 'core/device_agent.py'
+      - 'tests/test_device_agent.py'
+      - '.github/workflows/python-device-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  device-agent-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install focused test dependencies
+        run: python -m pip install fastapi sqlalchemy argon2-cffi PyJWT pyotp
+      - name: Test pairing token lifecycle and account isolation
+        run: python -m unittest tests.test_device_agent -v
