@@ -1,39 +1,58 @@
 # Kiemaen Voice for Android
 
-A native Android companion for the Kiemaen AI service.
+A native Android companion for the Kiemaen AI service. The current device-agent foundation is deliberately permission-first: **every app-opening action requires an on-screen confirmation**.
+
+## Current capabilities
 
 - Local wake-word detection using Sherpa-ONNX; no Picovoice account, AccessKey, or paid wake-word service.
 - Built-in wake phrase: **Hey Kiemaen**.
-- Wake-word model and runtime are packaged into the debug APK by the build workflow.
-- After activation, Android SpeechRecognizer transcribes one request; recognised text is sent to Kiemaen over HTTPS.
+- Wake-word model and runtime are packaged into the Android build by CI.
+- After activation, Android SpeechRecognizer transcribes a request; recognised text is sent to Kiemaen over HTTPS.
 - Android TextToSpeech reads the reply aloud and the wake-word detector restarts after the reply.
-- Optional in-app Kiemaen account linking lets the companion reuse the site's HttpOnly session cookie. Without linking, guest chat remains available.
+- Optional in-app Kiemaen account linking reuses the site's signed-in session cookie.
+- Local launcher-app discovery shows apps Android exposes through the launcher intent. The list is not uploaded.
+- Selecting an app opens a confirmation dialog; the app launches only after the user taps **Open**.
 
-## Build
+## Build outputs
+
+The GitHub Actions workflow builds two distribution artifacts:
+
+- **Debug APK** for direct sideload testing.
+- **Release Android App Bundle (AAB)** as a Google Play packaging preview.
+
+The AAB is not yet signed with a release/upload key and is not published to Google Play. Play release signing, store listing, policy declarations and review are separate steps. No signing key or store credential is committed to this repository.
+
+## Build locally
 
 Requires JDK 17, Android SDK 35, and Python 3.11.
 
     cd android-companion
     bash ./prepare-deps.sh
     gradle --no-daemon :app:assembleDebug
+    gradle --no-daemon :app:bundleRelease
 
-The preparation script downloads the official Sherpa-ONNX 2.0.2 Android AAR and the English GigaSpeech keyword-spotting model, verifies the AAR checksum, and generates the custom Hey Kiemaen keyword tokens. These downloaded binaries and model files are intentionally not committed to this repository. GitHub Actions runs the same preparation step and publishes a debug APK artifact named kiemaen-voice-debug-apk.
+The preparation script downloads the official Sherpa-ONNX 2.0.2 Android AAR and the English GigaSpeech keyword-spotting model, verifies the AAR checksum, and generates the custom Hey Kiemaen keyword tokens. Downloaded binaries and model files are intentionally not committed.
 
 ## First-time phone setup
 
 1. Install the APK on the Android phone.
-2. Open Kiemaen Voice and choose Connect Kiemaen Account if you want signed-in tasks and account-scoped access. Complete the normal Kiemaen website login and email-code verification inside the in-app browser, then tap Done.
+2. Open Kiemaen Voice and choose **Connect Kiemaen Account** if signed-in access is wanted.
 3. Grant microphone and notification permissions.
-4. Tap Start Hey Kiemaen Listening while the app is open.
-5. Wait for the notification to say it is listening locally.
-6. Say Hey Kiemaen, pause briefly, then speak your request.
-7. Kiemaen's reply is spoken aloud. Say the wake phrase again for another request.
-8. Use Stop in the app or the persistent notification to stop microphone access.
+4. Tap **Start Hey Kiemaen Listening** while the app is visible.
+5. Say **Hey Kiemaen**, pause briefly, then speak your request.
+6. Use **View and Open Device Apps** to inspect locally available launcher apps. Every app launch requires confirmation.
+7. Use Stop in the app or persistent notification to stop microphone access.
 
 ## Privacy and platform limits
 
-Wake-word matching is performed locally on the phone. The app does not upload continuous microphone audio. After the wake phrase, Android's configured speech-recognition provider receives the active utterance for transcription; the recognised text is then sent to Kiemaen over HTTPS. The local wake detector does not require internet after installation, but the Kiemaen response requires internet.
+Wake-word matching is performed locally. Continuous microphone audio is not uploaded. After the wake phrase, Android's configured speech-recognition provider receives the active utterance for transcription; recognised text is then sent to Kiemaen over HTTPS.
 
-Android and Huawei battery-management policies can stop background microphone services. Start listening from the visible app, keep its foreground notification, and allow background activity/battery use for Kiemaen Voice if you want it to remain available with the screen off. No Android app can promise uninterrupted microphone access if the operating system force-stops it.
+App discovery is restricted to apps Android exposes as launcher activities. It stays on-device and does not request broad package visibility. This avoids requesting the sensitive `QUERY_ALL_PACKAGES` permission. It does not read app-private data, bypass app security, or automate taps inside other apps.
 
-The companion uses Kiemaen's /chat endpoint and can pass the site's signed-in session cookie when linked. Signed-in text conversations are stored in the configured Aiven/PostgreSQL conversation-memory table when the database is connected: the latest 12 messages are supplied as context and up to 200 messages are retained per account. Guest conversations are not stored. Image bytes and extracted document contents are not retained in conversation history. Send CLEAR_MEMORY in chat or by voice to clear your saved conversation history.
+Android and Huawei battery-management policies can stop background microphone services. Start listening from the visible app, keep its foreground notification, and allow background activity/battery use for Kiemaen Voice if desired. Android may stop microphone access if the app is force-stopped.
+
+## Device-agent rollout boundary
+
+This is the first local capability only. Remote command delivery, notification reading, screen capture, and in-app workflows are **not enabled**. They require separate permission screens, an authenticated paired-device protocol, visible action previews, and explicit approval for every action. The selected autonomy setting is **confirm every phone action**; future features must preserve that rule.
+
+No phone installation or on-device test has been performed as part of this repository change.
