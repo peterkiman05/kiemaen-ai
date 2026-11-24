@@ -32,10 +32,10 @@ object DeviceTokenStore {
         return generator.generateKey()
     }
 
-    fun save(activity: android.content.Context, token: String, deviceId: String) {
+    fun save(activity: android.content.Context, token: String, commandToken: String, deviceId: String) {
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.ENCRYPT_MODE, key())
-        val encrypted = cipher.doFinal(token.toByteArray(Charsets.UTF_8))
+        val encrypted = cipher.doFinal("$token\n$commandToken".toByteArray(Charsets.UTF_8))
         activity.getSharedPreferences(PREFS, 0).edit()
             .putString("token", Base64.encodeToString(encrypted, Base64.NO_WRAP))
             .putString("iv", Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
@@ -43,7 +43,7 @@ object DeviceTokenStore {
             .apply()
     }
 
-    fun token(activity: android.content.Context): String? {
+    private fun credentials(activity: android.content.Context): List<String>? {
         val prefs = activity.getSharedPreferences(PREFS, 0)
         val encrypted = prefs.getString("token", null) ?: return null
         val iv = prefs.getString("iv", null) ?: return null
@@ -55,11 +55,17 @@ object DeviceTokenStore {
                 GCMParameterSpec(128, Base64.decode(iv, Base64.NO_WRAP))
             )
             String(cipher.doFinal(Base64.decode(encrypted, Base64.NO_WRAP)), Charsets.UTF_8)
+                .split("\\n")
+                .takeIf { it.size == 2 && it.all(String::isNotBlank) }
         } catch (_: Exception) {
             clear(activity)
             null
         }
     }
+
+    fun token(activity: android.content.Context): String? = credentials(activity)?.get(0)
+
+    fun commandToken(activity: android.content.Context): String? = credentials(activity)?.get(1)
 
     fun deviceId(activity: android.content.Context): String? =
         activity.getSharedPreferences(PREFS, 0).getString("device_id", null)
