@@ -55,7 +55,7 @@ object DeviceTokenStore {
                 GCMParameterSpec(128, Base64.decode(iv, Base64.NO_WRAP))
             )
             String(cipher.doFinal(Base64.decode(encrypted, Base64.NO_WRAP)), Charsets.UTF_8)
-                .split("\\n")
+                .split("\n")
                 .takeIf { it.size == 2 && it.all(String::isNotBlank) }
         } catch (_: Exception) {
             clear(activity)
