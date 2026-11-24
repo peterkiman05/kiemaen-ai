@@ -24,4 +24,4 @@ jobs:
       - name: Install focused test dependencies
         run: python -m pip install fastapi sqlalchemy argon2-cffi PyJWT pyotp
       - name: Test pairing token lifecycle and account isolation
-        run: python -m unittest tests.test_device_agent -v
+        run: python -m unittest discover -s tests -p 'test_device_agent.py' -v
