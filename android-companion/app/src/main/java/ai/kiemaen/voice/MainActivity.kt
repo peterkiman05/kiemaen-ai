@@ -54,6 +54,12 @@ class MainActivity : Activity() {
                 startActivity(Intent(this@MainActivity, AccountActivity::class.java))
             }
         })
+        root.addView(Button(this).apply {
+            text = "VIEW AND OPEN DEVICE APPS"
+            setOnClickListener {
+                startActivity(Intent(this@MainActivity, DeviceAppsActivity::class.java))
+            }
+        })
 
         status = TextView(this).apply {
             text = "Not listening."
@@ -82,7 +88,7 @@ class MainActivity : Activity() {
             }
         })
         root.addView(TextView(this).apply {
-            text = "Wake-word detection runs locally on this phone. After activation, Android speech recognition transcribes your request. Only the recognised text is sent to Kiemaen over HTTPS. Connect your account above to use your signed-in Kiemaen session; otherwise requests use guest access."
+            text = "Wake-word detection runs locally on this phone. After activation, Android speech recognition transcribes your request. Only the recognised text is sent to Kiemaen over HTTPS. Device app discovery stays local; opening an app always requires your confirmation."
             textSize = 12f
             setPadding(0, 28, 0, 0)
         })
