@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.webkit.CookieManager
 import android.widget.Button
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -31,20 +32,37 @@ class MainActivity : Activity() {
     private fun buildScreen() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(32, 40, 32, 32)
+            gravity = android.view.Gravity.CENTER_HORIZONTAL
+            setPadding(32, 28, 32, 32)
+            setBackgroundColor(android.graphics.Color.rgb(8, 17, 31))
         }
-        root.addView(TextView(this).apply {
-            text = "KIEMAEN VOICE"
-            textSize = 26f
+        root.addView(ImageView(this).apply {
+            setImageResource(R.drawable.ic_kiemaen_clover)
+            contentDescription = "Kiemaen AI clover logo"
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            val size = (112 * resources.displayMetrics.density).toInt()
+            layoutParams = LinearLayout.LayoutParams(size, size).apply {
+                bottomMargin = (10 * resources.displayMetrics.density).toInt()
+            }
         })
         root.addView(TextView(this).apply {
-            text = "Say “Hey Kiemaen” to wake your assistant."
-            textSize = 15f
-            setPadding(0, 12, 0, 24)
+            text = "KIEMAEN AI"
+            textSize = 27f
+            letterSpacing = 0.08f
+            setTextColor(android.graphics.Color.WHITE)
+            gravity = android.view.Gravity.CENTER
+        })
+        root.addView(TextView(this).apply {
+            text = "Your personal autonomous assistant"
+            textSize = 14f
+            setTextColor(android.graphics.Color.rgb(138, 180, 248))
+            gravity = android.view.Gravity.CENTER
+            setPadding(0, 8, 0, 24)
         })
 
         accountStatus = TextView(this).apply {
             textSize = 14f
+            setTextColor(android.graphics.Color.WHITE)
             setPadding(0, 8, 0, 8)
         }
         root.addView(accountStatus)
