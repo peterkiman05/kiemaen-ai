@@ -24,7 +24,7 @@ class DeviceAppsActivity : Activity() {
             textSize = 24f
         })
         root.addView(TextView(this).apply {
-            text = "Apps are discovered locally on this phone. Choose an app, review the confirmation, then approve or cancel. The installed-app list stays on your device."
+            text = "Apps are discovered locally on this phone. Tap an app to open it immediately. The installed-app list stays on your device."
             textSize = 14f
             setPadding(0, 12, 0, 20)
         })
@@ -55,29 +55,22 @@ class DeviceAppsActivity : Activity() {
                 gravity = Gravity.CENTER_VERTICAL
                 minHeight = 56
                 setPadding(12, 8, 12, 8)
-                setOnClickListener { confirmOpen(label, info.activityInfo.packageName) }
+                setOnClickListener { openApp(label, info.activityInfo.packageName) }
             }
             list.addView(row)
         }
     }
 
-    private fun confirmOpen(label: String, packageName: String) {
-        AlertDialog.Builder(this)
-            .setTitle("Open $label?")
-            .setMessage("Kiemaen will open this app on your phone. No other action will be taken.")
-            .setNegativeButton("Cancel", null)
-            .setPositiveButton("Open") { _, _ ->
-                val launch = packageManager.getLaunchIntentForPackage(packageName)
-                if (launch == null) {
-                    Toast.makeText(this, "This app cannot be opened from its launcher entry.", Toast.LENGTH_SHORT).show()
-                } else {
-                    try {
-                        startActivity(launch)
-                    } catch (_: Exception) {
-                        Toast.makeText(this, "Android could not open $label.", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            }
-            .show()
+    private fun openApp(label: String, packageName: String) {
+        val launch = packageManager.getLaunchIntentForPackage(packageName)
+        if (launch == null) {
+            Toast.makeText(this, "This app cannot be opened from its launcher entry.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        try {
+            startActivity(launch)
+        } catch (_: Exception) {
+            Toast.makeText(this, "Android could not open $label.", Toast.LENGTH_SHORT).show()
+        }
     }
 }
